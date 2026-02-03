@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "createdAt": "2026-02-03T12:24:26.2723659+00:00",
+  "updatedAt": "2026-02-03T12:24:26.2781134+00:00",
+  "description": "Initial baseline created by 'slopwatch init' on 2026-02-03 12:24:26 UTC",
+  "entries": [
+    {
+      "hash": "4ddce4c941f19fdf",
+      "ruleId": "SW004",
+      "filePath": "WebSocket.Rx.Tests/AsyncLockTests.cs",
+      "lineNumber": 87,
+      "codeSnippet": "Task.Delay(50)",
+      "message": "Test uses Task.Delay(50) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-03T12:24:26.2776943+00:00"
+    },
+    {
+      "hash": "b72c8a6219eac973",
+      "ruleId": "SW004",
+      "filePath": "WebSocket.Rx.Tests/ReactiveWebSocketClientEdgeCaseTests.cs",
+      "lineNumber": 29,
+      "codeSnippet": "Task.Delay(50)",
+      "message": "Test uses Task.Delay(50) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-03T12:24:26.2779554+00:00"
+    },
+    {
+      "hash": "9f082e56b1ec8984",
+      "ruleId": "SW004",
+      "filePath": "WebSocket.Rx.Tests/ReactiveWebSocketClientEdgeCaseTests.cs",
+      "lineNumber": 333,
+      "codeSnippet": "Task.Delay(10)",
+      "message": "Test uses Task.Delay(10) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-03T12:24:26.2780588+00:00"
+    },
+    {
+      "hash": "562ac9aa0e5fd5c1",
+      "ruleId": "SW004",
+      "filePath": "WebSocket.Rx.Tests/ReactiveWebSocketClientTests.cs",
+      "lineNumber": 72,
+      "codeSnippet": "Task.Delay(50)",
+      "message": "Test uses Task.Delay(50) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-03T12:24:26.2781073+00:00"
+    }
+  ]
+}
