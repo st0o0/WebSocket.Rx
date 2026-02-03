@@ -58,7 +58,7 @@ public interface IReactiveWebSocketClient : IDisposable
 
     Task StartOrFail();
 
-    Task<bool> Stop(WebSocketCloseStatus status, string statusDescription);
+    Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription);
 
     Task<bool> StopOrFail(WebSocketCloseStatus status, string statusDescription);
 
