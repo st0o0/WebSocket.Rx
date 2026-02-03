@@ -1,0 +1,187 @@
+name: Build and Release NuGet Package
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  GLOBAL_JSON_PATH: './src/global.json'
+  PROJECT_PATH: './src/WebSocket.Rx.sln'
+  PACKAGE_OUTPUT_DIRECTORY: './packages'
+  TEST_OUTPUT_DIRECTORY: './testresults'
+
+permissions:
+  contents: write
+  deployments: write
+
+jobs:
+  build:
+    permissions:
+      contents: read
+    # For a list of available runner types, refer to
+    # https://help.github.com/en/actions/reference/workflow-syntax-for-github-actions#jobsjob_idruns-on
+    runs-on: ubuntu-latest
+    outputs:
+      nugetVersion: ${{ steps.gitversion.outputs.majorMinorPatch }}
+      fullSemVer: ${{ steps.gitversion.outputs.fullSemVer }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      
+      # Install the .NET Core workload
+      - name: Install .NET Core
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: ${{ env.GLOBAL_JSON_PATH }}
+
+      - name: Restore tools
+        run: dotnet tool restore
+
+      - name: Run Slopwatch
+        run: dotnet tool run slopwatch analyze --fail-on error
+
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@v1.1.1
+        with:
+          versionSpec: '5.x'
+
+      - name: Determine Version
+        uses: gittools/actions/gitversion/execute@v1.1.1
+        id: gitversion
+
+      - name: Display GitVersion outputs
+        run: |
+          echo "Nuget Version: ${{ steps.gitversion.outputs.majorMinorPatch }}"
+          echo "Full Version: ${{ steps.gitversion.outputs.fullSemVer }}"
+
+      - name: Generate Release Notes for nuget
+        id: plain-notes
+        env:
+          VERSION: ${{ steps.gitversion.outputs.majorMinorPatch }}
+        run: |
+          cat > notes.md << EOF
+          🎯 WebSocket.Rx v$VERSION
+
+          📦 NuGet: https://nuget.org/packages/WebSocket.Rx
+          🔗 Release: https://github.com/st0o0/WebSocket.Rx/releases/v$VERSION
+
+          See release page for full changelog and details!
+
+          Built with ❤️
+          EOF
+          sed -i "s|v\$VERSION|v$VERSION|g" notes.md
+          echo "release-notes<<EOF" >> $GITHUB_OUTPUT
+          cat notes.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.PROJECT_PATH }}
+
+      - name: Build
+        run: >
+          dotnet build
+          --configuration Release
+          --no-restore
+          ${{ env.PROJECT_PATH }} 
+          /p:Version=${{ steps.gitversion.outputs.fullSemVer }}
+          /p:ContinuousIntegrationBuild=true
+
+      - name: Run tests
+        run: >
+          dotnet test 
+          --configuration Release 
+          --no-build 
+          --collect:"XPlat Code Coverage;Format=opencover" 
+          --logger trx 
+          --results-directory ${{ env.TEST_OUTPUT_DIRECTORY }} 
+          --verbosity normal 
+          ${{ env.PROJECT_PATH }} 
+
+      - name: Create NuGet package
+        run: >
+          dotnet pack
+          --configuration Release
+          --no-build 
+          --output ${{ env.PACKAGE_OUTPUT_DIRECTORY }}
+          ${{ env.PROJECT_PATH }} 
+          /p:PackageVersion=${{ steps.gitversion.outputs.fullSemVer }}
+          /p:PackageReleaseNotes="${{ steps.plain-notes.outputs.release-notes }}"
+
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: nuget-packages
+          path: ${{ env.PACKAGE_OUTPUT_DIRECTORY }}/*.nupkg
+
+  publish:
+    permissions:
+      contents: write
+      deployments: write
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: nuget
+      url: https://www.nuget.org/packages/WebSocket.Rx
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Download package artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: nuget-packages
+          path: ${{ env.PACKAGE_OUTPUT_DIRECTORY }}
+
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: ${{ env.GLOBAL_JSON_PATH }}
+
+      - name: Publish to NuGet
+        run: |
+          dotnet nuget push --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate ${{ env.PACKAGE_OUTPUT_DIRECTORY }}/*.nupkg
+
+      - name: Generate Release Notes
+        id: notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.nugetVersion }}
+        run: |
+          cat > notes.md << EOF
+          # 🎯 WebSocket.Rx v$VERSION
+          
+          [![NuGet](https://img.shields.io/nuget/v/WebSocket.Rx?logo=nuget)](https://nuget.org/packages/WebSocket.Rx)
+          [![GitHub](https://img.shields.io/github/last-commit/st0o0/WebSocket.Rx/main?logo=github)](https://github.com/st0o0/WebSocket.Rx)
+          
+          🚀 Auto-generated from ${{ github.ref_name }}
+          ---
+          EOF
+          
+          gh api repos/${{ github.repository }}/releases/generate-notes \
+          -f tag_name="v\$VERSION" \
+          --jq .body >> notes.md || echo "## 📋 Changes\nNo changelog available" >> notes.md
+          
+          sed -i "s|v\$VERSION|v$VERSION|g" notes.md
+          echo "Built with ❤️" >> notes.md
+          echo "release-notes<<EOF" >> $GITHUB_OUTPUT
+          cat notes.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          - name: Create & Publish Release
+            uses: softprops/action-gh-release@v2
+            with:
+              tag_name: "v${{ needs.build.outputs.nugetVersion }}"
+              target_commitish: ${{ github.sha }}
+              name: "Signal.Bot v${{ needs.build.outputs.nugetVersion }}"
+              body: ${{ steps.notes.outputs.release-notes }}
+              draft: false
+              prerelease: false
+              make_latest: true
+              files: ${{ env.PACKAGE_OUTPUT_DIRECTORY }}/*.nupkg
