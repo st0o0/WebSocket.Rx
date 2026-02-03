@@ -129,7 +129,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
             .ToTask();
 
         // Act
-        var result = await _client.Stop(WebSocketCloseStatus.NormalClosure, "Test stop");
+        var result = await _client.StopAsync(WebSocketCloseStatus.NormalClosure, "Test stop");
         await Task.Delay(50);
 
         // Assert
@@ -147,7 +147,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
 
         // Act
-        var result = await _client.Stop(WebSocketCloseStatus.NormalClosure, "Test");
+        var result = await _client.StopAsync(WebSocketCloseStatus.NormalClosure, "Test");
 
         // Assert
         Assert.False(result);

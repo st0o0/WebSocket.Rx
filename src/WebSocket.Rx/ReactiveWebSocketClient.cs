@@ -33,8 +33,8 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
     public TimeSpan InactivityTimeout { get; set; } = TimeSpan.FromSeconds(30);
     public bool IsReconnectionEnabled { get; set; } = true;
     public string? Name { get; set; }
-    public bool IsStarted { get; private set; }
-    public bool IsRunning { get; private set; }
+    public bool IsStarted { get; internal set; }
+    public bool IsRunning { get; internal set; }
     public bool SenderRunning => _sendLoopTask!.Status is TaskStatus.Running or TaskStatus.WaitingForActivation;
     public bool IsInsideLock => _connectionLock.IsLocked;
     public bool IsTextMessageConversionEnabled { get; set; }
@@ -80,7 +80,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
         }
     }
 
-    public async Task<bool> Stop(WebSocketCloseStatus status, string statusDescription)
+    public async Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription)
     {
         try
         {
@@ -283,7 +283,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
     #region Heartbeat Monitor
 
-    private async Task HeartbeatMonitorAsync(CancellationToken cancellationToken)
+    protected async Task HeartbeatMonitorAsync(CancellationToken cancellationToken)
     {
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
 
@@ -549,7 +549,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
         _isDisposing = true;
 
-        _ = Stop(WebSocketCloseStatus.NormalClosure, "Client disposing");
+        _ = StopAsync(WebSocketCloseStatus.NormalClosure, "Client disposing");
 
         _reconnectCts?.Cancel();
         _reconnectCts?.Dispose();
@@ -566,5 +566,5 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
     #endregion
 
-    private sealed record Payload(byte[] Content, WebSocketMessageType Type);
+    internal sealed record Payload(byte[] Content, WebSocketMessageType Type);
 }

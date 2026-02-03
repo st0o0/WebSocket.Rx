@@ -399,7 +399,7 @@ public class ReactiveWebSocketClientEdgeCaseTests
         {
             await client.StartOrFail();
             await Task.Delay(50);
-            await client.Stop(WebSocketCloseStatus.NormalClosure, "Rapid test");
+            await client.StopAsync(WebSocketCloseStatus.NormalClosure, "Rapid test");
             await Task.Delay(50);
         }
 

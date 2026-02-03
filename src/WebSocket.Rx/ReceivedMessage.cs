@@ -4,19 +4,17 @@ namespace WebSocket.Rx;
 
 public class ReceivedMessage
 {
-    private readonly byte[]? _binary;
-
     private ReceivedMessage(MemoryStream? memoryStream, byte[]? binary, string? text, WebSocketMessageType messageType)
     {
         Stream = memoryStream;
-        _binary = binary;
+        Binary = binary;
         Text = text;
         MessageType = messageType;
     }
 
     public string? Text { get; }
 
-    public byte[]? Binary => Stream is null ? _binary : Stream.ToArray();
+    public byte[]? Binary => Stream is null ? field : Stream.ToArray();
 
     public MemoryStream? Stream { get; }
 
@@ -30,6 +28,11 @@ public class ReceivedMessage
         }
 
         return $"Type binary, length: {Binary?.Length}";
+    }
+
+    public static ReceivedMessage Empty()
+    {
+        return new ReceivedMessage(null, null, null, WebSocketMessageType.Close);
     }
 
     public static ReceivedMessage TextMessage(string? data)
