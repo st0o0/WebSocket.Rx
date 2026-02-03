@@ -25,11 +25,11 @@ public class ReactiveWebSocketClientEdgeCaseTests
         var receivedMessage = "";
         server.OnBytesReceived += msg => receivedMessage = Encoding.ASCII.GetString(msg);
 
-        await client.StartOrFail();
+        await client.StartOrFailAsync();
         await Task.Delay(50);
 
         // Act
-        client.Send("ASCII Text");
+        client.TrySendAsBinary("ASCII Text");
         await Task.Delay(50);
 
         // Assert
@@ -49,7 +49,7 @@ public class ReactiveWebSocketClientEdgeCaseTests
         string? receivedText = null;
         client.MessageReceived.Subscribe(msg => receivedText = msg.Text);
 
-        await client.StartOrFail();
+        await client.StartOrFailAsync();
         await Task.Delay(50);
 
         // Act
@@ -78,7 +78,7 @@ public class ReactiveWebSocketClientEdgeCaseTests
             receivedBinary = msg.Binary;
         });
 
-        await client.StartOrFail();
+        await client.StartOrFailAsync();
         await Task.Delay(50);
 
         // Act
@@ -102,10 +102,10 @@ public class ReactiveWebSocketClientEdgeCaseTests
         await server.StartAsync();
 
         using var client = new ReactiveWebSocketClient(new Uri(server.WebSocketUrl));
-        await client.StartOrFail();
+        await client.StartOrFailAsync();
 
         // Act
-        var result = client.Send([]);
+        var result = client.TrySendAsBinary([]);
 
         // Assert
         Assert.False(result);
@@ -119,10 +119,10 @@ public class ReactiveWebSocketClientEdgeCaseTests
         await server.StartAsync();
 
         using var client = new ReactiveWebSocketClient(new Uri(server.WebSocketUrl));
-        await client.StartOrFail();
+        await client.StartOrFailAsync();
 
         // Act
-        var result = client.SendAsText(Array.Empty<byte>());
+        var result = client.TrySendAsText(Array.Empty<byte>());
 
         // Assert
         Assert.False(result);
@@ -135,8 +135,9 @@ public class ReactiveWebSocketClientEdgeCaseTests
         using var client = new ReactiveWebSocketClient(new Uri(InvalidUrl));
 
         // Act & Assert - Should not throw
-        await client.SendInstant("test");
-        await client.SendInstant([1, 2, 3]);
+        await client.SendInstantAsync("test");
+        await client.SendInstantAsync([1, 2, 3]);
+        Assert.True(true);
     }
 
     [Fact(Timeout = 5000)]
@@ -154,7 +155,7 @@ public class ReactiveWebSocketClientEdgeCaseTests
         });
 
         // Act
-        await client.Start();
+        await client.StartAsync();
         await Task.Delay(50);
 
         // Assert
@@ -169,13 +170,13 @@ public class ReactiveWebSocketClientEdgeCaseTests
         await server.StartAsync();
 
         using var client = new ReactiveWebSocketClient(new Uri(server.WebSocketUrl));
-        await client.StartOrFail();
+        await client.StartOrFailAsync();
 
         // Act
         var tasks = new Task[10];
         for (var i = 0; i < 10; i++)
         {
-            tasks[i] = Task.Run(async () => await client.Reconnect());
+            tasks[i] = Task.Run(async () => await client.ReconnectAsync());
         }
 
         await Task.WhenAll(tasks);
@@ -201,7 +202,7 @@ public class ReactiveWebSocketClientEdgeCaseTests
         client.ConnectionHappened.Subscribe(_ => reconnectAttempts++);
 
         // Act
-        await client.Start();
+        await client.StartAsync();
 
         // Assert
         Assert.True(reconnectAttempts >= 0);
@@ -223,7 +224,7 @@ public class ReactiveWebSocketClientEdgeCaseTests
             .Take(1)
             .ToTask();
 
-        await client.StartOrFail();
+        await client.StartOrFailAsync();
 
         // Act
         await server.DisconnectAllAsync();
@@ -253,7 +254,7 @@ public class ReactiveWebSocketClientEdgeCaseTests
         client.ConnectionHappened.Subscribe(_ => subscriber2Notified = true);
 
         // Act
-        await client.StartOrFail();
+        await client.StartOrFailAsync();
 
         // Assert
         Assert.True(subscriber1Notified);
@@ -271,7 +272,7 @@ public class ReactiveWebSocketClientEdgeCaseTests
         client.DisconnectionHappened.Subscribe(d => capturedException = d.Exception);
 
         // Act
-        await client.Start();
+        await client.StartAsync();
         await Task.Delay(50);
 
         // Assert
@@ -295,7 +296,7 @@ public class ReactiveWebSocketClientEdgeCaseTests
                 receivedMessages.Add(msg.Text);
         });
 
-        await client.StartOrFail();
+        await client.StartOrFailAsync();
         await Task.Delay(50);
 
         // Act
@@ -325,10 +326,10 @@ public class ReactiveWebSocketClientEdgeCaseTests
         await server.StartAsync();
 
         using var client = new ReactiveWebSocketClient(new Uri(server.WebSocketUrl));
-        await client.StartOrFail();
+        await client.StartOrFailAsync();
 
         // Act
-        var reconnectTask = Task.Run(async () => { await client.Reconnect(); });
+        var reconnectTask = Task.Run(async () => { await client.ReconnectAsync(); });
 
         await Task.Delay(10);
         await reconnectTask;
@@ -345,7 +346,7 @@ public class ReactiveWebSocketClientEdgeCaseTests
         await server.StartAsync();
 
         var client = new ReactiveWebSocketClient(new Uri(server.WebSocketUrl));
-        await client.StartOrFail();
+        await client.StartOrFailAsync();
         await Task.Delay(50);
 
         // Act
@@ -373,7 +374,7 @@ public class ReactiveWebSocketClientEdgeCaseTests
         string? receivedMessage = null;
         client.MessageReceived.Subscribe(msg => receivedMessage = msg.Text);
 
-        await client.StartOrFail();
+        await client.StartOrFailAsync();
         await Task.Delay(50);
 
         // Act
@@ -397,7 +398,7 @@ public class ReactiveWebSocketClientEdgeCaseTests
         // Act
         for (var i = 0; i < 5; i++)
         {
-            await client.StartOrFail();
+            await client.StartOrFailAsync();
             await Task.Delay(50);
             await client.StopAsync(WebSocketCloseStatus.NormalClosure, "Rapid test");
             await Task.Delay(50);
@@ -418,7 +419,7 @@ public class ReactiveWebSocketClientEdgeCaseTests
         using var client = new ReactiveWebSocketClient(new Uri(InvalidUrl));
 
         // Act
-        var result = client.Send((string)null!);
+        var result = client.TrySendAsText((string)null!);
 
         // Assert
         Assert.False(result);
@@ -432,10 +433,10 @@ public class ReactiveWebSocketClientEdgeCaseTests
         await server.StartAsync();
 
         using var client = new ReactiveWebSocketClient(new Uri(server.WebSocketUrl));
-        await client.StartOrFail();
+        await client.StartOrFailAsync();
 
         // Act & Assert
-        await client.SendInstant((string)null!);
+        await client.SendInstantAsync((string)null!);
     }
 
     #endregion

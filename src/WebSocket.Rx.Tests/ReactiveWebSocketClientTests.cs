@@ -1,5 +1,4 @@
-﻿using System.Buffers;
-using System.Net.WebSockets;
+﻿using System.Net.WebSockets;
 using System.Reactive.Linq;
 using System.Reactive.Threading.Tasks;
 using System.Text;
@@ -64,7 +63,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         _client.ConnectionHappened.Subscribe(c => connected = true);
 
         // Act
-        await _client.StartOrFail();
+        await _client.StartOrFailAsync();
 
         // Assert
         Assert.True(_client.IsStarted);
@@ -78,12 +77,12 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
     {
         // Arrange
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
-        await _client.StartOrFail();
+        await _client.StartOrFailAsync();
         var connectionCount = 0;
         _client.ConnectionHappened.Subscribe(_ => connectionCount++);
 
         // Act
-        await _client.StartOrFail();
+        await _client.StartOrFailAsync();
         await Task.Delay(50);
 
         // Assert
@@ -99,7 +98,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         _client.DisconnectionHappened.Subscribe(d => disconnected = true);
 
         // Act
-        await _client.Start();
+        await _client.StartAsync();
         await Task.Delay(50);
 
         // Assert
@@ -114,7 +113,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         _client.ConnectTimeout = TimeSpan.FromMilliseconds(500);
 
         // Act & Assert
-        await Assert.ThrowsAnyAsync<Exception>(() => _client.StartOrFail());
+        await Assert.ThrowsAnyAsync<Exception>(() => _client.StartOrFailAsync());
     }
 
     [Fact(Timeout = 5000)]
@@ -122,7 +121,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
     {
         // Arrange
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
-        await _client.StartOrFail();
+        await _client.StartOrFailAsync();
         var disconnected = _client.DisconnectionHappened
             .Where(x => x.Reason is DisconnectReason.ClientInitiated)
             .Take(1)
@@ -158,10 +157,10 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
     {
         // Arrange
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
-        await _client.StartOrFail();
+        await _client.StartOrFailAsync();
 
         // Act
-        var result = await _client.StopOrFail(WebSocketCloseStatus.NormalClosure, "Test");
+        var result = await _client.StopOrFailAsync(WebSocketCloseStatus.NormalClosure, "Test");
 
         // Assert
         Assert.True(result);
@@ -177,14 +176,14 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
     {
         // Arrange
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
-        await _client.StartOrFail();
+        await _client.StartOrFailAsync();
         await Task.Delay(50);
 
         var receivedMessage = "";
         _server.OnMessageReceived += msg => receivedMessage = msg;
 
         // Act
-        var result = _client.SendAsText("Hello World");
+        var result = _client.TrySendAsText("Hello World");
         await Task.Delay(50);
 
         // Assert
@@ -198,7 +197,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
     {
         // Arrange
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
-        await _client.StartOrFail();
+        await _client.StartOrFailAsync();
         await Task.Delay(50);
 
         var receivedBytes = Array.Empty<byte>();
@@ -207,7 +206,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         var testData = new byte[] { 1, 2, 3, 4, 5 };
 
         // Act
-        var result = _client.Send(testData);
+        var result = _client.TrySendAsBinary(testData);
         await Task.Delay(50);
 
         // Assert
@@ -222,7 +221,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
 
         // Act
-        var result = _client.Send("test");
+        var result = _client.TrySendAsText("test");
 
         // Assert
         Assert.False(result);
@@ -233,59 +232,35 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
     {
         // Arrange
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
-        await _client.StartOrFail();
+        await _client.StartOrFailAsync();
 
         // Act
-        var result = _client.Send("");
+        var result = _client.TrySendAsText("");
 
         // Assert
         Assert.False(result);
     }
 
     [Fact(Timeout = 5000)]
-    public async Task Send_ArraySegment_WhenConnected_ShouldSendMessage()
+    public async Task Send_ByteArray2_WhenConnected_ShouldSendMessage()
     {
         // Arrange
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
-        await _client.StartOrFail();
+        await _client.StartOrFailAsync();
         await Task.Delay(50);
 
         var receivedBytes = Array.Empty<byte>();
         _server.OnBytesReceived += bytes => receivedBytes = bytes;
 
         var testData = new byte[] { 10, 20, 30, 40, 50 };
-        var segment = new ArraySegment<byte>(testData, 1, 3);
 
         // Act
-        var result = _client.Send(segment);
+        var result = _client.TrySendAsBinary(testData);
         await Task.Delay(50);
 
         // Assert
         Assert.True(result);
-        Assert.Equal(new byte[] { 20, 30, 40 }, receivedBytes);
-    }
-
-    [Fact(Timeout = 5000)]
-    public async Task Send_ReadOnlySequence_WhenConnected_ShouldSendMessage()
-    {
-        // Arrange
-        _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
-        await _client.StartOrFail();
-        await Task.Delay(50);
-
-        var receivedBytes = Array.Empty<byte>();
-        _server.OnBytesReceived += bytes => receivedBytes = bytes;
-
-        var testData = "def"u8.ToArray();
-        var sequence = new ReadOnlySequence<byte>(testData);
-
-        // Act
-        var result = _client.Send(sequence);
-        await Task.Delay(50);
-
-        // Assert
-        Assert.True(result);
-        Assert.Equal(testData, receivedBytes);
+        Assert.Equal(new byte[] { 10, 20, 30, 40, 50 }, receivedBytes);
     }
 
     [Fact(Timeout = 5000)]
@@ -293,7 +268,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
     {
         // Arrange
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
-        await _client.StartOrFail();
+        await _client.StartOrFailAsync();
         await Task.Delay(50);
 
         var receivedText = "";
@@ -302,7 +277,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         var testData = "TextMessage"u8.ToArray();
 
         // Act
-        var result = _client.SendAsText(testData);
+        var result = _client.TrySendAsText(testData);
         await Task.Delay(50);
 
         // Assert
@@ -315,14 +290,14 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
     {
         // Arrange
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
-        await _client.StartOrFail();
+        await _client.StartOrFailAsync();
         await Task.Delay(50);
 
         var receivedMessage = "";
         _server.OnBytesReceived += msg => receivedMessage = Encoding.UTF8.GetString(msg);
 
         // Act
-        await _client.SendInstant("Instant");
+        await _client.SendInstantAsync("Instant");
         await Task.Delay(50);
 
         // Assert
@@ -334,10 +309,10 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
     {
         // Arrange
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
-        await _client.StartOrFail();
+        await _client.StartOrFailAsync();
 
         // Act & Assert
-        await _client.SendInstant("");
+        await _client.SendInstantAsync("");
     }
 
     #endregion
@@ -354,7 +329,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         var receivedMessage = "";
         _client.MessageReceived.Subscribe(msg => receivedMessage = msg.Text ?? "");
 
-        await _client.StartOrFail();
+        await _client.StartOrFailAsync();
         await Task.Delay(50);
 
         // Act
@@ -375,7 +350,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         byte[]? receivedBytes = null;
         _client.MessageReceived.Subscribe(msg => receivedBytes = msg.Binary);
 
-        await _client.StartOrFail();
+        await _client.StartOrFailAsync();
         await Task.Delay(50);
 
         var testData = new byte[] { 1, 2, 3 };
@@ -416,7 +391,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
     {
         // Arrange
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
-        await _client.StartOrFail();
+        await _client.StartOrFailAsync();
 
         var reconnected = false;
         _client.ConnectionHappened
@@ -424,7 +399,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
             .Subscribe(_ => reconnected = true);
 
         // Act
-        await _client.Reconnect();
+        await _client.ReconnectAsync();
         await Task.Delay(50);
 
         // Assert
@@ -441,7 +416,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         _client.ConnectionHappened.Subscribe(_ => connectionCount++);
 
         // Act
-        await _client.Reconnect();
+        await _client.ReconnectAsync();
         await Task.Delay(50);
 
         // Assert
@@ -455,7 +430,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
 
         // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _client.ReconnectOrFail());
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _client.ReconnectOrFailAsync());
     }
 
     [Fact(Timeout = 5000)]
@@ -463,7 +438,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
     {
         // Arrange
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
-        await _client.StartOrFail();
+        await _client.StartOrFailAsync();
 
         var reconnected = false;
         _client.ConnectionHappened
@@ -471,7 +446,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
             .Subscribe(_ => reconnected = true);
 
         // Act
-        await _client.ReconnectOrFail();
+        await _client.ReconnectOrFailAsync();
         await Task.Delay(50);
 
         // Assert
@@ -491,7 +466,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
             .Where(c => c.Reason == ConnectReason.Reconnect)
             .Subscribe(_ => reconnected = true);
 
-        await _client.StartOrFail();
+        await _client.StartOrFailAsync();
         await Task.Delay(50);
 
         // Act
@@ -514,7 +489,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
             .Where(c => c.Reason == ConnectReason.Reconnect)
             .Subscribe(_ => reconnectCount++);
 
-        await _client.StartOrFail();
+        await _client.StartOrFailAsync();
         await Task.Delay(50);
 
         // Act
@@ -542,7 +517,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
             .Take(1)
             .ToTask();
 
-        await _client.StartOrFail();
+        await _client.StartOrFailAsync();
 
         // Act
         await Task.Delay(50);
@@ -564,7 +539,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
             .Where(d => d.Reason == DisconnectReason.Timeout)
             .Subscribe(_ => timedOut = true);
 
-        await _client.StartOrFail();
+        await _client.StartOrFailAsync();
         await Task.Delay(50);
 
         // Act
@@ -615,7 +590,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
 
         // Act
-        await _client.StartOrFail();
+        await _client.StartOrFailAsync();
 
         // Assert
         Assert.NotNull(_client.NativeClient);
@@ -629,7 +604,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
 
         // Act
-        await _client.StartOrFail();
+        await _client.StartOrFailAsync();
         await Task.Delay(50);
 
         // Assert
@@ -645,7 +620,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
     {
         // Arrange
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
-        await _client.StartOrFail();
+        await _client.StartOrFailAsync();
 
         // Act
         _client.Dispose();
@@ -706,16 +681,16 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         });
 
         // Act - Connect
-        await _client.StartOrFail();
+        await _client.StartOrFailAsync();
 
         // Act - Send
-        _client.Send("Message 1");
-        _client.Send("Message 2");
+        _client.TrySendAsText("Message 1");
+        _client.TrySendAsText("Message 2");
 
         // Act
         await _server.SendToAllAsync("Server Response");
         await connectionTcs.Task;
-        await _client.StopOrFail(WebSocketCloseStatus.NormalClosure, "Done");
+        await _client.StopOrFailAsync(WebSocketCloseStatus.NormalClosure, "Done");
 
         // Assert
         Assert.Contains("Server Response", receivedMessages);
@@ -727,7 +702,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
     {
         // Arrange
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
-        await _client.StartOrFail();
+        await _client.StartOrFailAsync();
         await Task.Delay(50);
 
         var receivedCount = 0;
@@ -735,7 +710,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
 
         // Act
         var tasks = Enumerable.Range(0, 50)
-            .Select(i => Task.Run(() => _client.Send($"Message {i}")))
+            .Select(i => Task.Run(() => _client.TrySendAsBinary($"Message {i}")))
             .ToArray();
 
         await Task.WhenAll(tasks);
