@@ -4,87 +4,90 @@ using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Text;
 using System.Threading.Channels;
+using Microsoft.IO;
 using WebSocket.Rx.Internal;
 
 namespace WebSocket.Rx;
 
-public class ReactiveWebSocketClient : IReactiveWebSocketClient
+public class ReactiveWebSocketClient(Uri url, RecyclableMemoryStreamManager? memoryStreamManager = null)
+    : IReactiveWebSocketClient
 {
-    private CancellationTokenSource? _mainCts;
-    private CancellationTokenSource? _reconnectCts;
-    private readonly AsyncLock _connectionLock = new();
+    protected RecyclableMemoryStreamManager MemoryStreamManager
+    {
+        get => field ??= new RecyclableMemoryStreamManager();
+    } = memoryStreamManager;
 
-    private bool _isReconnecting;
-    private bool _isDisposing;
-    private DateTime _lastMessageReceived = DateTime.UtcNow;
+    protected CancellationTokenSource? MainCts;
+    protected CancellationTokenSource? ReconnectCts;
+    protected readonly AsyncLock ConnectionLock = new();
 
-    private readonly Subject<ReceivedMessage> _messageReceived = new();
-    private readonly Subject<Connected> _connectionHappened = new();
-    private readonly Subject<Disconnected> _disconnectionHappened = new();
+    protected bool IsReconnecting;
+    protected bool IsDisposing;
+    protected DateTime LastMessageReceived = DateTime.UtcNow;
 
-    private readonly Channel<Payload> _sendChannel;
-    private Task? _sendLoopTask;
-    private Task? _receiveLoopTask;
-    private Task? _heartbeatTask;
+    protected readonly Subject<ReceivedMessage> MessageReceivedSource = new();
+    protected readonly Subject<Connected> ConnectionHappenedSource = new();
+    protected readonly Subject<Disconnected> DisconnectionHappenedSource = new();
 
-    public Uri Url { get; set; }
+    protected ChannelWriter<Payload> SendWriter => SendChannel.Writer;
+
+    protected Channel<Payload> SendChannel =
+        Channel.CreateUnbounded<Payload>(new UnboundedChannelOptions { SingleReader = true });
+
+    protected Task? SendLoopTask;
+    protected Task? ReceiveLoopTask;
+    protected Task? HeartbeatTask;
+
+    public Uri Url { get; set; } = url ?? throw new ArgumentNullException(nameof(url));
     public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(10);
-
     public TimeSpan InactivityTimeout { get; set; } = TimeSpan.FromSeconds(30);
     public bool IsReconnectionEnabled { get; set; } = true;
     public string? Name { get; set; }
     public bool IsStarted { get; internal set; }
     public bool IsRunning { get; internal set; }
-    public bool SenderRunning => _sendLoopTask!.Status is TaskStatus.Running or TaskStatus.WaitingForActivation;
-    public bool IsInsideLock => _connectionLock.IsLocked;
+    public bool SenderRunning => SendLoopTask!.Status is TaskStatus.Running or TaskStatus.WaitingForActivation;
+    public bool IsInsideLock => ConnectionLock.IsLocked;
     public bool IsTextMessageConversionEnabled { get; set; }
     public Encoding MessageEncoding { get; set; } = Encoding.UTF8;
-    public ClientWebSocket? NativeClient { get; private set; }
+    public ClientWebSocket NativeClient { get; private set; } = new();
 
-    public IObservable<ReceivedMessage> MessageReceived => _messageReceived.AsObservable();
-    public IObservable<Connected> ConnectionHappened => _connectionHappened.AsObservable();
-    public IObservable<Disconnected> DisconnectionHappened => _disconnectionHappened.AsObservable();
-
-    public ReactiveWebSocketClient(Uri url)
-    {
-        Url = url ?? throw new ArgumentNullException(nameof(url));
-        _sendChannel = Channel.CreateUnbounded<Payload>(
-            new UnboundedChannelOptions { SingleReader = true }
-        );
-    }
+    public IObservable<ReceivedMessage> MessageReceived => MessageReceivedSource.AsObservable();
+    public IObservable<Connected> ConnectionHappened => ConnectionHappenedSource.AsObservable();
+    public IObservable<Disconnected> DisconnectionHappened => DisconnectionHappenedSource.AsObservable();
 
     #region Start/Stop
 
-    public async Task Start()
+    public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            await StartOrFail();
+            await StartOrFailAsync(cancellationToken);
         }
         catch (Exception ex)
         {
-            _disconnectionHappened.OnNext(Disconnected.Create(DisconnectReason.Error, ex));
+            DisconnectionHappenedSource.OnNext(Disconnected.Create(DisconnectReason.Error, ex));
         }
     }
 
-    public async Task StartOrFail()
+    public async Task StartOrFailAsync(CancellationToken cancellationToken = default)
     {
-        using (await _connectionLock.LockAsync())
+        using (await ConnectionLock.LockAsync())
         {
             if (IsStarted)
             {
                 return;
             }
 
-            await ConnectInternalAsync(ConnectReason.Initial, throwOnError: true);
+            await ConnectInternalAsync(ConnectReason.Initial, true, cancellationToken);
         }
     }
 
-    public async Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription)
+    public async Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription,
+        CancellationToken cancellationToken = default)
     {
         try
         {
-            return await StopOrFail(status, statusDescription);
+            return await StopOrFailAsync(status, statusDescription, cancellationToken);
         }
         catch
         {
@@ -92,9 +95,10 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
         }
     }
 
-    public async Task<bool> StopOrFail(WebSocketCloseStatus status, string statusDescription)
+    public async Task<bool> StopOrFailAsync(WebSocketCloseStatus status, string statusDescription,
+        CancellationToken cancellationToken = default)
     {
-        using (await _connectionLock.LockAsync())
+        using (await ConnectionLock.LockAsync())
         {
             if (!IsStarted)
             {
@@ -104,10 +108,10 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
             IsStarted = false;
             IsRunning = false;
 
-            _reconnectCts?.Cancel();
-            _mainCts?.Cancel();
+            ReconnectCts?.Cancel();
+            MainCts?.Cancel();
 
-            if (NativeClient?.State == WebSocketState.Open)
+            if (NativeClient.State is WebSocketState.Open)
             {
                 try
                 {
@@ -124,7 +128,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
                 }
             }
 
-            _disconnectionHappened.OnNext(Disconnected.Create(DisconnectReason.ClientInitiated));
+            DisconnectionHappenedSource.OnNext(Disconnected.Create(DisconnectReason.ClientInitiated));
 
             await CleanupAsync();
             return true;
@@ -135,10 +139,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
     #region Reconnection
 
-    /// <summary>
-    /// Force reconnection. Tries indefinitely on errors.
-    /// </summary>
-    public async Task Reconnect()
+    public async Task ReconnectAsync(CancellationToken cancellationToken = default)
     {
         if (!IsStarted)
         {
@@ -147,9 +148,9 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
         try
         {
-            using (await _connectionLock.LockAsync())
+            using (await ConnectionLock.LockAsync())
             {
-                await ReconnectInternalAsync(DisconnectReason.ClientInitiated, throwOnError: false);
+                await ReconnectInternalAsync(DisconnectReason.ClientInitiated, false, cancellationToken);
             }
         }
         catch (Exception ex)
@@ -158,90 +159,87 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
         }
     }
 
-    /// <summary>
-    /// Force reconnection. Throws on connection error.
-    /// </summary>
-    public async Task ReconnectOrFail()
+    public async Task ReconnectOrFailAsync(CancellationToken cancellationToken = default)
     {
         if (!IsStarted)
         {
             throw new InvalidOperationException("Client not started");
         }
 
-        using (await _connectionLock.LockAsync())
+        using (await ConnectionLock.LockAsync())
         {
-            await ReconnectInternalAsync(DisconnectReason.ClientInitiated, throwOnError: true);
+            await ReconnectInternalAsync(DisconnectReason.ClientInitiated, true, cancellationToken);
         }
     }
 
-    private async Task ReconnectInternalAsync(DisconnectReason reason, bool throwOnError)
+    private async Task ReconnectInternalAsync(DisconnectReason reason, bool throwOnError,
+        CancellationToken cancellationToken = default)
     {
-        if (_isDisposing || !IsStarted)
+        if (IsDisposing || !IsStarted)
         {
             return;
         }
 
-        if (_isReconnecting)
+        if (IsReconnecting)
         {
             return;
         }
 
-        _isReconnecting = true;
+        IsReconnecting = true;
         IsRunning = false;
 
         try
         {
-            _disconnectionHappened.OnNext(Disconnected.Create(reason));
+            DisconnectionHappenedSource.OnNext(Disconnected.Create(reason));
 
-            _mainCts?.Cancel();
+            MainCts?.Cancel();
 
             NativeClient?.Try(x => x.Abort());
             NativeClient?.Dispose();
 
             await Task.WhenAll(
-                _sendLoopTask ?? Task.CompletedTask,
-                _receiveLoopTask ?? Task.CompletedTask,
-                _heartbeatTask ?? Task.CompletedTask
+                SendLoopTask ?? Task.CompletedTask,
+                ReceiveLoopTask ?? Task.CompletedTask,
+                HeartbeatTask ?? Task.CompletedTask
             );
 
-            await ConnectInternalAsync(ConnectReason.Reconnect, throwOnError);
+            await ConnectInternalAsync(ConnectReason.Reconnect, throwOnError, cancellationToken);
         }
         finally
         {
-            _isReconnecting = false;
+            IsReconnecting = false;
         }
     }
 
-    private async Task ConnectInternalAsync(ConnectReason reason, bool throwOnError)
+    private async Task ConnectInternalAsync(ConnectReason reason, bool throwOnError,
+        CancellationToken cancellationToken = default)
     {
-        _mainCts = new CancellationTokenSource();
+        MainCts = new CancellationTokenSource();
         NativeClient = new ClientWebSocket();
 
         try
         {
             using var timeoutCts = new CancellationTokenSource(ConnectTimeout);
-            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
-                _mainCts.Token,
-                timeoutCts.Token
-            );
+            using var linkedCts = CancellationTokenSource
+                .CreateLinkedTokenSource(MainCts.Token, timeoutCts.Token, cancellationToken);
 
             await NativeClient.ConnectAsync(Url, linkedCts.Token);
 
             IsStarted = true;
             IsRunning = true;
-            _lastMessageReceived = DateTime.UtcNow;
+            LastMessageReceived = DateTime.UtcNow;
 
-            _sendLoopTask = Task.Run(async () => await SendLoopAsync(_mainCts.Token), CancellationToken.None);
-            _receiveLoopTask = Task.Run(async () => await ReceiveLoopAsync(_mainCts.Token), CancellationToken.None);
-            _heartbeatTask = Task.Run(async () => await HeartbeatMonitorAsync(_mainCts.Token), CancellationToken.None);
+            SendLoopTask = Task.Run(() => SendLoopAsync(MainCts.Token), CancellationToken.None);
+            ReceiveLoopTask = Task.Run(() => ReceiveLoopAsync(MainCts.Token), CancellationToken.None);
+            HeartbeatTask = Task.Run(() => HeartbeatMonitorAsync(MainCts.Token), CancellationToken.None);
 
-            _connectionHappened.OnNext(Connected.Create(reason));
+            ConnectionHappenedSource.OnNext(Connected.Create(reason));
         }
         catch (Exception)
         {
             NativeClient?.Dispose();
-            _mainCts?.Cancel();
-            _mainCts?.Dispose();
+            MainCts?.Cancel();
+            MainCts?.Dispose();
 
             if (throwOnError)
             {
@@ -257,18 +255,18 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
     private async Task ScheduleReconnectAsync(DisconnectReason reason)
     {
-        if (!IsReconnectionEnabled || _isDisposing || !IsStarted)
+        if (!IsReconnectionEnabled || IsDisposing || !IsStarted)
         {
             return;
         }
 
-        _reconnectCts = new CancellationTokenSource();
+        ReconnectCts = new CancellationTokenSource();
 
         try
         {
-            await Task.Delay(InactivityTimeout, _reconnectCts.Token);
+            await Task.Delay(InactivityTimeout, ReconnectCts.Token);
 
-            using (await _connectionLock.LockAsync())
+            using (await ConnectionLock.LockAsync())
             {
                 await ReconnectInternalAsync(reason, throwOnError: false);
             }
@@ -291,15 +289,16 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
         {
             while (await timer.WaitForNextTickAsync(cancellationToken))
             {
-                var timeSinceLastMessage = DateTime.UtcNow - _lastMessageReceived;
+                var timeSinceLastMessage = DateTime.UtcNow - LastMessageReceived;
 
                 if (timeSinceLastMessage <= InactivityTimeout) continue;
 
                 if (NativeClient?.State == WebSocketState.Open)
                 {
-                    using (await _connectionLock.LockAsync())
+                    using (await ConnectionLock.LockAsync())
                     {
-                        await ReconnectInternalAsync(DisconnectReason.Timeout, throwOnError: false);
+                        await ReconnectInternalAsync(DisconnectReason.Timeout, throwOnError: false,
+                            cancellationToken: cancellationToken);
                     }
                 }
 
@@ -320,12 +319,12 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
     {
         try
         {
-            await foreach (var (data, messageType) in _sendChannel.Reader.ReadAllAsync(cancellationToken))
+            await foreach (var (data, messageType) in SendChannel.Reader.ReadAllAsync(cancellationToken))
             {
                 if (NativeClient?.State == WebSocketState.Open)
                 {
                     await NativeClient.SendAsync(
-                        new ArraySegment<byte>(data),
+                        data,
                         messageType,
                         endOfMessage: true,
                         cancellationToken
@@ -339,48 +338,50 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
         }
         catch (Exception ex)
         {
-            _disconnectionHappened.OnNext(Disconnected.Create(DisconnectReason.Error, ex));
+            DisconnectionHappenedSource.OnNext(Disconnected.Create(DisconnectReason.Error, ex));
             _ = ScheduleReconnectAsync(DisconnectReason.Error);
         }
     }
 
     private async Task ReceiveLoopAsync(CancellationToken cancellationToken)
     {
-        var buffer = new byte[1024 * 16];
+        var buffer = ArrayPool<byte>.Shared.Rent(1024 * 16);
 
         try
         {
             while (NativeClient?.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
             {
-                using var ms = new MemoryStream();
+                await using var ms = MemoryStreamManager.GetStream();
                 WebSocketReceiveResult result;
 
                 do
                 {
-                    result = await NativeClient.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
+                    result = await NativeClient
+                        .ReceiveAsync(buffer, cancellationToken)
+                        .ConfigureAwait(false);
+
                     ms.Write(buffer, 0, result.Count);
                 } while (!result.EndOfMessage);
 
-                _lastMessageReceived = DateTime.UtcNow;
+                LastMessageReceived = DateTime.UtcNow;
 
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
-                    _disconnectionHappened.OnNext(Disconnected.Create(DisconnectReason.ServerInitiated));
+                    DisconnectionHappenedSource.OnNext(Disconnected.Create(DisconnectReason.ServerInitiated));
                     _ = ScheduleReconnectAsync(DisconnectReason.ServerInitiated);
                     return;
                 }
 
-                var messageBytes = ms.ToArray();
-                var message = ReceivedMessage.BinaryMessage(messageBytes);
+                var messageBytes = ms.GetBuffer().AsMemory(0, (int)ms.Length);
+                var message = ReceivedMessage.BinaryMessage(messageBytes.ToArray());
 
                 if (IsTextMessageConversionEnabled && result.MessageType == WebSocketMessageType.Text)
                 {
-                    var encoding = MessageEncoding ?? Encoding.UTF8;
-                    var text = encoding.GetString(messageBytes);
+                    var text = MessageEncoding.GetString(messageBytes.Span);
                     message = ReceivedMessage.TextMessage(text);
                 }
 
-                _messageReceived.OnNext(message);
+                MessageReceivedSource.OnNext(message);
             }
         }
         catch (OperationCanceledException ex)
@@ -389,13 +390,17 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
         }
         catch (WebSocketException ex)
         {
-            _disconnectionHappened.OnNext(Disconnected.Create(DisconnectReason.ConnectionLost, ex));
+            DisconnectionHappenedSource.OnNext(Disconnected.Create(DisconnectReason.ConnectionLost, ex));
             _ = ScheduleReconnectAsync(DisconnectReason.ConnectionLost);
         }
         catch (Exception ex)
         {
-            _disconnectionHappened.OnNext(Disconnected.Create(DisconnectReason.Error, ex));
+            DisconnectionHappenedSource.OnNext(Disconnected.Create(DisconnectReason.Error, ex));
             _ = ScheduleReconnectAsync(DisconnectReason.Error);
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
         }
     }
 
@@ -403,51 +408,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
     #region Send Methods
 
-    public bool Send(string message)
-    {
-        if (string.IsNullOrEmpty(message))
-        {
-            return false;
-        }
-
-        var encoding = MessageEncoding;
-        var bytes = encoding.GetBytes(message);
-        return Send(bytes);
-    }
-
-    public bool Send(byte[] message)
-    {
-        if (!IsRunning || message.Length == 0)
-        {
-            return false;
-        }
-
-        return _sendChannel.Writer.TryWrite(new Payload(message, WebSocketMessageType.Binary));
-    }
-
-    public bool Send(ArraySegment<byte> message)
-    {
-        if (!IsRunning || message.Count == 0)
-        {
-            return false;
-        }
-
-        var bytes = message.ToArray();
-        return _sendChannel.Writer.TryWrite(new Payload(bytes, WebSocketMessageType.Binary));
-    }
-
-    public bool Send(ReadOnlySequence<byte> message)
-    {
-        if (!IsRunning || message.IsEmpty)
-        {
-            return false;
-        }
-
-        var bytes = message.ToArray();
-        return _sendChannel.Writer.TryWrite(new Payload(bytes, WebSocketMessageType.Binary));
-    }
-
-    public async Task SendInstant(string message)
+    public async Task SendInstantAsync(string message, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(message))
         {
@@ -456,115 +417,140 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
         var encoding = MessageEncoding;
         var bytes = encoding.GetBytes(message);
-        await SendInstant(bytes);
+        await SendInstantAsync(bytes, cancellationToken);
     }
 
-    public async Task SendInstant(byte[] message)
+    public async Task SendInstantAsync(byte[] message, CancellationToken cancellationToken = default)
     {
-        if (NativeClient?.State != WebSocketState.Open || message.Length == 0)
+        if (NativeClient.State != WebSocketState.Open || message.Length == 0)
         {
             return;
         }
 
-        await NativeClient.SendAsync(
-            new ArraySegment<byte>(message),
-            WebSocketMessageType.Binary,
-            endOfMessage: true,
-            _mainCts?.Token ?? CancellationToken.None
-        );
+        using var connectedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, MainCts.Token);
+
+        await NativeClient
+            .SendAsync(message, WebSocketMessageType.Binary, endOfMessage: true, connectedCts.Token)
+            .ConfigureAwait(false);
     }
 
-    public bool SendAsText(string message)
+    public async Task SendAsBinaryAsync(string message, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(message))
+        {
+            return;
+        }
+
+        await SendAsBinaryAsync(MessageEncoding.GetBytes(message), cancellationToken);
+    }
+
+    public async Task SendAsBinaryAsync(byte[] message, CancellationToken cancellationToken = default)
+    {
+        if (!IsRunning || message.Length == 0)
+        {
+            return;
+        }
+
+        await SendWriter.WriteAsync(new Payload(message, WebSocketMessageType.Binary), cancellationToken);
+    }
+
+    public async Task SendAsTextAsync(string message, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(message))
+        {
+            return;
+        }
+
+        await SendAsTextAsync(MessageEncoding.GetBytes(message), cancellationToken);
+    }
+
+    public async Task SendAsTextAsync(byte[] message, CancellationToken cancellationToken = default)
+    {
+        if (!IsRunning || message.Length == 0)
+        {
+            return;
+        }
+
+        await SendWriter.WriteAsync(new Payload(message, WebSocketMessageType.Text), cancellationToken);
+    }
+
+    public virtual bool TrySendAsBinary(string message)
+    {
+        return !string.IsNullOrEmpty(message) && TrySendAsBinary(MessageEncoding.GetBytes(message));
+    }
+
+    public virtual bool TrySendAsBinary(byte[] message)
     {
         if (!IsRunning || message.Length == 0)
         {
             return false;
         }
 
-        return _sendChannel.Writer.TryWrite(new Payload(MessageEncoding.GetBytes(message), WebSocketMessageType.Text));
+        return SendWriter.TryWrite(new Payload(message, WebSocketMessageType.Binary));
     }
 
-    public bool SendAsText(byte[] message)
+    public bool TrySendAsText(string message)
+    {
+        return !string.IsNullOrEmpty(message) && TrySendAsText(MessageEncoding.GetBytes(message));
+    }
+
+    public bool TrySendAsText(byte[] message)
     {
         if (!IsRunning || message.Length == 0)
         {
             return false;
         }
 
-        return _sendChannel.Writer.TryWrite(new Payload(message, WebSocketMessageType.Text));
-    }
-
-    public bool SendAsText(ArraySegment<byte> message)
-    {
-        if (!IsRunning || message.Count == 0)
-        {
-            return false;
-        }
-
-        var bytes = message.ToArray();
-        return _sendChannel.Writer.TryWrite(new Payload(bytes, WebSocketMessageType.Text));
-    }
-
-    public bool SendAsText(ReadOnlySequence<byte> message)
-    {
-        if (!IsRunning || message.IsEmpty)
-        {
-            return false;
-        }
-
-        var bytes = message.ToArray();
-        return _sendChannel.Writer.TryWrite(new Payload(bytes, WebSocketMessageType.Text));
+        return SendWriter.TryWrite(new Payload(message, WebSocketMessageType.Text));
     }
 
     public void StreamFakeMessage(ReceivedMessage message)
     {
-        _messageReceived.OnNext(message);
+        MessageReceivedSource.OnNext(message);
     }
 
     #endregion
 
     #region Cleanup
 
-    private async Task CleanupAsync()
+    protected async Task CleanupAsync()
     {
         var tasks = new[]
         {
-            _sendLoopTask ?? Task.CompletedTask,
-            _receiveLoopTask ?? Task.CompletedTask,
-            _heartbeatTask ?? Task.CompletedTask
+            SendLoopTask ?? Task.CompletedTask,
+            ReceiveLoopTask ?? Task.CompletedTask,
+            HeartbeatTask ?? Task.CompletedTask
         };
 
         await Task.WhenAll(tasks);
 
-        NativeClient?.Dispose();
-        _mainCts?.Dispose();
+        NativeClient.Dispose();
+        MainCts?.Dispose();
     }
 
-    public void Dispose()
+    public virtual void Dispose()
     {
-        if (_isDisposing)
+        if (IsDisposing)
         {
             return;
         }
 
-        _isDisposing = true;
+        IsDisposing = true;
 
         _ = StopAsync(WebSocketCloseStatus.NormalClosure, "Client disposing");
 
-        _reconnectCts?.Cancel();
-        _reconnectCts?.Dispose();
+        ReconnectCts?.Cancel();
+        ReconnectCts?.Dispose();
 
-        _messageReceived.OnCompleted();
-        _connectionHappened.OnCompleted();
-        _disconnectionHappened.OnCompleted();
+        MessageReceivedSource.OnCompleted();
+        ConnectionHappenedSource.OnCompleted();
+        DisconnectionHappenedSource.OnCompleted();
 
-        _messageReceived.Dispose();
-        _connectionHappened.Dispose();
-        _disconnectionHappened.Dispose();
+        MessageReceivedSource.Dispose();
+        ConnectionHappenedSource.Dispose();
+        DisconnectionHappenedSource.Dispose();
         GC.SuppressFinalize(this);
     }
 
     #endregion
-
-    internal sealed record Payload(byte[] Content, WebSocketMessageType Type);
 }

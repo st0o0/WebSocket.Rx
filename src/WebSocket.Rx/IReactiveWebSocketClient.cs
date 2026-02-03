@@ -1,68 +1,56 @@
-﻿using System.Buffers;
-using System.Net.WebSockets;
+﻿using System.Net.WebSockets;
 using System.Text;
 
 namespace WebSocket.Rx;
 
 public interface IReactiveWebSocketClient : IDisposable
 {
-    bool Send(string message);
+    Uri Url { get; set; }
+    IObservable<ReceivedMessage> MessageReceived { get; }
+    IObservable<Connected> ConnectionHappened { get; }
+    IObservable<Disconnected> DisconnectionHappened { get; }
+    TimeSpan ConnectTimeout { get; set; }
+    TimeSpan InactivityTimeout { get; set; }
+    bool IsReconnectionEnabled { get; set; }
+    string? Name { get; set; }
+    bool IsStarted { get; }
+    bool IsRunning { get; }
+    bool SenderRunning { get; }
+    bool IsTextMessageConversionEnabled { get; set; }
+    Encoding MessageEncoding { get; set; }
+    ClientWebSocket NativeClient { get; }
+    Task StartAsync(CancellationToken cancellationToken = default);
+    Task StartOrFailAsync(CancellationToken cancellationToken = default);
 
-    bool Send(byte[] message);
+    Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription,
+        CancellationToken cancellationToken = default);
 
-    bool Send(ArraySegment<byte> message);
+    Task<bool> StopOrFailAsync(WebSocketCloseStatus status, string statusDescription,
+        CancellationToken cancellationToken = default);
 
-    bool Send(ReadOnlySequence<byte> message);
+    Task ReconnectAsync(CancellationToken cancellationToken = default);
 
-    Task SendInstant(string message);
+    Task ReconnectOrFailAsync(CancellationToken cancellationToken = default);
 
-    Task SendInstant(byte[] message);
+    Task SendInstantAsync(string message, CancellationToken cancellationToken = default);
 
-    bool SendAsText(byte[] message);
+    Task SendInstantAsync(byte[] message, CancellationToken cancellationToken = default);
 
-    bool SendAsText(ArraySegment<byte> message);
+    Task SendAsBinaryAsync(byte[] message, CancellationToken cancellationToken = default);
 
-    bool SendAsText(ReadOnlySequence<byte> message);
+    Task SendAsBinaryAsync(string message, CancellationToken cancellationToken = default);
+
+    Task SendAsTextAsync(byte[] message, CancellationToken cancellationToken = default);
+
+    Task SendAsTextAsync(string message, CancellationToken cancellationToken = default);
+
+    bool TrySendAsBinary(string message);
+
+    bool TrySendAsBinary(byte[] message);
+
+    bool TrySendAsText(byte[] message);
+
+    bool TrySendAsText(string message);
 
     void StreamFakeMessage(ReceivedMessage message);
-
-    Uri Url { get; set; }
-
-    IObservable<ReceivedMessage> MessageReceived { get; }
-
-    IObservable<Connected> ConnectionHappened { get; }
-
-    IObservable<Disconnected> DisconnectionHappened { get; }
-
-    TimeSpan ConnectTimeout { get; set; }
-
-    TimeSpan InactivityTimeout { get; set; }
-
-    bool IsReconnectionEnabled { get; set; }
-
-    string? Name { get; set; }
-
-    bool IsStarted { get; }
-
-    bool IsRunning { get; }
-
-    bool SenderRunning { get; }
-
-    bool IsTextMessageConversionEnabled { get; set; }
-
-    Encoding MessageEncoding { get; set; }
-
-    ClientWebSocket? NativeClient { get; }
-
-    Task Start();
-
-    Task StartOrFail();
-
-    Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription);
-
-    Task<bool> StopOrFail(WebSocketCloseStatus status, string statusDescription);
-
-    Task Reconnect();
-
-    Task ReconnectOrFail();
 }
