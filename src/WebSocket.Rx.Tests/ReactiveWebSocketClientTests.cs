@@ -2,6 +2,7 @@
 using System.Reactive.Linq;
 using System.Reactive.Threading.Tasks;
 using System.Text;
+using LanguageExt;
 using WebSocket.Rx.Tests.Internal;
 
 namespace WebSocket.Rx.Tests;
@@ -459,7 +460,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         // Arrange
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
         _client.IsReconnectionEnabled = true;
-        _client.InactivityTimeout = TimeSpan.FromMilliseconds(25);
+        _client.KeepAliveInterval = TimeSpan.FromMilliseconds(25);
 
         var reconnected = false;
         _client.ConnectionHappened
@@ -502,59 +503,6 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
 
     #endregion
 
-    #region Heartbeat/Timeout Tests
-
-    [Fact(Timeout = 5000)]
-    public async Task HeartbeatMonitor_WhenNoMessages_ShouldTriggerReconnect()
-    {
-        // Arrange
-        _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
-        _client.InactivityTimeout = TimeSpan.FromMilliseconds(500);
-        _client.IsReconnectionEnabled = true;
-
-        var disconnectedTask = _client.DisconnectionHappened
-            .Where(d => d.Reason == DisconnectReason.Timeout)
-            .Take(1)
-            .ToTask();
-
-        await _client.StartOrFailAsync();
-
-        // Act
-        await Task.Delay(50);
-
-        // Assert
-        Assert.NotNull(await disconnectedTask.WaitAsync(TimeSpan.FromSeconds(1)));
-        Assert.True(disconnectedTask.IsCompletedSuccessfully);
-    }
-
-    [Fact(Timeout = 5000)]
-    public async Task HeartbeatMonitor_WithRegularMessages_ShouldNotTimeout()
-    {
-        // Arrange
-        _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
-        _client.InactivityTimeout = TimeSpan.FromSeconds(2);
-
-        var timedOut = false;
-        _client.DisconnectionHappened
-            .Where(d => d.Reason == DisconnectReason.Timeout)
-            .Subscribe(_ => timedOut = true);
-
-        await _client.StartOrFailAsync();
-        await Task.Delay(50);
-
-        // Act
-        for (var i = 0; i < 5; i++)
-        {
-            await _server.SendToAllAsync($"Keep alive {i}");
-            await Task.Delay(50);
-        }
-
-        // Assert
-        Assert.False(timedOut);
-    }
-
-    #endregion
-
     #region Property Tests
 
     [Fact]
@@ -568,19 +516,6 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         Assert.True(_client.IsReconnectionEnabled);
         Assert.False(_client.IsTextMessageConversionEnabled);
         Assert.Equal(Encoding.UTF8, _client.MessageEncoding);
-    }
-
-    [Fact]
-    public void Name_Property_CanBeSetAndRetrieved()
-    {
-        // Arrange
-        _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
-
-        // Act
-        _client.Name = "TestClient";
-
-        // Assert
-        Assert.Equal("TestClient", _client.Name);
     }
 
     [Fact(Timeout = 5000)]

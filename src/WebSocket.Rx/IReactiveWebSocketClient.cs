@@ -10,9 +10,9 @@ public interface IReactiveWebSocketClient : IDisposable
     IObservable<Connected> ConnectionHappened { get; }
     IObservable<Disconnected> DisconnectionHappened { get; }
     TimeSpan ConnectTimeout { get; set; }
-    TimeSpan InactivityTimeout { get; set; }
+    TimeSpan KeepAliveInterval { get; set; }
+    TimeSpan KeepAliveTimeout { get; set; }
     bool IsReconnectionEnabled { get; set; }
-    string? Name { get; set; }
     bool IsStarted { get; }
     bool IsRunning { get; }
     bool SenderRunning { get; }

@@ -195,7 +195,7 @@ public class ReactiveWebSocketClientEdgeCaseTests
     {
         // Arrange
         using var client = new ReactiveWebSocketClient(new Uri(InvalidUrl));
-        client.InactivityTimeout = TimeSpan.FromMilliseconds(50);
+        client.KeepAliveInterval = TimeSpan.FromMilliseconds(50);
         client.IsReconnectionEnabled = true;
 
         var reconnectAttempts = 0;
@@ -216,7 +216,7 @@ public class ReactiveWebSocketClientEdgeCaseTests
         await server.StartAsync();
 
         using var client = new ReactiveWebSocketClient(new Uri(server.WebSocketUrl));
-        client.InactivityTimeout = TimeSpan.FromMilliseconds(50);
+        client.KeepAliveInterval = TimeSpan.FromMilliseconds(50);
         client.IsReconnectionEnabled = true;
 
         var reconnectTask = client.ConnectionHappened
