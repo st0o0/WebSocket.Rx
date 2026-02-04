@@ -4,7 +4,7 @@ namespace WebSocket.Rx;
 
 public interface IReactiveWebSocketServer : IDisposable
 {
-    public TimeSpan InactivityTimeout { get; set; }
+    public TimeSpan IdleConnection { get; set; }
 
     public TimeSpan ConnectTimeout { get; set; }
 

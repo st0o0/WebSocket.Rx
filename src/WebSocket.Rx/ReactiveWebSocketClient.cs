@@ -340,7 +340,7 @@ public class ReactiveWebSocketClient(Uri url, RecyclableMemoryStreamManager? mem
             await NativeClient.SendAsync(
                 data,
                 type,
-                endOfMessage: true,
+                endOfMessage,
                 cancellationToken
             );
         }
@@ -433,23 +433,19 @@ public class ReactiveWebSocketClient(Uri url, RecyclableMemoryStreamManager? mem
             return;
         }
 
-        var encoding = MessageEncoding;
-        var bytes = encoding.GetBytes(message);
-        await SendInstantAsync(bytes, cancellationToken);
+        await SendAsync(MessageEncoding.GetBytes(message), WebSocketMessageType.Binary, true, cancellationToken)
+            .ConfigureAwait(false);
     }
 
     public async Task SendInstantAsync(byte[] message, CancellationToken cancellationToken = default)
     {
-        if (NativeClient.State != WebSocketState.Open || message.Length == 0)
+        if (message.Length == 0)
         {
             return;
         }
 
         using var connectedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, MainCts.Token);
-
-        await NativeClient
-            .SendAsync(message, WebSocketMessageType.Binary, endOfMessage: true, connectedCts.Token)
-            .ConfigureAwait(false);
+        await SendAsync(message, WebSocketMessageType.Binary, true, connectedCts.Token).ConfigureAwait(false);
     }
 
     public async Task SendAsBinaryAsync(string message, CancellationToken cancellationToken = default)
