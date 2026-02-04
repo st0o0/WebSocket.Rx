@@ -16,11 +16,11 @@ public interface IReactiveWebSocketServer : IDisposable
 
     public int ClientCount { get; }
 
-    public IReadOnlyDictionary<string, ReactiveWebSocketClient> ConnectedClients { get; }
+    public IReadOnlyDictionary<Guid, Metadata> ConnectedClients { get; }
 
-    public IObservable<Temp.ClientConnected> ClientConnected { get; }
+    public IObservable<ClientConnected> ClientConnected { get; }
 
-    public IObservable<Temp.ClientDisconnected> ClientDisconnected { get; }
+    public IObservable<ClientDisconnected> ClientDisconnected { get; }
 
-    public IObservable<ReceivedMessage> Messages { get; }
+    public IObservable<ServerReceivedMessage> Messages { get; }
 }

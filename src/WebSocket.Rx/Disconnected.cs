@@ -2,21 +2,23 @@
 
 public enum DisconnectReason
 {
-    ConnectionLost = 0,
-    Timeout = 1,
-    Error = 2,
-    ClientInitiated = 3,
-    ServerInitiated = 4,
-    Shutdown = 5
+    Undefined = 0,
+    ConnectionLost = 1,
+    Timeout = 2,
+    Error = 3,
+    ClientInitiated = 4,
+    ServerInitiated = 5,
+    Shutdown = 6
 }
 
 public enum ConnectReason
 {
-    Initial = 0,
-    Reconnect = 1
+    Undefined = 0,
+    Initial = 1,
+    Reconnect = 2
 }
 
-public sealed class Disconnected
+public record Disconnected
 {
     public DisconnectReason Reason { get; init; }
     public DateTime Timestamp { get; init; }
@@ -30,7 +32,7 @@ public sealed class Disconnected
     };
 }
 
-public sealed class Connected
+public record Connected
 {
     public ConnectReason Reason { get; init; }
     public DateTime Timestamp { get; init; }

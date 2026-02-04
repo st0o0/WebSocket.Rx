@@ -9,14 +9,13 @@ namespace WebSocket.Rx.Tests.Internal;
 public class WebSocketTestServer : IAsyncDisposable
 {
     private readonly HttpListener _httpListener;
-    private readonly ConcurrentBag<System.Net.WebSockets.WebSocket> _clients = new();
+    private readonly ConcurrentBag<System.Net.WebSockets.WebSocket> _clients = [];
     private readonly CancellationTokenSource _cts;
     private Task? _serverTask;
 
     public int Port { get; }
     public string Url => $"http://localhost:{Port}/";
     public string WebSocketUrl => $"ws://localhost:{Port}/";
-
     public event Action<string>? OnMessageReceived;
     public event Action<byte[]>? OnBytesReceived;
 

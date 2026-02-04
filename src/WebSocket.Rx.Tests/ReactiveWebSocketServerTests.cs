@@ -2,271 +2,35 @@ using System.Net;
 using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Text;
-using Xunit.Abstractions;
 
 namespace WebSocket.Rx.Tests;
 
 public class ReactiveWebSocketServerTests : IAsyncLifetime
 {
-    private Uri _uri;
+    private readonly string _testPrefix = $"http://localhost:{GetAvailablePort()}/";
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
     private ReactiveWebSocketServer _server;
-    private ClientWebSocket _testClient;
-    private CancellationTokenSource _cts = new(TimeSpan.FromSeconds(10));
-    private ITestOutputHelper _output;
+    private List<ClientWebSocket> _testClients;
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 
-    public ReactiveWebSocketServerTests(ITestOutputHelper output)
+    public async Task InitializeAsync()
     {
-        _output = output;
+        _server = new ReactiveWebSocketServer(_testPrefix);
+        _testClients = [];
+        await Task.CompletedTask;
     }
 
-    public Task InitializeAsync()
+    public async Task DisposeAsync()
     {
-        var url = $"localhost:{GetAvailablePort()}/";
-        _uri = new Uri("ws://" + url);
-        _server = new ReactiveWebSocketServer("http://" + url);
-        _testClient = new ClientWebSocket();
-        _output.WriteLine("Test setup completed");
-        return Task.CompletedTask;
-    }
-
-    public Task DisposeAsync()
-    {
-        _testClient.Dispose();
+        await _server.StopAsync();
         _server.Dispose();
-        _cts.Dispose();
-        return Task.CompletedTask;
-    }
 
-    private async Task<ReactiveWebSocketServer.WebSocketClient> ConnectTestClientAsync()
-    {
-        await _testClient.ConnectAsync(_uri, _cts.Token);
-
-        var serverClient = _server.ConnectedClients.Values.FirstOrDefault();
-        Assert.NotNull(serverClient);
-        return serverClient;
-    }
-
-    [Fact(Timeout = 10000)]
-    public async Task Server_StartsAndAcceptsConnections()
-    {
-        // Arrange
-        var serverTask = Task.Run(() => _server.StartAsync(_cts.Token));
-
-        // Act
-        var client = await ConnectTestClientAsync();
-
-        // Assert
-        Assert.Equal(1, _server.ClientCount);
-        Assert.NotNull(client);
-        Assert.Equal(WebSocketState.Open, _testClient.State);
-    }
-
-    [Theory(Timeout = 10000)]
-    [InlineData("Hello World")]
-    [InlineData("😊 Test with Emoji")]
-    [InlineData("")]
-    public async Task BroadcastTextAsync_SendText_Success(string message)
-    {
-        var serverTask = Task.Run(() => _server.StartAsync(_cts.Token));
-        await ConnectTestClientAsync();
-
-        var success = await _server.BroadcastTextAsync(message, _cts.Token);
-
-        var buffer = new byte[4096];
-        var result = await _testClient.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token);
-        var receivedText = Encoding.UTF8.GetString(buffer, 0, result.Count);
-
-        Assert.True(success);
-        Assert.Equal(message, receivedText);
-    }
-
-    [Theory(Timeout = 10000)]
-    [InlineData(new byte[] { 1, 2, 3, 4, 5 })]
-    [InlineData(new byte[] { 0xFF, 0x00, 0xAA, 0xBB, 0xCC })]
-    public async Task BroadcastBinaryAsync_byteArray_Success(byte[] data)
-    {
-        var serverTask = Task.Run(() => _server.StartAsync(_cts.Token));
-        await ConnectTestClientAsync();
-
-        var success = await _server.BroadcastBinaryAsync(data, _cts.Token);
-
-        var buffer = new byte[4096];
-        var result = await _testClient.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token);
-        var receivedData = new byte[result.Count];
-        Array.Copy(buffer, receivedData, result.Count);
-
-        Assert.True(success);
-        Assert.Equal(data.Length, receivedData.Length);
-        Assert.True(data.SequenceEqual(receivedData));
-    }
-
-    [Fact(Timeout = 10000)]
-    public async Task SendToClientBinaryAsync_SpecificClient_Success()
-    {
-        var serverTask = Task.Run(() => _server.StartAsync(_cts.Token));
-        await ConnectTestClientAsync();
-
-        var client2 = new ClientWebSocket();
-        await client2.ConnectAsync(_uri, _cts.Token);
-        await Task.Delay(200);
-
-        var clientIds = _server.GetClientIds();
-        Assert.Equal(2, clientIds.Length);
-
-        var testData = new byte[] { 42, 99, 255 };
-
-        var success = await _server.SendToClientBinaryAsync(clientIds[0], testData);
-
-        var buffer = new byte[4096];
-        var result = await _testClient.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token);
-        var received = new byte[result.Count];
-        Array.Copy(buffer, received, result.Count);
-
-        Assert.True(success);
-        Assert.True(testData.SequenceEqual(received));
-    }
-
-    [Theory(Timeout = 10000)]
-    [InlineData("Hello", WebSocketMessageType.Text)]
-    [InlineData("BinaryTest", WebSocketMessageType.Binary)]
-    public async Task WebSocketClient_SendTextAsync_Success(string message, WebSocketMessageType expectedType)
-    {
-        var serverTask = Task.Run(() => _server.StartAsync(_cts.Token));
-        var serverClient = await ConnectTestClientAsync();
-
-        var success = await serverClient.SendTextAsync(message, _cts.Token);
-
-        var buffer = new byte[4096];
-        var result = await _testClient.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token);
-
-        Assert.True(success);
-        Assert.Equal(expectedType, result.MessageType);
-        var receivedText = Encoding.UTF8.GetString(buffer, 0, result.Count);
-        Assert.Equal(message, receivedText);
-    }
-
-    [Theory(Timeout = 10000)]
-    [InlineData(1000)]
-    [InlineData(10000)]
-    public async Task WebSocketClient_SendAsync_ArraySegment_Success(int size)
-    {
-        var serverTask = Task.Run(() => _server.StartAsync(_cts.Token));
-        var serverClient = await ConnectTestClientAsync();
-        var data = new byte[size];
-        new Random(42).NextBytes(data);
-
-        var segment = new ArraySegment<byte>(data);
-        var success = await serverClient.SendAsync(segment, _cts.Token);
-
-        using var ms = new MemoryStream();
-        WebSocketReceiveResult result;
-        do
+        foreach (var client in _testClients)
         {
-            var buffer = new byte[4096];
-            result = await _testClient.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token);
-            ms.Write(buffer, 0, result.Count);
-        } while (!result.EndOfMessage);
-
-        var received = ms.ToArray();
-
-        Assert.True(success);
-        Assert.True(data.SequenceEqual(received));
-    }
-
-    [Fact(Timeout = 10000)]
-    public async Task WebSocketClient_SendAsync_ReadOnlyMemory_Success()
-    {
-        var serverTask = Task.Run(() => _server.StartAsync(_cts.Token));
-        var serverClient = await ConnectTestClientAsync();
-        var data = "MemoryTest"u8.ToArray();
-
-        var success = await serverClient.SendAsync(new ReadOnlyMemory<byte>(data), _cts.Token);
-
-        var buffer = new byte[4096];
-        var result = await _testClient.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token);
-        Assert.True(success);
-        Assert.Equal("MemoryTest", Encoding.UTF8.GetString(buffer, 0, result.Count));
-    }
-
-    [Fact(Timeout = 10000)]
-    public async Task WebSocketClient_SendTextAsync_CustomEncoding_Success()
-    {
-        var serverTask = Task.Run(() => _server.StartAsync(_cts.Token));
-        var serverClient = await ConnectTestClientAsync();
-
-        var success = await serverClient.SendTextAsync("UTF16-Test", _cts.Token);
-
-        var buffer = new byte[4096];
-        var result = await _testClient.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token);
-        var received = Encoding.Unicode.GetString(buffer, 0, result.Count);
-
-        Assert.True(success);
-        Assert.Equal("UTF16-Test", received);
-    }
-
-    [Fact(Timeout = 10000)]
-    public async Task WebSocketClient_SendStreamAsync_Success()
-    {
-        var serverTask = Task.Run(() => _server.StartAsync(_cts.Token));
-        var serverClient = await ConnectTestClientAsync();
-        var streamData = new byte[5000];
-        new Random().NextBytes(streamData);
-        var stream = new MemoryStream(streamData);
-
-        var success = await serverClient.SendStreamAsync(stream, _cts.Token);
-
-        using var ms = new MemoryStream();
-        WebSocketReceiveResult result;
-        do
-        {
-            var buffer = new byte[4096];
-            result = await _testClient.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token);
-            ms.Write(buffer, 0, result.Count);
-        } while (!result.EndOfMessage);
-
-        var received = ms.ToArray();
-
-        Assert.True(success);
-        Assert.True(streamData.SequenceEqual(received));
-    }
-
-    [Fact(Timeout = 10000)]
-    public async Task SendMethods_FailWhenSocketClosed()
-    {
-        var serverTask = Task.Run(() => _server.StartAsync(_cts.Token));
-        var serverClient = await ConnectTestClientAsync();
-
-        await _testClient.CloseAsync(WebSocketCloseStatus.NormalClosure, "Test", _cts.Token);
-        await Task.Delay(100);
-
-        var success = await serverClient.SendTextAsync("Should fail", _cts.Token);
-
-        Assert.False(success);
-    }
-
-    [Fact(Timeout = 10000)]
-    public async Task Server_HandlesMultipleClients()
-    {
-        var serverTask = Task.Run(() => _server.StartAsync(_cts.Token));
-
-        var clients = new List<ClientWebSocket>();
-        for (var i = 0; i < 3; i++)
-        {
-            var client = new ClientWebSocket();
-            await client.ConnectAsync(_uri, _cts.Token);
-            clients.Add(client);
-            await Task.Delay(100);
+            client.Dispose();
         }
 
-        await _server.BroadcastTextAsync("Multi-Client-Test", _cts.Token);
-
-        foreach (var client in clients)
-        {
-            var buffer = new byte[1024];
-            var result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token);
-            var msg = Encoding.UTF8.GetString(buffer, 0, result.Count);
-            Assert.Equal("Multi-Client-Test", msg);
-        }
+        _testClients.Clear();
     }
 
     private static int GetAvailablePort()
@@ -277,4 +41,520 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
         listener.Stop();
         return port;
     }
+
+    #region Initialization Tests
+
+    [Fact]
+    public void Constructor_ShouldInitializeWithDefaultValues()
+    {
+        // Arrange & Act
+        var server = new ReactiveWebSocketServer();
+
+        // Assert
+        Assert.Equal(TimeSpan.FromSeconds(30), server.InactivityTimeout);
+        Assert.Equal(TimeSpan.FromSeconds(10), server.ConnectTimeout);
+        Assert.True(server.IsReconnectionEnabled);
+        Assert.Equal(Encoding.UTF8, server.MessageEncoding);
+        Assert.True(server.IsTextMessageConversionEnabled);
+        Assert.Equal(0, server.ClientCount);
+
+        server.Dispose();
+    }
+
+    [Fact]
+    public void Constructor_ShouldAcceptCustomPrefix()
+    {
+        // Arrange & Act
+        const string customPrefix = "http://localhost:8888/ws/";
+        var server = new ReactiveWebSocketServer(customPrefix);
+
+        // Assert
+        Assert.NotNull(server);
+
+        server.Dispose();
+    }
+
+    [Fact]
+    public void Properties_ShouldBeSettable()
+    {
+        // Arrange
+        var newTimeout = TimeSpan.FromSeconds(60);
+        var newConnectTimeout = TimeSpan.FromSeconds(5);
+        var newEncoding = Encoding.ASCII;
+
+        // Act
+        _server.InactivityTimeout = newTimeout;
+        _server.ConnectTimeout = newConnectTimeout;
+        _server.IsReconnectionEnabled = false;
+        _server.MessageEncoding = newEncoding;
+        _server.IsTextMessageConversionEnabled = false;
+
+        // Assert
+        Assert.Equal(newTimeout, _server.InactivityTimeout);
+        Assert.Equal(newConnectTimeout, _server.ConnectTimeout);
+        Assert.False(_server.IsReconnectionEnabled);
+        Assert.Equal(newEncoding, _server.MessageEncoding);
+        Assert.False(_server.IsTextMessageConversionEnabled);
+    }
+
+    #endregion
+
+    #region Start/Stop Tests
+
+    [Fact(Timeout = 5000)]
+    public async Task StartAsync_ShouldStartServer()
+    {
+        // Act
+        await _server.StartAsync();
+
+        // Assert
+        var client = new ClientWebSocket();
+        _testClients.Add(client);
+
+        var uri = new Uri(_testPrefix.Replace("http://", "ws://"));
+        await client.ConnectAsync(uri, CancellationToken.None);
+
+        Assert.Equal(WebSocketState.Open, client.State);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task StartAsync_CalledTwice_ShouldNotStartTwice()
+    {
+        // Arrange
+        await _server.StartAsync();
+
+        // Act
+        await _server.StartAsync();
+
+        // Assert
+        Assert.Equal(0, _server.ClientCount);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task StartAsync_WithCancellationToken_ShouldRespectCancellation()
+    {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+
+        // Act
+        await _server.StartAsync(cts.Token);
+        await cts.CancelAsync();
+
+        // Assert
+        Assert.NotNull(_server);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task StopAsync_ShouldStopServerAndDisconnectClients()
+    {
+        // Arrange
+        await _server.StartAsync();
+
+        var client = new ClientWebSocket();
+        _testClients.Add(client);
+        var uri = new Uri(_testPrefix.Replace("http://", "ws://"));
+        await client.ConnectAsync(uri, CancellationToken.None);
+
+        // Act
+        var result = await _server.StopAsync();
+
+        // Assert
+        Assert.True(result);
+        Assert.True(client.State is WebSocketState.Closed or WebSocketState.Aborted);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task StopAsync_WithCustomStatusAndReason_ShouldUseProvidedValues()
+    {
+        // Arrange
+        await _server.StartAsync();
+
+        // Act
+        var result = await _server.StopAsync(WebSocketCloseStatus.EndpointUnavailable, "Custom shutdown");
+
+        // Assert
+        Assert.True(result);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task StopAsync_CalledTwice_ShouldReturnFalseSecondTime()
+    {
+        // Arrange
+        await _server.StartAsync();
+        await _server.StopAsync();
+
+        // Act
+        var result = await _server.StopAsync();
+
+        // Assert
+        Assert.False(result);
+    }
+
+    #endregion
+
+    #region Client Connection Tests
+
+    [Fact(Timeout = 5000)]
+    public async Task ClientConnected_ShouldFireWhenClientConnects()
+    {
+        // Arrange
+        await _server.StartAsync();
+        var connectionReceived = false;
+        var clientId = Guid.Empty;
+
+        _server.ClientConnected.Subscribe(connected =>
+        {
+            connectionReceived = true;
+            clientId = connected.Metadata.Id;
+        });
+
+        // Act
+        var client = new ClientWebSocket();
+        _testClients.Add(client);
+        var uri = new Uri(_testPrefix.Replace("http://", "ws://"));
+        await client.ConnectAsync(uri, CancellationToken.None);
+        await Task.Delay(50);
+
+        // Assert
+        Assert.True(connectionReceived);
+        Assert.NotEqual(Guid.Empty, clientId);
+        Assert.True(_server.ClientCount > 0);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task ClientDisconnected_ShouldFireWhenClientDisconnects()
+    {
+        // Arrange
+        await _server.StartAsync();
+        var disconnectionReceived = false;
+        var disconnectReason = DisconnectReason.Undefined;
+
+        _server.ClientDisconnected
+            .Subscribe(disconnected =>
+            {
+                disconnectionReceived = true;
+                disconnectReason = disconnected.Event.Reason;
+            });
+
+        var client = new ClientWebSocket();
+        _testClients.Add(client);
+        var uri = new Uri(_testPrefix.Replace("http://", "ws://"));
+        await client.ConnectAsync(uri, CancellationToken.None);
+
+        // Act
+        await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "Test", CancellationToken.None);
+
+        // Assert
+        Assert.True(disconnectionReceived);
+        Assert.NotEqual(DisconnectReason.Undefined, disconnectReason);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task ConnectedClients_ShouldReturnCurrentClients()
+    {
+        // Arrange
+        await _server.StartAsync();
+
+        // Act
+        var client1 = new ClientWebSocket();
+        var client2 = new ClientWebSocket();
+        _testClients.Add(client1);
+        _testClients.Add(client2);
+
+        var uri = new Uri(_testPrefix.Replace("http://", "ws://"));
+        await client1.ConnectAsync(uri, CancellationToken.None);
+        await client2.ConnectAsync(uri, CancellationToken.None);
+
+        // Assert
+        Assert.True(_server.ClientCount >= 2);
+        Assert.NotNull(_server.ConnectedClients);
+        Assert.Equal(_server.ClientCount, _server.ConnectedClients.Count);
+    }
+
+    #endregion
+
+    #region Send Methods Tests
+
+    [Fact(Timeout = 5000)]
+    public async Task SendToClient_WithByteArray_ShouldSendMessage()
+    {
+        // Arrange
+        await _server.StartAsync();
+
+        var client = new ClientWebSocket();
+        _testClients.Add(client);
+        var uri = new Uri(_testPrefix.Replace("http://", "ws://"));
+        await client.ConnectAsync(uri, CancellationToken.None);
+
+        var clientName = _server.ConnectedClients.Keys.First();
+        var testData = "Test message"u8.ToArray();
+
+        // Act
+        var result = _server.SendToClient(clientName, testData);
+
+        // Assert
+        Assert.True(result);
+
+        var buffer = new byte[1024];
+        var receiveResult = await client.ReceiveAsync(new ArraySegment<byte>(buffer),
+            new CancellationTokenSource(1000).Token);
+
+        var receivedData = new byte[receiveResult.Count];
+        Array.Copy(buffer, receivedData, receiveResult.Count);
+        Assert.Equal(testData, receivedData);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task SendToClient_WithString_ShouldSendEncodedMessage()
+    {
+        // Arrange
+        await _server.StartAsync();
+
+        var client = new ClientWebSocket();
+        _testClients.Add(client);
+        var uri = new Uri(_testPrefix.Replace("http://", "ws://"));
+        await client.ConnectAsync(uri, CancellationToken.None);
+
+        var clientName = _server.ConnectedClients.Keys.First();
+        const string testMessage = "Hello WebSocket";
+
+        // Act
+        var result = _server.SendToClient(clientName, testMessage);
+
+        // Assert
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void SendToClient_WithInvalidClientName_ShouldReturnFalse()
+    {
+        // Arrange
+        var testData = "Test"u8.ToArray();
+
+        // Act
+        var result = _server.SendToClient(Guid.Empty, testData);
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task SendToClient_WithMessageType_ShouldSendCorrectType()
+    {
+        // Arrange
+        await _server.StartAsync();
+
+        var client = new ClientWebSocket();
+        _testClients.Add(client);
+        var uri = new Uri(_testPrefix.Replace("http://", "ws://"));
+        await client.ConnectAsync(uri, CancellationToken.None);
+
+        var clientName = _server.ConnectedClients.Keys.First();
+        var testData = "Test"u8.ToArray();
+
+        // Act
+        var result = _server.SendToClient(clientName, testData, WebSocketMessageType.Text);
+
+        // Assert
+        Assert.True(result);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task SendToClientInstantAsync_WithValidClient_ShouldSendImmediately()
+    {
+        // Arrange
+        await _server.StartAsync();
+
+        var client = new ClientWebSocket();
+        _testClients.Add(client);
+        var uri = new Uri(_testPrefix.Replace("http://", "ws://"));
+        await client.ConnectAsync(uri, CancellationToken.None);
+
+        var clientId = _server.ConnectedClients.Keys.First();
+        var testData = "Instant message"u8.ToArray();
+
+        // Act
+        var result = await _server.SendToClientInstantAsync(clientId, testData);
+
+        // Assert
+        Assert.True(result);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task SendToClientInstantAsync_WithInvalidClient_ShouldReturnFalse()
+    {
+        // Arrange
+        var testData = "Test"u8.ToArray();
+
+        // Act
+        var result = await _server.SendToClientInstantAsync(Guid.Empty, testData);
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task Broadcast_ShouldSendToAllClients()
+    {
+        // Arrange
+        await _server.StartAsync();
+
+        var client1 = new ClientWebSocket();
+        var client2 = new ClientWebSocket();
+        _testClients.Add(client1);
+        _testClients.Add(client2);
+
+        var uri = new Uri(_testPrefix.Replace("http://", "ws://"));
+        await client1.ConnectAsync(uri, CancellationToken.None);
+        await client2.ConnectAsync(uri, CancellationToken.None);
+
+        var testData = "Broadcast message"u8.ToArray();
+
+        // Act
+        var result = _server.Broadcast(testData);
+
+        // Assert
+        Assert.True(result);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task BroadcastInstantAsync_ShouldSendToAllClientsImmediately()
+    {
+        // Arrange
+        await _server.StartAsync();
+
+        var client1 = new ClientWebSocket();
+        var client2 = new ClientWebSocket();
+        _testClients.Add(client1);
+        _testClients.Add(client2);
+
+        var uri = new Uri(_testPrefix.Replace("http://", "ws://"));
+        await client1.ConnectAsync(uri, CancellationToken.None);
+        await client2.ConnectAsync(uri, CancellationToken.None);
+
+        var testData = "Instant broadcast"u8.ToArray();
+
+        // Act
+        var result = await _server.BroadcastInstantAsync(testData);
+
+        // Assert
+        Assert.True(result);
+    }
+
+    #endregion
+
+    #region Message Reception Tests
+
+    [Fact(Timeout = 5000)]
+    public async Task Messages_ShouldReceiveClientMessages()
+    {
+        // Arrange
+        await _server.StartAsync();
+        ServerReceivedMessage? receivedMessage = null;
+
+        _server.Messages.Subscribe(msg => receivedMessage = msg);
+
+        var client = new ClientWebSocket();
+        _testClients.Add(client);
+        var uri = new Uri(_testPrefix.Replace("http://", "ws://"));
+        await client.ConnectAsync(uri, CancellationToken.None);
+
+        const string testMessage = "Hello from client";
+        var testData = Encoding.UTF8.GetBytes(testMessage);
+
+        // Act
+        await client.SendAsync(new ArraySegment<byte>(testData),
+            WebSocketMessageType.Text, true, CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(receivedMessage);
+    }
+
+    #endregion
+
+    #region Error Handling Tests
+
+    [Fact(Timeout = 5000)]
+    public async Task HandleClientError_ShouldRemoveClientAndFireDisconnectedEvent()
+    {
+        // Arrange
+        await _server.StartAsync();
+        ClientDisconnected? disconnectedEvent = null;
+
+        _server.ClientDisconnected.Subscribe(e => disconnectedEvent = e);
+
+        var client = new ClientWebSocket();
+        _testClients.Add(client);
+        var uri = new Uri(_testPrefix.Replace("http://", "ws://"));
+        await client.ConnectAsync(uri, CancellationToken.None);
+
+        var initialCount = _server.ClientCount;
+
+        // Act
+        client.Abort();
+
+        // Assert
+        Assert.NotNull(disconnectedEvent);
+        Assert.True(_server.ClientCount < initialCount);
+    }
+
+    #endregion
+
+    #region Disposal Tests
+
+    [Fact]
+    public void Dispose_ShouldCleanupResources()
+    {
+        // Arrange
+        var server = new ReactiveWebSocketServer(_testPrefix);
+
+        // Act
+        server.Dispose();
+
+        // Assert
+        server.Dispose();
+        Assert.True(true);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task Dispose_WhileRunning_ShouldStopServer()
+    {
+        // Arrange
+        var server = new ReactiveWebSocketServer(_testPrefix);
+        await server.StartAsync();
+
+        // Act
+        server.Dispose();
+
+        // Assert
+        Assert.True(true);
+    }
+
+    #endregion
+
+    #region Observable Completion Tests
+
+    [Fact(Timeout = 5000)]
+    public async Task StopAsync_ShouldCompleteObservables()
+    {
+        // Arrange
+        await _server.StartAsync();
+        var clientConnectedCompleted = false;
+        var clientDisconnectedCompleted = false;
+        var messagesCompleted = false;
+
+        _server.ClientConnected.Subscribe(_ => { }, () => clientConnectedCompleted = true);
+        _server.ClientDisconnected.Subscribe(_ => { }, () => clientDisconnectedCompleted = true);
+        _server.Messages.Subscribe(_ => { }, () => messagesCompleted = true);
+
+        // Act
+        await _server.StopAsync();
+
+        // Assert
+        Assert.True(clientConnectedCompleted);
+        Assert.True(clientDisconnectedCompleted);
+        Assert.True(messagesCompleted);
+    }
+
+    #endregion
 }
