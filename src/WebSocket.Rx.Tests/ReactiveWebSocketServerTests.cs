@@ -22,13 +22,15 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        await _server.StopAsync();
-        _server.Dispose();
-
         foreach (var client in _testClients)
         {
             client.Dispose();
         }
+        
+        await _server.StopAsync();
+        _server.Dispose();
+
+        
 
         _testClients.Clear();
     }
@@ -51,7 +53,7 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
         var server = new ReactiveWebSocketServer();
 
         // Assert
-        Assert.Equal(TimeSpan.FromSeconds(30), server.InactivityTimeout);
+        Assert.Equal(TimeSpan.FromSeconds(30), server.IdleConnection);
         Assert.Equal(TimeSpan.FromSeconds(10), server.ConnectTimeout);
         Assert.True(server.IsReconnectionEnabled);
         Assert.Equal(Encoding.UTF8, server.MessageEncoding);
@@ -83,14 +85,14 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
         var newEncoding = Encoding.ASCII;
 
         // Act
-        _server.InactivityTimeout = newTimeout;
+        _server.IdleConnection = newTimeout;
         _server.ConnectTimeout = newConnectTimeout;
         _server.IsReconnectionEnabled = false;
         _server.MessageEncoding = newEncoding;
         _server.IsTextMessageConversionEnabled = false;
 
         // Assert
-        Assert.Equal(newTimeout, _server.InactivityTimeout);
+        Assert.Equal(newTimeout, _server.IdleConnection);
         Assert.Equal(newConnectTimeout, _server.ConnectTimeout);
         Assert.False(_server.IsReconnectionEnabled);
         Assert.Equal(newEncoding, _server.MessageEncoding);

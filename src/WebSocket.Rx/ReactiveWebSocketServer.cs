@@ -30,9 +30,9 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
     #region Properties (Client-Style)
 
-    public bool IsDisposing { get; private set; }
+    public bool IsDisposed { get; private set; }
 
-    public TimeSpan InactivityTimeout { get; set; } = TimeSpan.FromSeconds(30);
+    public TimeSpan IdleConnection { get; set; } = TimeSpan.FromSeconds(30);
     public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(10);
     public bool IsReconnectionEnabled { get; set; } = true;
     public Encoding MessageEncoding { get; set; } = Encoding.UTF8;
@@ -55,9 +55,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
             Prefixes = { prefix },
             TimeoutManager =
             {
-                IdleConnection = InactivityTimeout,
-                RequestQueue = TimeSpan.FromSeconds(30),
-                EntityBody = TimeSpan.FromMinutes(2)
+                IdleConnection = IdleConnection,
             },
             AuthenticationSchemes = AuthenticationSchemes.Anonymous,
             UnsafeConnectionNtlmAuthentication = false
@@ -107,18 +105,20 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
     public async Task<bool> StopAsync(WebSocketCloseStatus status = WebSocketCloseStatus.NormalClosure,
         string reason = "Server stopping")
     {
-        if (IsDisposing)
+        if (IsDisposed)
         {
             return false;
         }
 
-        using var async = await _serverLock.LockAsync();
-        IsDisposing = true;
+        using var disposable = await _serverLock.LockAsync();
+        IsDisposed = true;
 
         _mainCts?.Cancel();
 
         var disconnectTasks = _clients.Values.Select(client => client.StopAsync(status, reason));
         await Task.WhenAll(disconnectTasks).ConfigureAwait(false);
+
+        await (_serverLoopTask ?? Task.CompletedTask);
 
         _listener.Stop();
         _listener.Close();
@@ -156,7 +156,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
         return true;
     }
 
-    public bool Broadcast(byte[] data) => _clients.Keys.AsParallel().All(id => SendToClient(id, data));
+    public bool Broadcast(byte[] data) => _clients.Keys.All(id => SendToClient(id, data));
 
     public async Task<bool> BroadcastInstantAsync(byte[] data, CancellationToken cancellationToken = default)
     {
@@ -180,17 +180,15 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
         try
         {
-            using var timeoutCts = new CancellationTokenSource(ConnectTimeout);
-
             var webSocketCtx = await context
-                .AcceptWebSocketAsync(null, InactivityTimeout)
+                .AcceptWebSocketAsync(null, IdleConnection)
                 .ConfigureAwait(false);
 
             client = new ServerWebSocketAdapter(webSocketCtx.WebSocket, metadata)
             {
                 IsTextMessageConversionEnabled = IsTextMessageConversionEnabled,
                 MessageEncoding = MessageEncoding,
-                KeepAliveInterval = InactivityTimeout
+                KeepAliveInterval = IdleConnection
             };
 
             var sendChannel = Channel.CreateUnbounded<Payload>(new UnboundedChannelOptions
@@ -239,7 +237,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
     public void Dispose()
     {
-        if (IsDisposing) return;
+        if (IsDisposed) return;
         _ = StopAsync();
 
         _clientConnectedSource.Dispose();

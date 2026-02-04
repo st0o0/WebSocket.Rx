@@ -43,202 +43,214 @@ public class ServerWebSocketAdapterTests : IAsyncLifetime
             new ReactiveWebSocketServer.ServerWebSocketAdapter(null, new Metadata(Guid.Empty, IPAddress.Any, 0)));
     }
 
-    // [Fact]
-    // public void Send_WithByteArray_ShouldQueueMessage()
-    // {
-    //     // Arrange
-    //     _adapter = new ReactiveWebSocketServer.ServerWebSocketAdapter(_mockWebSocket);
-    //     var testData = new byte[] { 1, 2, 3, 4 };
-    //
-    //     // Act
-    //     var result = _adapter.Send(testData);
-    //
-    //     // Assert
-    //     Assert.True(result);
-    // }
-    //
-    // [Fact]
-    // public void Send_WithString_ShouldQueueEncodedMessage()
-    // {
-    //     // Arrange
-    //     _adapter = new ReactiveWebSocketServer.ServerWebSocketAdapter(_mockWebSocket);
-    //     var testMessage = "Test message";
-    //
-    //     // Act
-    //     var result = _adapter.Send(testMessage);
-    //
-    //     // Assert
-    //     Assert.True(result);
-    // }
-    //
-    // [Fact]
-    // public void Send_WithEmptyByteArray_ShouldReturnFalse()
-    // {
-    //     // Arrange
-    //     _adapter = new ReactiveWebSocketServer.ServerWebSocketAdapter(_mockWebSocket);
-    //
-    //     // Act
-    //     var result = _adapter.Send([]);
-    //
-    //     // Assert
-    //     Assert.False(result);
-    // }
-    //
-    // [Fact]
-    // public void Send_WithEmptyString_ShouldReturnFalse()
-    // {
-    //     // Arrange
-    //     _adapter = new ReactiveWebSocketServer.ServerWebSocketAdapter(_mockWebSocket);
-    //
-    //     // Act
-    //     var result = _adapter.Send(string.Empty);
-    //
-    //     // Assert
-    //     Assert.False(result);
-    // }
-    //
-    // [Fact]
-    // public void Send_WithNullString_ShouldReturnFalse()
-    // {
-    //     // Arrange
-    //     _adapter = new ReactiveWebSocketServer.ServerWebSocketAdapter(_mockWebSocket);
-    //
-    //     // Act
-    //     var result = _adapter.Send((string)null);
-    //
-    //     // Assert
-    //     Assert.False(result);
-    // }
-    //
-    // [Fact]
-    // public void SendAsText_WithValidMessage_ShouldQueueTextMessage()
-    // {
-    //     // Arrange
-    //     _adapter = new ReactiveWebSocketServer.ServerWebSocketAdapter(_mockWebSocket);
-    //     var testMessage = "Text message";
-    //
-    //     // Act
-    //     var result = _adapter.SendAsText(testMessage);
-    //
-    //     // Assert
-    //     Assert.True(result);
-    // }
-    //
-    // [Fact]
-    // public void SendAsText_WithEmptyString_ShouldReturnFalse()
-    // {
-    //     // Arrange
-    //     _adapter = new ReactiveWebSocketServer.ServerWebSocketAdapter(_mockWebSocket);
-    //
-    //     // Act
-    //     var result = _adapter.SendAsText(string.Empty);
-    //
-    //     // Assert
-    //     Assert.False(result);
-    // }
-    //
-    // [Fact]
-    // public async Task SendInstant_WithByteArray_ShouldSendImmediately()
-    // {
-    //     // Arrange
-    //     _mockWebSocket.SendAsync(
-    //             Arg.Any<ArraySegment<byte>>(),
-    //             Arg.Any<WebSocketMessageType>(),
-    //             Arg.Any<bool>(),
-    //             Arg.Any<CancellationToken>())
-    //         .Returns(Task.CompletedTask);
-    //
-    //     _adapter = new ReactiveWebSocketServer.ServerWebSocketAdapter(_mockWebSocket);
-    //     var testData = new byte[] { 1, 2, 3 };
-    //
-    //     // Act
-    //     await _adapter.SendInstant(testData);
-    //
-    //     // Assert
-    //     await _mockWebSocket.Received(1).SendAsync(
-    //         Arg.Any<ArraySegment<byte>>(),
-    //         WebSocketMessageType.Binary,
-    //         true,
-    //         Arg.Any<CancellationToken>());
-    // }
-    //
-    // [Fact]
-    // public async Task SendInstant_WithString_ShouldSendEncodedMessage()
-    // {
-    //     // Arrange
-    //     _mockWebSocket.SendAsync(
-    //             Arg.Any<ArraySegment<byte>>(),
-    //             Arg.Any<WebSocketMessageType>(),
-    //             Arg.Any<bool>(),
-    //             Arg.Any<CancellationToken>())
-    //         .Returns(Task.CompletedTask);
-    //
-    //     _adapter = new ReactiveWebSocketServer.ServerWebSocketAdapter(_mockWebSocket);
-    //     var testMessage = "Instant message";
-    //
-    //     // Act
-    //     await _adapter.SendInstant(testMessage);
-    //
-    //     // Assert
-    //     await _mockWebSocket.Received(1).SendAsync(
-    //         Arg.Any<ArraySegment<byte>>(),
-    //         WebSocketMessageType.Binary,
-    //         true,
-    //         Arg.Any<CancellationToken>());
-    // }
-    //
-    // [Fact]
-    // public async Task SendInstant_WithClosedSocket_ShouldNotSend()
-    // {
-    //     // Arrange
-    //     _mockWebSocket.State.Returns(WebSocketState.Closed);
-    //     _adapter = new ReactiveWebSocketServer.ServerWebSocketAdapter(_mockWebSocket);
-    //     var testData = new byte[] { 1, 2, 3 };
-    //
-    //     // Act
-    //     await _adapter.SendInstant(testData);
-    //
-    //     // Assert
-    //     await _mockWebSocket.DidNotReceive().SendAsync(
-    //         Arg.Any<ArraySegment<byte>>(),
-    //         Arg.Any<WebSocketMessageType>(),
-    //         Arg.Any<bool>(),
-    //         Arg.Any<CancellationToken>());
-    // }
-    //
-    // [Fact]
-    // public async Task SendInstant_WithEmptyByteArray_ShouldNotSend()
-    // {
-    //     // Arrange
-    //     _adapter = new ReactiveWebSocketServer.ServerWebSocketAdapter(_mockWebSocket);
-    //
-    //     // Act
-    //     await _adapter.SendInstant([]);
-    //
-    //     // Assert
-    //     await _mockWebSocket.DidNotReceive().SendAsync(
-    //         Arg.Any<ArraySegment<byte>>(),
-    //         Arg.Any<WebSocketMessageType>(),
-    //         Arg.Any<bool>(),
-    //         Arg.Any<CancellationToken>());
-    // }
-    //
-    // [Fact]
-    // public async Task SendInstant_WithNullOrEmptyString_ShouldNotSend()
-    // {
-    //     // Arrange
-    //     _adapter = new ReactiveWebSocketServer.ServerWebSocketAdapter(_mockWebSocket);
-    //
-    //     // Act
-    //     await _adapter.SendInstant(string.Empty);
-    //
-    //     // Assert
-    //     await _mockWebSocket.DidNotReceive().SendAsync(
-    //         Arg.Any<ArraySegment<byte>>(),
-    //         Arg.Any<WebSocketMessageType>(),
-    //         Arg.Any<bool>(),
-    //         Arg.Any<CancellationToken>());
-    // }
+    [Fact]
+    public void Send_WithByteArray_ShouldQueueMessage()
+    {
+        // Arrange
+        _adapter = new ReactiveWebSocketServer.ServerWebSocketAdapter(_mockWebSocket,
+            new Metadata(Guid.Empty, IPAddress.Any, 0));
+        var testData = new byte[] { 1, 2, 3, 4 };
+
+        // Act
+        var result = _adapter.TrySendAsBinary(testData);
+
+        // Assert
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void Send_WithString_ShouldQueueEncodedMessage()
+    {
+        // Arrange
+        _adapter = new ReactiveWebSocketServer.ServerWebSocketAdapter(_mockWebSocket,
+            new Metadata(Guid.Empty, IPAddress.Any, 0));
+        var testMessage = "Test message";
+
+        // Act
+        var result = _adapter.TrySendAsBinary(testMessage);
+
+        // Assert
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void Send_WithEmptyByteArray_ShouldReturnFalse()
+    {
+        // Arrange
+        _adapter = new ReactiveWebSocketServer.ServerWebSocketAdapter(_mockWebSocket,
+            new Metadata(Guid.Empty, IPAddress.Any, 0));
+
+        // Act
+        var result = _adapter.TrySendAsBinary([]);
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void Send_WithEmptyString_ShouldReturnFalse()
+    {
+        // Arrange
+        _adapter = new ReactiveWebSocketServer.ServerWebSocketAdapter(_mockWebSocket,
+            new Metadata(Guid.Empty, IPAddress.Any, 0));
+
+        // Act
+        var result = _adapter.TrySendAsBinary(string.Empty);
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void Send_WithNullString_ShouldReturnFalse()
+    {
+        // Arrange
+        _adapter = new ReactiveWebSocketServer.ServerWebSocketAdapter(_mockWebSocket,
+            new Metadata(Guid.Empty, IPAddress.Any, 0));
+
+        // Act
+        var result = _adapter.TrySendAsBinary((string)null);
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void SendAsText_WithValidMessage_ShouldQueueTextMessage()
+    {
+        // Arrange
+        _adapter = new ReactiveWebSocketServer.ServerWebSocketAdapter(_mockWebSocket,
+            new Metadata(Guid.Empty, IPAddress.Any, 0));
+        var testMessage = "Text message";
+
+        // Act
+        var result = _adapter.TrySendAsText(testMessage);
+
+        // Assert
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void SendAsText_WithEmptyString_ShouldReturnFalse()
+    {
+        // Arrange
+        _adapter = new ReactiveWebSocketServer.ServerWebSocketAdapter(_mockWebSocket,
+            new Metadata(Guid.Empty, IPAddress.Any, 0));
+
+        // Act
+        var result = _adapter.TrySendAsText(string.Empty);
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task SendInstant_WithByteArray_ShouldSendImmediately()
+    {
+        // Arrange
+        _mockWebSocket.SendAsync(
+                Arg.Any<ArraySegment<byte>>(),
+                Arg.Any<WebSocketMessageType>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
+        _adapter = new ReactiveWebSocketServer.ServerWebSocketAdapter(_mockWebSocket,
+            new Metadata(Guid.Empty, IPAddress.Any, 0));
+        var testData = new byte[] { 1, 2, 3 };
+
+        // Act
+        await _adapter.SendInstantAsync(testData);
+
+        // Assert
+        await _mockWebSocket.Received(1).SendAsync(
+            Arg.Any<ArraySegment<byte>>(),
+            WebSocketMessageType.Binary,
+            true,
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SendInstant_WithString_ShouldSendEncodedMessage()
+    {
+        // Arrange
+        _mockWebSocket.SendAsync(
+                Arg.Any<ArraySegment<byte>>(),
+                Arg.Any<WebSocketMessageType>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
+        _adapter = new ReactiveWebSocketServer.ServerWebSocketAdapter(_mockWebSocket,
+            new Metadata(Guid.Empty, IPAddress.Any, 0));
+        var testMessage = "Instant message";
+
+        // Act
+        await _adapter.SendInstantAsync(testMessage);
+
+        // Assert
+        await _mockWebSocket.Received(1).SendAsync(
+            Arg.Any<ArraySegment<byte>>(),
+            WebSocketMessageType.Binary,
+            true,
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SendInstant_WithClosedSocket_ShouldNotSend()
+    {
+        // Arrange
+        _mockWebSocket.State.Returns(WebSocketState.Closed);
+        _adapter = new ReactiveWebSocketServer.ServerWebSocketAdapter(_mockWebSocket,
+            new Metadata(Guid.Empty, IPAddress.Any, 0));
+        var testData = new byte[] { 1, 2, 3 };
+
+        // Act
+        await _adapter.SendInstantAsync(testData);
+
+        // Assert
+        await _mockWebSocket.DidNotReceive().SendAsync(
+            Arg.Any<ArraySegment<byte>>(),
+            Arg.Any<WebSocketMessageType>(),
+            Arg.Any<bool>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SendInstant_WithEmptyByteArray_ShouldNotSend()
+    {
+        // Arrange
+        _adapter = new ReactiveWebSocketServer.ServerWebSocketAdapter(_mockWebSocket,
+            new Metadata(Guid.Empty, IPAddress.Any, 0));
+
+        // Act
+        await _adapter.SendInstantAsync([]);
+
+        // Assert
+        await _mockWebSocket.DidNotReceive().SendAsync(
+            Arg.Any<ArraySegment<byte>>(),
+            Arg.Any<WebSocketMessageType>(),
+            Arg.Any<bool>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SendInstant_WithNullOrEmptyString_ShouldNotSend()
+    {
+        // Arrange
+        _adapter = new ReactiveWebSocketServer.ServerWebSocketAdapter(_mockWebSocket,
+            new Metadata(Guid.Empty, IPAddress.Any, 0));
+
+        // Act
+        await _adapter.SendInstantAsync(string.Empty);
+
+        // Assert
+        await _mockWebSocket.DidNotReceive().SendAsync(
+            Arg.Any<ArraySegment<byte>>(),
+            Arg.Any<WebSocketMessageType>(),
+            Arg.Any<bool>(),
+            Arg.Any<CancellationToken>());
+    }
 
     [Fact]
     public async Task StopAsync_ShouldCloseWebSocketGracefully()
