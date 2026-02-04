@@ -1,26 +1,42 @@
+using System.Net.WebSockets;
 using System.Text;
 
 namespace WebSocket.Rx;
 
 public interface IReactiveWebSocketServer : IDisposable
 {
-    public TimeSpan IdleConnection { get; set; }
+    TimeSpan IdleConnection { get; set; }
+    TimeSpan ConnectTimeout { get; set; }
+    bool IsReconnectionEnabled { get; set; }
+    Encoding MessageEncoding { get; set; }
+    bool IsTextMessageConversionEnabled { get; set; }
+    int ClientCount { get; }
+    IReadOnlyDictionary<Guid, Metadata> ConnectedClients { get; }
+    IObservable<ClientConnected> ClientConnected { get; }
+    IObservable<ClientDisconnected> ClientDisconnected { get; }
+    IObservable<ServerReceivedMessage> Messages { get; }
 
-    public TimeSpan ConnectTimeout { get; set; }
+    Task StartAsync();
 
-    public bool IsReconnectionEnabled { get; set; }
+    Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription);
 
-    public Encoding MessageEncoding { get; set; }
+    Task<bool> SendInstantAsync(Guid clientId, string message, CancellationToken cancellationToken = default);
 
-    public bool IsTextMessageConversionEnabled { get; set; }
+    Task<bool> SendInstantAsync(Guid clientId, byte[] message, CancellationToken cancellationToken = default);
 
-    public int ClientCount { get; }
+    Task<bool> SendAsBinaryAsync(Guid clientId, byte[] message, CancellationToken cancellationToken = default);
 
-    public IReadOnlyDictionary<Guid, Metadata> ConnectedClients { get; }
+    Task<bool> SendAsBinaryAsync(Guid clientId, string message, CancellationToken cancellationToken = default);
 
-    public IObservable<ClientConnected> ClientConnected { get; }
+    Task<bool> SendAsTextAsync(Guid clientId, byte[] message, CancellationToken cancellationToken = default);
 
-    public IObservable<ClientDisconnected> ClientDisconnected { get; }
+    Task<bool> SendAsTextAsync(Guid clientId, string message, CancellationToken cancellationToken = default);
 
-    public IObservable<ServerReceivedMessage> Messages { get; }
+    bool TrySendAsBinary(Guid clientId, string message);
+
+    bool TrySendAsBinary(Guid clientId, byte[] data);
+
+    bool TrySendAsText(Guid clientId, string message);
+
+    bool TrySendAsText(Guid clientId, byte[] data);
 }
