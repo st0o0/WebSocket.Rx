@@ -30,23 +30,14 @@ public class ReceivedMessage
         return $"Type binary, length: {Binary?.Length}";
     }
 
-    public static ReceivedMessage Empty()
-    {
-        return new ReceivedMessage(null, null, null, WebSocketMessageType.Close);
-    }
+    public static ReceivedMessage Empty() => new(null, null, null, WebSocketMessageType.Close);
 
     public static ReceivedMessage TextMessage(string? data)
-    {
-        return new ReceivedMessage(null, null, data, WebSocketMessageType.Text);
-    }
+        => new(null, null, data, WebSocketMessageType.Text);
 
     public static ReceivedMessage BinaryMessage(byte[]? data)
-    {
-        return new ReceivedMessage(null, data, null, WebSocketMessageType.Binary);
-    }
+        => new(null, data, null, WebSocketMessageType.Binary);
 
     public static ReceivedMessage BinaryStreamMessage(MemoryStream? memoryStream)
-    {
-        return new ReceivedMessage(memoryStream, null, null, WebSocketMessageType.Binary);
-    }
+        => new(memoryStream, null, null, WebSocketMessageType.Binary);
 }

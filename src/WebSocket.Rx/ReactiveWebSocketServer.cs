@@ -31,7 +31,6 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
     #region Properties (Client-Style)
 
     public bool IsDisposed { get; private set; }
-
     public TimeSpan IdleConnection { get; set; } = TimeSpan.FromSeconds(30);
     public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(10);
     public bool IsReconnectionEnabled { get; set; } = true;
@@ -64,7 +63,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
     #region Start/Stop
 
-    public async Task StartAsync(CancellationToken cancellationToken = default)
+    public async Task StartAsync()
     {
         using var disposable = await _serverLock.LockAsync();
         _mainCts = new CancellationTokenSource();
@@ -74,36 +73,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
         _serverLoopTask = Task.Run(() => ServerLoopAsync(_mainCts.Token), _mainCts.Token);
     }
 
-    private async Task ServerLoopAsync(CancellationToken cancellationToken = default)
-    {
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            try
-            {
-                var ctx = await _listener.GetContextAsync();
-                if (ctx.Request.IsWebSocketRequest)
-                {
-                    _ = HandleWebSocketAsync(ctx, ctx.GetMetadata());
-                }
-                else
-                {
-                    ctx.Response.StatusCode = 400;
-                    ctx.Response.Close();
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (Exception ex) when (ex is HttpListenerException or ObjectDisposedException)
-            {
-                break;
-            }
-        }
-    }
-
-    public async Task<bool> StopAsync(WebSocketCloseStatus status = WebSocketCloseStatus.NormalClosure,
-        string reason = "Server stopping")
+    public async Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription)
     {
         if (IsDisposed)
         {
@@ -111,11 +81,10 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
         }
 
         using var disposable = await _serverLock.LockAsync();
-        IsDisposed = true;
 
         _mainCts?.Cancel();
 
-        var disconnectTasks = _clients.Values.Select(client => client.StopAsync(status, reason));
+        var disconnectTasks = _clients.Values.Select(client => client.StopAsync(status, statusDescription));
         await Task.WhenAll(disconnectTasks).ConfigureAwait(false);
 
         await (_serverLoopTask ?? Task.CompletedTask);
@@ -133,6 +102,114 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
     #endregion
 
     #region Send Methods
+
+    public async Task<bool> SendInstantAsync(Guid clientId, string message,
+        CancellationToken cancellationToken = default)
+    {
+        if (_clients.TryGetValue(clientId, out var client))
+        {
+            await client.SendInstantAsync(message, cancellationToken);
+        }
+
+        return false;
+    }
+
+    public async Task<bool> SendInstantAsync(Guid clientId, byte[] message,
+        CancellationToken cancellationToken = default)
+    {
+        if (_clients.TryGetValue(clientId, out var client))
+        {
+            await client.SendInstantAsync(message, cancellationToken);
+        }
+
+        return false;
+    }
+
+    public async Task<bool> SendAsBinaryAsync(Guid clientId, byte[] message,
+        CancellationToken cancellationToken = default)
+    {
+        if (_clients.TryGetValue(clientId, out var client))
+        {
+            await client.SendAsBinaryAsync(message, cancellationToken);
+        }
+
+        return false;
+    }
+
+    public async Task<bool> SendAsBinaryAsync(Guid clientId, string message,
+        CancellationToken cancellationToken = default)
+    {
+        if (_clients.TryGetValue(clientId, out var client))
+        {
+            await client.SendAsBinaryAsync(message, cancellationToken);
+        }
+
+        return false;
+    }
+
+    public async Task<bool> SendAsTextAsync(Guid clientId, byte[] message,
+        CancellationToken cancellationToken = default)
+    {
+        if (_clients.TryGetValue(clientId, out var client))
+        {
+            await client.SendAsTextAsync(message, cancellationToken);
+        }
+
+        return false;
+    }
+
+    public async Task<bool> SendAsTextAsync(Guid clientId, string message,
+        CancellationToken cancellationToken = default)
+    {
+        if (_clients.TryGetValue(clientId, out var client))
+        {
+            await client.SendAsTextAsync(message, cancellationToken);
+        }
+
+        return false;
+    }
+
+    public bool TrySendAsBinary(Guid clientId, string message)
+    {
+        if (_clients.TryGetValue(clientId, out var client))
+        {
+            client.TrySendAsBinary(message);
+        }
+
+        return false;
+    }
+
+    public bool TrySendAsBinary(Guid clientId, byte[] data)
+    {
+        if (_clients.TryGetValue(clientId, out var client))
+        {
+            client.TrySendAsBinary(data);
+        }
+
+        return false;
+    }
+
+    public bool TrySendAsText(Guid clientId, string message)
+    {
+        if (_clients.TryGetValue(clientId, out var client))
+        {
+            client.TrySendAsText(message);
+        }
+
+        return false;
+    }
+
+    public bool TrySendAsText(Guid clientId, byte[] data)
+    {
+        if (_clients.TryGetValue(clientId, out var client))
+        {
+            client.TrySendAsText(data);
+        }
+
+        return false;
+    }
+
+    #region All
 
     public bool SendToClient(Guid clientId, byte[] data) => SendToClient(clientId, data, WebSocketMessageType.Binary);
 
@@ -171,7 +248,37 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
     #endregion
 
+    #endregion
+
     #region Client Handling
+
+    private async Task ServerLoopAsync(CancellationToken cancellationToken = default)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                var ctx = await _listener.GetContextAsync();
+                if (ctx.Request.IsWebSocketRequest)
+                {
+                    _ = HandleWebSocketAsync(ctx, ctx.GetMetadata());
+                }
+                else
+                {
+                    ctx.Response.StatusCode = 400;
+                    ctx.Response.Close();
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch (Exception ex) when (ex is HttpListenerException or ObjectDisposedException)
+            {
+                break;
+            }
+        }
+    }
 
     private async Task HandleWebSocketAsync(HttpListenerContext context, Metadata metadata)
     {
@@ -238,7 +345,12 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
     public void Dispose()
     {
         if (IsDisposed) return;
-        _ = StopAsync();
+        _ = StopAsync(WebSocketCloseStatus.InternalServerError, "Dispose");
+
+        foreach (var socketAdapter in _clients.Values)
+        {
+            socketAdapter.Dispose();
+        }
 
         _clientConnectedSource.Dispose();
         _clientDisconnectedSource.Dispose();

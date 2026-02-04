@@ -18,28 +18,12 @@ public enum ConnectReason
     Reconnect = 2
 }
 
-public record Disconnected
+public record Disconnected(DisconnectReason Reason, Exception? Exception = null)
 {
-    public DisconnectReason Reason { get; init; }
-    public DateTime Timestamp { get; init; }
-    public Exception? Exception { get; init; }
-
-    public static Disconnected Create(DisconnectReason reason, Exception? exception = null) => new()
-    {
-        Reason = reason,
-        Exception = exception,
-        Timestamp = DateTime.UtcNow
-    };
+    public static Disconnected Create(DisconnectReason reason, Exception? exception = null) => new(reason, exception);
 }
 
-public record Connected
+public record Connected(ConnectReason Reason)
 {
-    public ConnectReason Reason { get; init; }
-    public DateTime Timestamp { get; init; }
-
-    public static Connected Create(ConnectReason reason) => new()
-    {
-        Reason = reason,
-        Timestamp = DateTime.UtcNow
-    };
+    public static Connected Create(ConnectReason reason) => new(reason);
 }

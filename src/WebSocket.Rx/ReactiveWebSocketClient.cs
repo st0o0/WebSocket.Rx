@@ -55,11 +55,11 @@ public class ReactiveWebSocketClient(Uri url, RecyclableMemoryStreamManager? mem
 
     #region Start/Stop
 
-    public async Task StartAsync(CancellationToken cancellationToken = default)
+    public async Task StartAsync()
     {
         try
         {
-            await StartOrFailAsync(cancellationToken);
+            await StartOrFailAsync();
         }
         catch (Exception ex)
         {
@@ -67,7 +67,7 @@ public class ReactiveWebSocketClient(Uri url, RecyclableMemoryStreamManager? mem
         }
     }
 
-    public async Task StartOrFailAsync(CancellationToken cancellationToken = default)
+    public async Task StartOrFailAsync()
     {
         using (await ConnectionLock.LockAsync())
         {
@@ -76,16 +76,15 @@ public class ReactiveWebSocketClient(Uri url, RecyclableMemoryStreamManager? mem
                 return;
             }
 
-            await ConnectInternalAsync(ConnectReason.Initial, true, cancellationToken);
+            await ConnectInternalAsync(ConnectReason.Initial, true);
         }
     }
 
-    public async Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription,
-        CancellationToken cancellationToken = default)
+    public async Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription)
     {
         try
         {
-            return await StopOrFailAsync(status, statusDescription, cancellationToken);
+            return await StopOrFailAsync(status, statusDescription);
         }
         catch
         {
@@ -93,8 +92,7 @@ public class ReactiveWebSocketClient(Uri url, RecyclableMemoryStreamManager? mem
         }
     }
 
-    public async Task<bool> StopOrFailAsync(WebSocketCloseStatus status, string statusDescription,
-        CancellationToken cancellationToken = default)
+    public async Task<bool> StopOrFailAsync(WebSocketCloseStatus status, string statusDescription)
     {
         if (IsDisposed)
         {
@@ -103,7 +101,10 @@ public class ReactiveWebSocketClient(Uri url, RecyclableMemoryStreamManager? mem
 
         using (await ConnectionLock.LockAsync().ConfigureAwait(false))
         {
-            if (!IsStarted || IsDisposed) return false;
+            if (!IsStarted || IsDisposed)
+            {
+                return false;
+            }
 
             IsStarted = false;
             IsRunning = false;
@@ -117,7 +118,7 @@ public class ReactiveWebSocketClient(Uri url, RecyclableMemoryStreamManager? mem
                 {
                     using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
                     using var closeCts =
-                        CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken);
+                        CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token);
                     await NativeClient.CloseAsync(status, statusDescription, closeCts.Token);
                 }
                 catch (Exception)

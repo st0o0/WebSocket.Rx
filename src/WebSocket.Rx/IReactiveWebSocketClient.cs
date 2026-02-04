@@ -19,14 +19,14 @@ public interface IReactiveWebSocketClient : IDisposable
     bool IsTextMessageConversionEnabled { get; set; }
     Encoding MessageEncoding { get; set; }
     ClientWebSocket NativeClient { get; }
-    Task StartAsync(CancellationToken cancellationToken = default);
-    Task StartOrFailAsync(CancellationToken cancellationToken = default);
 
-    Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription,
-        CancellationToken cancellationToken = default);
+    Task StartAsync();
 
-    Task<bool> StopOrFailAsync(WebSocketCloseStatus status, string statusDescription,
-        CancellationToken cancellationToken = default);
+    Task StartOrFailAsync();
+
+    Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription);
+
+    Task<bool> StopOrFailAsync(WebSocketCloseStatus status, string statusDescription);
 
     Task ReconnectAsync(CancellationToken cancellationToken = default);
 

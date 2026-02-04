@@ -26,11 +26,10 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
         {
             client.Dispose();
         }
-        
-        await _server.StopAsync();
+
+        await _server.StopAsync(WebSocketCloseStatus.PolicyViolation, string.Empty);
         _server.Dispose();
 
-        
 
         _testClients.Clear();
     }
@@ -139,7 +138,7 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
         using var cts = new CancellationTokenSource();
 
         // Act
-        await _server.StartAsync(cts.Token);
+        await _server.StartAsync();
         await cts.CancelAsync();
 
         // Assert
@@ -158,7 +157,7 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
         await client.ConnectAsync(uri, CancellationToken.None);
 
         // Act
-        var result = await _server.StopAsync();
+        var result = await _server.StopAsync(WebSocketCloseStatus.PolicyViolation, string.Empty);
 
         // Assert
         Assert.True(result);
@@ -183,10 +182,10 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
     {
         // Arrange
         await _server.StartAsync();
-        await _server.StopAsync();
+        await _server.StopAsync(WebSocketCloseStatus.PolicyViolation, string.Empty);
 
         // Act
-        var result = await _server.StopAsync();
+        var result = await _server.StopAsync(WebSocketCloseStatus.PolicyViolation, string.Empty);
 
         // Assert
         Assert.False(result);
@@ -550,7 +549,7 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
         _server.Messages.Subscribe(_ => { }, () => messagesCompleted = true);
 
         // Act
-        await _server.StopAsync();
+        await _server.StopAsync(WebSocketCloseStatus.PolicyViolation, string.Empty);
 
         // Assert
         Assert.True(clientConnectedCompleted);
