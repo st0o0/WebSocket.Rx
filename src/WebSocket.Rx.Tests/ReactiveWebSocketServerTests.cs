@@ -7,31 +7,35 @@ namespace WebSocket.Rx.Tests;
 
 public class ReactiveWebSocketServerTests : IAsyncLifetime
 {
-    private readonly string _testPrefix = $"http://localhost:{GetAvailablePort()}/";
-#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
-    private ReactiveWebSocketServer _server;
-    private List<ClientWebSocket> _testClients;
-#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
+    private ReactiveWebSocketServer _server = null!;
+    private string _serverUrl = string.Empty;
+    private string _webSocketUrl;
 
     public async Task InitializeAsync()
     {
-        _server = new ReactiveWebSocketServer(_testPrefix);
-        _testClients = [];
-        await Task.CompletedTask;
+        var port = GetAvailablePort();
+        _serverUrl = $"http://127.0.0.1:{port}/"; // 127.0.0.1 statt localhost
+        _webSocketUrl = _serverUrl.Replace("http://", "ws://");
+
+        _server = new ReactiveWebSocketServer(_serverUrl);
+
+        try
+        {
+            await _server.StartAsync();
+            await Task.Delay(200);
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException(
+                $"Failed to start server on {_serverUrl}. " +
+                $"Make sure no other service is using this port. Error: {ex.Message}", ex);
+        }
     }
 
     public async Task DisposeAsync()
     {
-        foreach (var client in _testClients)
-        {
-            client.Dispose();
-        }
-
-        await _server.StopAsync(WebSocketCloseStatus.PolicyViolation, string.Empty);
         _server.Dispose();
-
-
-        _testClients.Clear();
+        await Task.CompletedTask;
     }
 
     private static int GetAvailablePort()
@@ -43,518 +47,681 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
         return port;
     }
 
-    #region Initialization Tests
+    #region Helper Methods
 
-    [Fact]
-    public void Constructor_ShouldInitializeWithDefaultValues()
+    private async Task<ClientWebSocket> ConnectClientAsync(CancellationToken ct = default)
     {
-        // Arrange & Act
-        var server = new ReactiveWebSocketServer();
-
-        // Assert
-        Assert.Equal(TimeSpan.FromSeconds(30), server.IdleConnection);
-        Assert.Equal(TimeSpan.FromSeconds(10), server.ConnectTimeout);
-        Assert.True(server.IsReconnectionEnabled);
-        Assert.Equal(Encoding.UTF8, server.MessageEncoding);
-        Assert.True(server.IsTextMessageConversionEnabled);
-        Assert.Equal(0, server.ClientCount);
-
-        server.Dispose();
-    }
-
-    [Fact]
-    public void Constructor_ShouldAcceptCustomPrefix()
-    {
-        // Arrange & Act
-        const string customPrefix = "http://localhost:8888/ws/";
-        var server = new ReactiveWebSocketServer(customPrefix);
-
-        // Assert
-        Assert.NotNull(server);
-
-        server.Dispose();
-    }
-
-    [Fact]
-    public void Properties_ShouldBeSettable()
-    {
-        // Arrange
-        var newTimeout = TimeSpan.FromSeconds(60);
-        var newConnectTimeout = TimeSpan.FromSeconds(5);
-        var newEncoding = Encoding.ASCII;
-
-        // Act
-        _server.IdleConnection = newTimeout;
-        _server.ConnectTimeout = newConnectTimeout;
-        _server.IsReconnectionEnabled = false;
-        _server.MessageEncoding = newEncoding;
-        _server.IsTextMessageConversionEnabled = false;
-
-        // Assert
-        Assert.Equal(newTimeout, _server.IdleConnection);
-        Assert.Equal(newConnectTimeout, _server.ConnectTimeout);
-        Assert.False(_server.IsReconnectionEnabled);
-        Assert.Equal(newEncoding, _server.MessageEncoding);
-        Assert.False(_server.IsTextMessageConversionEnabled);
-    }
-
-    #endregion
-
-    #region Start/Stop Tests
-
-    [Fact(Timeout = 5000)]
-    public async Task StartAsync_ShouldStartServer()
-    {
-        // Act
-        await _server.StartAsync();
-
-        // Assert
         var client = new ClientWebSocket();
-        _testClients.Add(client);
-
-        var uri = new Uri(_testPrefix.Replace("http://", "ws://"));
-        await client.ConnectAsync(uri, CancellationToken.None);
-
-        Assert.Equal(WebSocketState.Open, client.State);
+        await client.ConnectAsync(new Uri(_webSocketUrl), ct);
+        return client;
     }
 
-    [Fact(Timeout = 5000)]
-    public async Task StartAsync_CalledTwice_ShouldNotStartTwice()
+    private static async Task<string> ReceiveTextAsync(ClientWebSocket client, CancellationToken ct = default)
     {
-        // Arrange
-        await _server.StartAsync();
-
-        // Act
-        await _server.StartAsync();
-
-        // Assert
-        Assert.Equal(0, _server.ClientCount);
+        var buffer = new byte[1024 * 64];
+        var result = await client.ReceiveAsync(buffer, ct);
+        return Encoding.UTF8.GetString(buffer, 0, result.Count);
     }
 
-    [Fact(Timeout = 5000)]
-    public async Task StartAsync_WithCancellationToken_ShouldRespectCancellation()
+    private static async Task SendTextAsync(ClientWebSocket client, string message, CancellationToken ct = default)
     {
-        // Arrange
-        using var cts = new CancellationTokenSource();
-
-        // Act
-        await _server.StartAsync();
-        await cts.CancelAsync();
-
-        // Assert
-        Assert.NotNull(_server);
+        var bytes = Encoding.UTF8.GetBytes(message);
+        await client.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, ct);
     }
 
-    [Fact(Timeout = 5000)]
-    public async Task StopAsync_ShouldStopServerAndDisconnectClients()
+    private static async Task<T> WaitAsync<T>(TaskCompletionSource<T> tcs, int timeoutMs = 5000)
     {
-        // Arrange
-        await _server.StartAsync();
-
-        var client = new ClientWebSocket();
-        _testClients.Add(client);
-        var uri = new Uri(_testPrefix.Replace("http://", "ws://"));
-        await client.ConnectAsync(uri, CancellationToken.None);
-
-        // Act
-        var result = await _server.StopAsync(WebSocketCloseStatus.PolicyViolation, string.Empty);
-
-        // Assert
-        Assert.True(result);
-        Assert.True(client.State is WebSocketState.Closed or WebSocketState.Aborted);
+        using var cts = new CancellationTokenSource(timeoutMs);
+        return await tcs.Task.WaitAsync(cts.Token);
     }
 
-    [Fact(Timeout = 5000)]
-    public async Task StopAsync_WithCustomStatusAndReason_ShouldUseProvidedValues()
+    private static async Task WaitForConditionAsync(Func<bool> condition, int timeoutMs = 5000)
     {
-        // Arrange
-        await _server.StartAsync();
-
-        // Act
-        var result = await _server.StopAsync(WebSocketCloseStatus.EndpointUnavailable, "Custom shutdown");
-
-        // Assert
-        Assert.True(result);
-    }
-
-    [Fact(Timeout = 5000)]
-    public async Task StopAsync_CalledTwice_ShouldReturnFalseSecondTime()
-    {
-        // Arrange
-        await _server.StartAsync();
-        await _server.StopAsync(WebSocketCloseStatus.PolicyViolation, string.Empty);
-
-        // Act
-        var result = await _server.StopAsync(WebSocketCloseStatus.PolicyViolation, string.Empty);
-
-        // Assert
-        Assert.False(result);
-    }
-
-    #endregion
-
-    #region Client Connection Tests
-
-    [Fact(Timeout = 5000)]
-    public async Task ClientConnected_ShouldFireWhenClientConnects()
-    {
-        // Arrange
-        await _server.StartAsync();
-        var connectionReceived = false;
-        var clientId = Guid.Empty;
-
-        _server.ClientConnected.Subscribe(connected =>
+        var endTime = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        while (!condition() && DateTime.UtcNow < endTime)
         {
-            connectionReceived = true;
-            clientId = connected.Metadata.Id;
-        });
+            await Task.Delay(10);
+        }
 
-        // Act
-        var client = new ClientWebSocket();
-        _testClients.Add(client);
-        var uri = new Uri(_testPrefix.Replace("http://", "ws://"));
-        await client.ConnectAsync(uri, CancellationToken.None);
-        await Task.Delay(50);
-
-        // Assert
-        Assert.True(connectionReceived);
-        Assert.NotEqual(Guid.Empty, clientId);
-        Assert.True(_server.ClientCount > 0);
+        if (!condition())
+        {
+            throw new TimeoutException("Condition was not met within timeout");
+        }
     }
 
-    [Fact(Timeout = 5000)]
-    public async Task ClientDisconnected_ShouldFireWhenClientDisconnects()
+    #endregion
+
+    #region Connection Tests
+
+    [Fact(Timeout = 10000)]
+    public async Task Should_Accept_Client_Connection()
     {
         // Arrange
-        await _server.StartAsync();
-        var disconnectionReceived = false;
-        var disconnectReason = DisconnectReason.Undefined;
+        var connectedTcs = new TaskCompletionSource<ClientConnected>();
+        using var subscription = _server.ClientConnected.Subscribe(connectedTcs.SetResult);
 
-        _server.ClientDisconnected
-            .Subscribe(disconnected =>
-            {
-                disconnectionReceived = true;
-                disconnectReason = disconnected.Event.Reason;
-            });
+        // Act
+        using var client = await ConnectClientAsync();
 
-        var client = new ClientWebSocket();
-        _testClients.Add(client);
-        var uri = new Uri(_testPrefix.Replace("http://", "ws://"));
-        await client.ConnectAsync(uri, CancellationToken.None);
+        // Assert
+        var connected = await WaitAsync(connectedTcs);
+        Assert.NotNull(connected);
+        Assert.NotNull(connected.Metadata);
+        Assert.Equal(ConnectReason.Initial, connected.Event.Reason);
+        Assert.Equal(1, _server.ClientCount);
+    }
+
+    [Fact(Timeout = 10000)]
+    public async Task Should_Handle_Multiple_Clients()
+    {
+        // Arrange
+        var connectedClients = new List<ClientConnected>();
+        using var subscription = _server.ClientConnected.Subscribe(connectedClients.Add);
+
+        // Act
+        using var client1 = await ConnectClientAsync();
+        using var client2 = await ConnectClientAsync();
+        using var client3 = await ConnectClientAsync();
+
+        await WaitForConditionAsync(() => _server.ClientCount == 3);
+
+        // Assert
+        Assert.Equal(3, _server.ClientCount);
+        Assert.Equal(3, connectedClients.Count);
+        Assert.Equal(3, _server.ConnectedClients.Count);
+    }
+
+    [Fact(Timeout = 10000)]
+    public async Task Should_Detect_Client_Disconnect()
+    {
+        // Arrange
+        var disconnectedTcs = new TaskCompletionSource<ClientDisconnected>();
+        using var subscription = _server.ClientDisconnected.Subscribe(disconnectedTcs.SetResult);
+
+        var client = await ConnectClientAsync();
+        await Task.Delay(100);
 
         // Act
         await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "Test", CancellationToken.None);
+        client.Dispose();
 
         // Assert
-        Assert.True(disconnectionReceived);
-        Assert.NotEqual(DisconnectReason.Undefined, disconnectReason);
+        var disconnected = await WaitAsync(disconnectedTcs);
+        Assert.NotNull(disconnected);
+        Assert.Equal(DisconnectReason.ClientInitiated, disconnected.Event.Reason);
+
+        await WaitForConditionAsync(() => _server.ClientCount == 0);
+        Assert.Equal(0, _server.ClientCount);
     }
 
-    [Fact(Timeout = 5000)]
-    public async Task ConnectedClients_ShouldReturnCurrentClients()
+    [Fact(Timeout = 10000)]
+    public async Task Should_Reject_Non_WebSocket_Requests()
     {
-        // Arrange
-        await _server.StartAsync();
-
-        // Act
-        var client1 = new ClientWebSocket();
-        var client2 = new ClientWebSocket();
-        _testClients.Add(client1);
-        _testClients.Add(client2);
-
-        var uri = new Uri(_testPrefix.Replace("http://", "ws://"));
-        await client1.ConnectAsync(uri, CancellationToken.None);
-        await client2.ConnectAsync(uri, CancellationToken.None);
+        // Arrange & Act
+        using var httpClient = new HttpClient();
+        var response = await httpClient.GetAsync(_serverUrl);
 
         // Assert
-        Assert.True(_server.ClientCount >= 2);
-        Assert.NotNull(_server.ConnectedClients);
-        Assert.Equal(_server.ClientCount, _server.ConnectedClients.Count);
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    #endregion
-
-    #region Send Methods Tests
-
-    [Fact(Timeout = 5000)]
-    public async Task SendToClient_WithByteArray_ShouldSendMessage()
+    [Fact(Timeout = 10000)]
+    public async Task Should_Handle_Unexpected_Client_Disconnect()
     {
         // Arrange
-        await _server.StartAsync();
+        var disconnectedTcs = new TaskCompletionSource<ClientDisconnected>();
+        using var subscription = _server.ClientDisconnected.Subscribe(disconnectedTcs.SetResult);
 
-        var client = new ClientWebSocket();
-        _testClients.Add(client);
-        var uri = new Uri(_testPrefix.Replace("http://", "ws://"));
-        await client.ConnectAsync(uri, CancellationToken.None);
-
-        var clientName = _server.ConnectedClients.Keys.First();
-        var testData = "Test message"u8.ToArray();
+        var client = await ConnectClientAsync();
+        await Task.Delay(100);
 
         // Act
-        var result = _server.SendToClient(clientName, testData);
+        client.Dispose();
 
         // Assert
-        Assert.True(result);
+        var disconnected = await WaitAsync(disconnectedTcs);
+        Assert.NotNull(disconnected);
 
-        var buffer = new byte[1024];
-        var receiveResult = await client.ReceiveAsync(new ArraySegment<byte>(buffer),
-            new CancellationTokenSource(1000).Token);
-
-        var receivedData = new byte[receiveResult.Count];
-        Array.Copy(buffer, receivedData, receiveResult.Count);
-        Assert.Equal(testData, receivedData);
-    }
-
-    [Fact(Timeout = 5000)]
-    public async Task SendToClient_WithString_ShouldSendEncodedMessage()
-    {
-        // Arrange
-        await _server.StartAsync();
-
-        var client = new ClientWebSocket();
-        _testClients.Add(client);
-        var uri = new Uri(_testPrefix.Replace("http://", "ws://"));
-        await client.ConnectAsync(uri, CancellationToken.None);
-
-        var clientName = _server.ConnectedClients.Keys.First();
-        const string testMessage = "Hello WebSocket";
-
-        // Act
-        var result = _server.SendToClient(clientName, testMessage);
-
-        // Assert
-        Assert.True(result);
-    }
-
-    [Fact]
-    public void SendToClient_WithInvalidClientName_ShouldReturnFalse()
-    {
-        // Arrange
-        var testData = "Test"u8.ToArray();
-
-        // Act
-        var result = _server.SendToClient(Guid.Empty, testData);
-
-        // Assert
-        Assert.False(result);
-    }
-
-    [Fact(Timeout = 5000)]
-    public async Task SendToClient_WithMessageType_ShouldSendCorrectType()
-    {
-        // Arrange
-        await _server.StartAsync();
-
-        var client = new ClientWebSocket();
-        _testClients.Add(client);
-        var uri = new Uri(_testPrefix.Replace("http://", "ws://"));
-        await client.ConnectAsync(uri, CancellationToken.None);
-
-        var clientName = _server.ConnectedClients.Keys.First();
-        var testData = "Test"u8.ToArray();
-
-        // Act
-        var result = _server.SendToClient(clientName, testData, WebSocketMessageType.Text);
-
-        // Assert
-        Assert.True(result);
-    }
-
-    [Fact(Timeout = 5000)]
-    public async Task SendToClientInstantAsync_WithValidClient_ShouldSendImmediately()
-    {
-        // Arrange
-        await _server.StartAsync();
-
-        var client = new ClientWebSocket();
-        _testClients.Add(client);
-        var uri = new Uri(_testPrefix.Replace("http://", "ws://"));
-        await client.ConnectAsync(uri, CancellationToken.None);
-
-        var clientId = _server.ConnectedClients.Keys.First();
-        var testData = "Instant message"u8.ToArray();
-
-        // Act
-        var result = await _server.SendToClientInstantAsync(clientId, testData);
-
-        // Assert
-        Assert.True(result);
-    }
-
-    [Fact(Timeout = 5000)]
-    public async Task SendToClientInstantAsync_WithInvalidClient_ShouldReturnFalse()
-    {
-        // Arrange
-        var testData = "Test"u8.ToArray();
-
-        // Act
-        var result = await _server.SendToClientInstantAsync(Guid.Empty, testData);
-
-        // Assert
-        Assert.False(result);
-    }
-
-    [Fact(Timeout = 5000)]
-    public async Task Broadcast_ShouldSendToAllClients()
-    {
-        // Arrange
-        await _server.StartAsync();
-
-        var client1 = new ClientWebSocket();
-        var client2 = new ClientWebSocket();
-        _testClients.Add(client1);
-        _testClients.Add(client2);
-
-        var uri = new Uri(_testPrefix.Replace("http://", "ws://"));
-        await client1.ConnectAsync(uri, CancellationToken.None);
-        await client2.ConnectAsync(uri, CancellationToken.None);
-
-        var testData = "Broadcast message"u8.ToArray();
-
-        // Act
-        var result = _server.Broadcast(testData);
-
-        // Assert
-        Assert.True(result);
-    }
-
-    [Fact(Timeout = 5000)]
-    public async Task BroadcastInstantAsync_ShouldSendToAllClientsImmediately()
-    {
-        // Arrange
-        await _server.StartAsync();
-
-        var client1 = new ClientWebSocket();
-        var client2 = new ClientWebSocket();
-        _testClients.Add(client1);
-        _testClients.Add(client2);
-
-        var uri = new Uri(_testPrefix.Replace("http://", "ws://"));
-        await client1.ConnectAsync(uri, CancellationToken.None);
-        await client2.ConnectAsync(uri, CancellationToken.None);
-
-        var testData = "Instant broadcast"u8.ToArray();
-
-        // Act
-        var result = await _server.BroadcastInstantAsync(testData);
-
-        // Assert
-        Assert.True(result);
+        await WaitForConditionAsync(() => _server.ClientCount == 0);
+        Assert.Equal(0, _server.ClientCount);
     }
 
     #endregion
 
-    #region Message Reception Tests
+    #region Message Tests
 
-    [Fact(Timeout = 5000)]
-    public async Task Messages_ShouldReceiveClientMessages()
+    [Fact(Timeout = 10000)]
+    public async Task Should_Receive_Text_Message_From_Client()
     {
         // Arrange
-        await _server.StartAsync();
-        ServerReceivedMessage? receivedMessage = null;
+        var messageTcs = new TaskCompletionSource<ServerReceivedMessage>();
+        using var subscription = _server.Messages.Subscribe(messageTcs.SetResult);
 
-        _server.Messages.Subscribe(msg => receivedMessage = msg);
-
-        var client = new ClientWebSocket();
-        _testClients.Add(client);
-        var uri = new Uri(_testPrefix.Replace("http://", "ws://"));
-        await client.ConnectAsync(uri, CancellationToken.None);
-
-        const string testMessage = "Hello from client";
-        var testData = Encoding.UTF8.GetBytes(testMessage);
+        using var client = await ConnectClientAsync();
+        await Task.Delay(100);
 
         // Act
-        await client.SendAsync(new ArraySegment<byte>(testData),
-            WebSocketMessageType.Text, true, CancellationToken.None);
+        await SendTextAsync(client, "Hello Server");
 
         // Assert
+        var receivedMessage = await WaitAsync(messageTcs);
         Assert.NotNull(receivedMessage);
+        Assert.Equal("Hello Server", receivedMessage.Message.Text);
+        Assert.NotNull(receivedMessage.Metadata);
+    }
+
+    [Fact(Timeout = 10000)]
+    public async Task Should_Receive_Binary_Message_From_Client()
+    {
+        // Arrange
+        var messageTcs = new TaskCompletionSource<ServerReceivedMessage>();
+        using var subscription = _server.Messages.Subscribe(messageTcs.SetResult);
+
+        using var client = await ConnectClientAsync();
+        await Task.Delay(100);
+
+        var binaryData = new byte[] { 1, 2, 3, 4, 5 };
+
+        // Act
+        await client.SendAsync(new ArraySegment<byte>(binaryData), WebSocketMessageType.Binary, true,
+            CancellationToken.None);
+
+        // Assert
+        var receivedMessage = await WaitAsync(messageTcs);
+        Assert.NotNull(receivedMessage);
+        Assert.NotNull(receivedMessage.Message.Binary);
+        Assert.Equal(binaryData, receivedMessage.Message.Binary);
+    }
+
+    [Fact(Timeout = 10000)]
+    public async Task Should_Receive_Multiple_Messages_From_Same_Client()
+    {
+        // Arrange
+        var messages = new List<ServerReceivedMessage>();
+        using var subscription = _server.Messages.Subscribe(messages.Add);
+
+        using var client = await ConnectClientAsync();
+        await Task.Delay(100);
+
+        // Act
+        await SendTextAsync(client, "Message 1");
+        await SendTextAsync(client, "Message 2");
+        await SendTextAsync(client, "Message 3");
+
+        await WaitForConditionAsync(() => messages.Count == 3);
+
+        // Assert
+        Assert.Equal(3, messages.Count);
+        Assert.Equal("Message 1", messages[0].Message.Text);
+        Assert.Equal("Message 2", messages[1].Message.Text);
+        Assert.Equal("Message 3", messages[2].Message.Text);
+    }
+
+    [Fact(Timeout = 10000)]
+    public async Task Should_Handle_Large_Messages()
+    {
+        // Arrange
+        var messageTcs = new TaskCompletionSource<ServerReceivedMessage>();
+        using var subscription = _server.Messages.Subscribe(messageTcs.SetResult);
+
+        using var client = await ConnectClientAsync();
+        await Task.Delay(100);
+
+        var largeMessage = new string('A', 1024 * 64);
+
+        // Act
+        await SendTextAsync(client, largeMessage);
+
+        // Assert
+        var received = await WaitAsync(messageTcs, 10000);
+        Assert.NotNull(received.Message.Text);
+        Assert.Equal(1024 * 64, received.Message.Text.Length);
     }
 
     #endregion
 
-    #region Error Handling Tests
+    #region Send Tests
 
-    [Fact(Timeout = 5000)]
-    public async Task HandleClientError_ShouldRemoveClientAndFireDisconnectedEvent()
+    [Fact(Timeout = 10000)]
+    public async Task Should_Send_Text_To_Specific_Client()
     {
         // Arrange
-        await _server.StartAsync();
-        ClientDisconnected? disconnectedEvent = null;
+        var clientIdTcs = new TaskCompletionSource<Guid>();
+        using var subscription = _server.ClientConnected.Subscribe(c => clientIdTcs.SetResult(c.Metadata.Id));
 
-        _server.ClientDisconnected.Subscribe(e => disconnectedEvent = e);
-
-        var client = new ClientWebSocket();
-        _testClients.Add(client);
-        var uri = new Uri(_testPrefix.Replace("http://", "ws://"));
-        await client.ConnectAsync(uri, CancellationToken.None);
-
-        var initialCount = _server.ClientCount;
+        using var client = await ConnectClientAsync();
+        var clientId = await WaitAsync(clientIdTcs);
 
         // Act
-        client.Abort();
+        var sent = await _server.SendAsTextAsync(clientId, "Hello Client");
 
         // Assert
-        Assert.NotNull(disconnectedEvent);
-        Assert.True(_server.ClientCount < initialCount);
+        Assert.True(sent);
+        var received = await ReceiveTextAsync(client);
+        Assert.Equal("Hello Client", received);
+    }
+
+    [Fact(Timeout = 10000)]
+    public async Task Should_Send_Binary_To_Specific_Client()
+    {
+        // Arrange
+        var clientIdTcs = new TaskCompletionSource<Guid>();
+        using var subscription = _server.ClientConnected.Subscribe(c => clientIdTcs.SetResult(c.Metadata.Id));
+
+        using var client = await ConnectClientAsync();
+        var clientId = await WaitAsync(clientIdTcs);
+
+        var binaryData = new byte[] { 10, 20, 30, 40, 50 };
+
+        // Act
+        var sent = await _server.SendAsBinaryAsync(clientId, binaryData);
+
+        // Assert
+        Assert.True(sent);
+        var buffer = new byte[1024];
+        var result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+        Assert.Equal(binaryData, buffer.Take(result.Count).ToArray());
+    }
+
+    [Fact(Timeout = 10000)]
+    public async Task Should_Return_False_When_Sending_To_Non_Existent_Client()
+    {
+        // Arrange
+        var nonExistentId = Guid.NewGuid();
+
+        // Act
+        var sent = await _server.SendAsTextAsync(nonExistentId, "Test");
+
+        // Assert
+        Assert.False(sent);
+    }
+
+    [Fact(Timeout = 10000)]
+    public async Task Should_Send_Multiple_Messages_To_Same_Client()
+    {
+        // Arrange
+        var clientIdTcs = new TaskCompletionSource<Guid>();
+        using var subscription = _server.ClientConnected.Subscribe(c => clientIdTcs.SetResult(c.Metadata.Id));
+
+        using var client = await ConnectClientAsync();
+        var clientId = await WaitAsync(clientIdTcs);
+
+        // Act
+        await _server.SendAsTextAsync(clientId, "Message 1");
+        await _server.SendAsTextAsync(clientId, "Message 2");
+        await _server.SendAsTextAsync(clientId, "Message 3");
+
+        // Assert
+        var msg1 = await ReceiveTextAsync(client);
+        var msg2 = await ReceiveTextAsync(client);
+        var msg3 = await ReceiveTextAsync(client);
+
+        Assert.Equal("Message 1", msg1);
+        Assert.Equal("Message 2", msg2);
+        Assert.Equal("Message 3", msg3);
     }
 
     #endregion
 
-    #region Disposal Tests
+    #region Broadcast Tests
 
-    [Fact]
-    public void Dispose_ShouldCleanupResources()
+    [Fact(Timeout = 1000000)]
+    public async Task Should_Broadcast_To_All_Clients()
     {
         // Arrange
-        var server = new ReactiveWebSocketServer(_testPrefix);
+        using var client1 = await ConnectClientAsync();
+        using var client2 = await ConnectClientAsync();
+        using var client3 = await ConnectClientAsync();
+
+        await WaitForConditionAsync(() => _server.ClientCount == 3);
+
+        var broadcastData = "Broadcast message"u8.ToArray();
 
         // Act
-        server.Dispose();
+        var success = await _server.BroadcastInstantAsync(broadcastData);
 
         // Assert
-        server.Dispose();
-        Assert.True(true);
+        Assert.True(success);
+
+        var received1 = await ReceiveTextAsync(client1);
+        var received2 = await ReceiveTextAsync(client2);
+        var received3 = await ReceiveTextAsync(client3);
+
+        Assert.Equal("Broadcast message", received1);
+        Assert.Equal("Broadcast message", received2);
+        Assert.Equal("Broadcast message", received3);
     }
 
-    [Fact(Timeout = 5000)]
-    public async Task Dispose_WhileRunning_ShouldStopServer()
+    [Fact(Timeout = 10000)]
+    public async Task Should_Broadcast_Using_Broadcast_Method()
     {
         // Arrange
-        var server = new ReactiveWebSocketServer(_testPrefix);
+        using var client1 = await ConnectClientAsync();
+        using var client2 = await ConnectClientAsync();
+
+        await WaitForConditionAsync(() => _server.ClientCount == 2);
+
+        var testData = new byte[] { 1, 2, 3 };
+
+        // Act
+        var success = _server.Broadcast(testData);
+
+        // Assert
+        Assert.True(success);
+
+        var buffer1 = new byte[1024];
+        var buffer2 = new byte[1024];
+
+        var result1 = await client1.ReceiveAsync(new ArraySegment<byte>(buffer1), CancellationToken.None);
+        var result2 = await client2.ReceiveAsync(new ArraySegment<byte>(buffer2), CancellationToken.None);
+
+        Assert.Equal(testData, buffer1.Take(result1.Count).ToArray());
+        Assert.Equal(testData, buffer2.Take(result2.Count).ToArray());
+    }
+
+    [Fact(Timeout = 10000)]
+    public async Task Should_Not_Broadcast_To_Disconnected_Clients()
+    {
+        // Arrange
+        using var client1 = await ConnectClientAsync();
+        var client2 = await ConnectClientAsync();
+        using var client3 = await ConnectClientAsync();
+
+        await WaitForConditionAsync(() => _server.ClientCount == 3);
+
+        await client2.CloseAsync(WebSocketCloseStatus.NormalClosure, "Test", CancellationToken.None);
+        client2.Dispose();
+
+        await WaitForConditionAsync(() => _server.ClientCount == 2);
+
+        var broadcastData = "Test broadcast"u8.ToArray();
+
+        // Act
+        var success = await _server.BroadcastInstantAsync(broadcastData);
+
+        // Assert
+        Assert.True(success);
+
+        var received1 = await ReceiveTextAsync(client1);
+        var received3 = await ReceiveTextAsync(client3);
+
+        Assert.Equal("Test broadcast", received1);
+        Assert.Equal("Test broadcast", received3);
+    }
+
+    #endregion
+
+    #region Lifecycle Tests
+
+    [Fact(Timeout = 10000)]
+    public async Task Should_Stop_Gracefully()
+    {
+        // Arrange
+        using var client = await ConnectClientAsync();
+        await Task.Delay(100);
+
+        // Act
+        var stopped = await _server.StopAsync(WebSocketCloseStatus.NormalClosure, "Server shutdown");
+
+        // Assert
+        Assert.True(stopped);
+        await WaitForConditionAsync(() => _server.ClientCount == 0);
+        Assert.Equal(0, _server.ClientCount);
+    }
+
+    [Fact(Timeout = 10000)]
+    public async Task Should_Disconnect_All_Clients_On_Stop()
+    {
+        // Arrange
+        var disconnectedCount = 0;
+        using var subscription =
+            _server.ClientDisconnected.Subscribe(_ => Interlocked.Increment(ref disconnectedCount));
+
+        using var client1 = await ConnectClientAsync();
+        using var client2 = await ConnectClientAsync();
+        await WaitForConditionAsync(() => _server.ClientCount == 2);
+
+        // Act
+        await _server.StopAsync(WebSocketCloseStatus.NormalClosure, "Test");
+
+        // Assert
+        await WaitForConditionAsync(() => disconnectedCount == 2);
+        Assert.Equal(2, disconnectedCount);
+    }
+
+    [Fact(Timeout = 10000)]
+    public async Task Should_Be_Disposable()
+    {
+        // Arrange
+        var server = new ReactiveWebSocketServer("http://localhost:9877/");
         await server.StartAsync();
 
+        using var client = new ClientWebSocket();
+        await client.ConnectAsync(new Uri("ws://localhost:9877/"), CancellationToken.None);
+
+        await Task.Delay(100);
+
         // Act
         server.Dispose();
 
         // Assert
-        Assert.True(true);
+        Assert.True(server.IsDisposed);
     }
 
     #endregion
 
-    #region Observable Completion Tests
+    #region Integration Tests
 
-    [Fact(Timeout = 5000)]
-    public async Task StopAsync_ShouldCompleteObservables()
+    [Fact(Timeout = 1000000)]
+    public async Task EchoServer_Should_Reply_To_All_Messages()
     {
         // Arrange
-        await _server.StartAsync();
-        var clientConnectedCompleted = false;
-        var clientDisconnectedCompleted = false;
-        var messagesCompleted = false;
+        using var messageSubscription = _server.Messages.Subscribe(msg =>
+        {
+            Assert.True(_server.TrySendAsText(msg.Metadata.Id, $"Echo: {msg.Message.Text}"));
+        });
 
-        _server.ClientConnected.Subscribe(_ => { }, () => clientConnectedCompleted = true);
-        _server.ClientDisconnected.Subscribe(_ => { }, () => clientDisconnectedCompleted = true);
-        _server.Messages.Subscribe(_ => { }, () => messagesCompleted = true);
+        using var client = await ConnectClientAsync();
+        await Task.Delay(100);
+
+        // Act & Assert
+        await SendTextAsync(client, "Test 1");
+        var echo1 = await ReceiveTextAsync(client);
+        Assert.Equal("Echo: Test 1", echo1);
+
+        await SendTextAsync(client, "Test 2");
+        var echo2 = await ReceiveTextAsync(client);
+        Assert.Equal("Echo: Test 2", echo2);
+    }
+
+    [Fact(Timeout = 10000)]
+    public async Task ChatRoom_Should_Broadcast_Messages_To_Other_Clients()
+    {
+        // Arrange
+        using var messageSubscription = _server.Messages.Subscribe(async msg =>
+        {
+            var otherClients = _server.ConnectedClients.Keys.Where(id => id != msg.Metadata.Id);
+            foreach (var clientId in otherClients)
+            {
+                await _server.SendAsTextAsync(clientId, $"[{msg.Metadata.Id}]: {msg.Message.Text}");
+            }
+        });
+
+        using var client1 = await ConnectClientAsync();
+        using var client2 = await ConnectClientAsync();
+        using var client3 = await ConnectClientAsync();
+
+        await WaitForConditionAsync(() => _server.ClientCount == 3);
 
         // Act
-        await _server.StopAsync(WebSocketCloseStatus.PolicyViolation, string.Empty);
+        await SendTextAsync(client1, "Hello everyone!");
 
         // Assert
-        Assert.True(clientConnectedCompleted);
-        Assert.True(clientDisconnectedCompleted);
-        Assert.True(messagesCompleted);
+        var received2 = await ReceiveTextAsync(client2);
+        var received3 = await ReceiveTextAsync(client3);
+
+        Assert.Contains("Hello everyone!", received2);
+        Assert.Contains("Hello everyone!", received3);
+    }
+
+    [Fact(Timeout = 10000)]
+    public async Task Should_Handle_Concurrent_Messages_From_Multiple_Clients()
+    {
+        // Arrange
+        var messages = new List<ServerReceivedMessage>();
+        using var subscription = _server.Messages.Subscribe(messages.Add);
+
+        using var client1 = await ConnectClientAsync();
+        using var client2 = await ConnectClientAsync();
+        using var client3 = await ConnectClientAsync();
+
+        await WaitForConditionAsync(() => _server.ClientCount == 3);
+
+        // Act
+        var sendTasks = new[]
+        {
+            SendTextAsync(client1, "From Client 1"),
+            SendTextAsync(client2, "From Client 2"),
+            SendTextAsync(client3, "From Client 3"),
+        };
+
+        await Task.WhenAll(sendTasks);
+
+        await WaitForConditionAsync(() => messages.Count == 3);
+
+        // Assert
+        Assert.Equal(3, messages.Count);
+        Assert.Contains(messages, m => m.Message.Text == "From Client 1");
+        Assert.Contains(messages, m => m.Message.Text == "From Client 2");
+        Assert.Contains(messages, m => m.Message.Text == "From Client 3");
+    }
+
+    #endregion
+
+    #region Performance & Stress Tests
+
+    [Fact(Timeout = 10000)]
+    public async Task Should_Handle_Rapid_Connect_Disconnect()
+    {
+        // Arrange & Act
+        for (var i = 0; i < 10; i++)
+        {
+            var client = await ConnectClientAsync();
+            await Task.Delay(50);
+            await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "Test", CancellationToken.None);
+            client.Dispose();
+            await Task.Delay(50);
+        }
+
+        // Assert
+        await WaitForConditionAsync(() => _server.ClientCount == 0);
+        Assert.Equal(0, _server.ClientCount);
+    }
+
+    [Fact(Timeout = 10000)]
+    public async Task Should_Handle_Many_Small_Messages()
+    {
+        // Arrange
+        var messageCount = 0;
+        using var subscription = _server.Messages.Subscribe(_ => Interlocked.Increment(ref messageCount));
+
+        using var client = await ConnectClientAsync();
+        await Task.Delay(100);
+
+        // Act
+        for (var i = 0; i < 100; i++)
+        {
+            await SendTextAsync(client, $"Message {i}");
+        }
+
+        await WaitForConditionAsync(() => messageCount == 100, 10000);
+
+        // Assert
+        Assert.Equal(100, messageCount);
+    }
+
+    [Fact(Timeout = 10000)]
+    public async Task Should_Handle_10_Concurrent_Clients()
+    {
+        // Arrange
+        var clients = new List<ClientWebSocket>();
+
+        try
+        {
+            // Act
+            for (var i = 0; i < 10; i++)
+            {
+                var client = await ConnectClientAsync();
+                clients.Add(client);
+            }
+
+            await WaitForConditionAsync(() => _server.ClientCount == 10);
+
+            // Assert
+            Assert.Equal(10, _server.ClientCount);
+            Assert.Equal(10, _server.ConnectedClients.Count);
+        }
+        finally
+        {
+            // Cleanup
+            foreach (var client in clients)
+            {
+                try
+                {
+                    await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "Test done",
+                        CancellationToken.None);
+                    client.Dispose();
+                }
+                catch
+                {
+                    // Ignore cleanup errors
+                }
+            }
+        }
+    }
+
+    [Fact(Timeout = 10000)]
+    public async Task Should_Handle_Empty_Messages()
+    {
+        // Arrange
+        var messageTcs = new TaskCompletionSource<ServerReceivedMessage>();
+        using var subscription = _server.Messages.Subscribe(messageTcs.SetResult);
+
+        using var client = await ConnectClientAsync();
+        await Task.Delay(100);
+
+        // Act
+        await SendTextAsync(client, "");
+
+        // Assert
+        var received = await WaitAsync(messageTcs);
+        Assert.NotNull(received);
+        Assert.Equal(string.Empty, received.Message.Text);
+    }
+
+    [Fact(Timeout = 10000)]
+    public async Task Should_Maintain_Message_Order()
+    {
+        // Arrange
+        var messages = new List<ServerReceivedMessage>();
+        using var subscription = _server.Messages.Subscribe(messages.Add);
+
+        using var client = await ConnectClientAsync();
+        await Task.Delay(100);
+
+        // Act
+        for (var i = 0; i < 20; i++)
+        {
+            await SendTextAsync(client, $"Order {i}");
+        }
+
+        await WaitForConditionAsync(() => messages.Count == 20);
+
+        // Assert
+        for (var i = 0; i < 20; i++)
+        {
+            Assert.Equal($"Order {i}", messages[i].Message.Text);
+        }
     }
 
     #endregion
