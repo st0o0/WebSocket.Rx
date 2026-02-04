@@ -134,7 +134,7 @@ public class ReactiveWebSocketClientEdgeCaseTests
         // Arrange
         using var client = new ReactiveWebSocketClient(new Uri(InvalidUrl));
 
-        // Act & Assert - Should not throw
+        // Act & Assert
         await client.SendInstantAsync("test");
         await client.SendInstantAsync([1, 2, 3]);
         Assert.True(true);

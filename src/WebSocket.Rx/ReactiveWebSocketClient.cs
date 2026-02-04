@@ -445,8 +445,8 @@ public class ReactiveWebSocketClient(Uri url, RecyclableMemoryStreamManager? mem
             return;
         }
 
-        using var connectedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, MainCts.Token);
-        await SendAsync(message, WebSocketMessageType.Binary, true, connectedCts.Token).ConfigureAwait(false);
+        using var connectedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, MainCts?.Token ?? CancellationToken.None);
+        await SendAsync(message, WebSocketMessageType.Binary, true, connectedCts.Token);
     }
 
     public async Task SendAsBinaryAsync(string message, CancellationToken cancellationToken = default)
