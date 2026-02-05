@@ -1,5 +1,6 @@
 using System.Net.WebSockets;
 using System.Text;
+using R3;
 
 namespace WebSocket.Rx;
 
@@ -7,14 +8,13 @@ public interface IReactiveWebSocketServer : IDisposable
 {
     TimeSpan IdleConnection { get; set; }
     TimeSpan ConnectTimeout { get; set; }
-    bool IsReconnectionEnabled { get; set; }
     Encoding MessageEncoding { get; set; }
     bool IsTextMessageConversionEnabled { get; set; }
     int ClientCount { get; }
     IReadOnlyDictionary<Guid, Metadata> ConnectedClients { get; }
-    IObservable<ClientConnected> ClientConnected { get; }
-    IObservable<ClientDisconnected> ClientDisconnected { get; }
-    IObservable<ServerReceivedMessage> Messages { get; }
+    Observable<ClientConnected> ClientConnected { get; }
+    Observable<ClientDisconnected> ClientDisconnected { get; }
+    Observable<ServerReceivedMessage> Messages { get; }
 
     Task StartAsync();
 

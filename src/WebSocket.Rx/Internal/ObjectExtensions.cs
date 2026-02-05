@@ -1,5 +1,4 @@
 ﻿using System.Net;
-using LanguageExt;
 
 namespace WebSocket.Rx.Internal;
 
@@ -11,9 +10,9 @@ internal static class ObjectExtensions
         {
             await func.Invoke(value);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _ = ex;
+            // no op
         }
     }
 
@@ -26,18 +25,6 @@ internal static class ObjectExtensions
         catch (Exception ex)
         {
             _ = ex;
-        }
-    }
-
-    public static Either<Exception, TResult> Try<T, TResult>(this T value, Func<T, TResult> function) where T : class
-    {
-        try
-        {
-            return Either<Exception, TResult>.Right(function.Invoke(value));
-        }
-        catch (Exception ex)
-        {
-            return Either<Exception, TResult>.Left(ex);
         }
     }
 

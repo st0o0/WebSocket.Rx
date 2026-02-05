@@ -1,10 +1,10 @@
 ﻿using System.Buffers;
 using System.Net.WebSockets;
-using System.Reactive.Linq;
-using System.Reactive.Subjects;
+using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using System.Threading.Channels;
 using Microsoft.IO;
+using R3;
 using WebSocket.Rx.Internal;
 
 namespace WebSocket.Rx;
@@ -49,9 +49,9 @@ public class ReactiveWebSocketClient(Uri url, RecyclableMemoryStreamManager? mem
     public Encoding MessageEncoding { get; set; } = Encoding.UTF8;
     public ClientWebSocket NativeClient { get; private set; } = new();
 
-    public IObservable<ReceivedMessage> MessageReceived => MessageReceivedSource.AsObservable();
-    public IObservable<Connected> ConnectionHappened => ConnectionHappenedSource.AsObservable();
-    public IObservable<Disconnected> DisconnectionHappened => DisconnectionHappenedSource.AsObservable();
+    public Observable<ReceivedMessage> MessageReceived => MessageReceivedSource.AsObservable();
+    public Observable<Connected> ConnectionHappened => ConnectionHappenedSource.AsObservable();
+    public Observable<Disconnected> DisconnectionHappened => DisconnectionHappenedSource.AsObservable();
 
     #region Start/Stop
 
@@ -328,7 +328,7 @@ public class ReactiveWebSocketClient(Uri url, RecyclableMemoryStreamManager? mem
         {
             if (!IsDisposed && IsReconnectionEnabled)
             {
-                await ScheduleReconnectAsync();
+                _ = ScheduleReconnectAsync();
             }
         }
     }
@@ -371,7 +371,7 @@ public class ReactiveWebSocketClient(Uri url, RecyclableMemoryStreamManager? mem
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
                     DisconnectionHappenedSource.OnNext(Disconnected.Create(DisconnectReason.ServerInitiated));
-                    await ScheduleReconnectAsync().ConfigureAwait(false);
+                    _ = ScheduleReconnectAsync().ConfigureAwait(false);
                     return;
                 }
 
@@ -445,7 +445,9 @@ public class ReactiveWebSocketClient(Uri url, RecyclableMemoryStreamManager? mem
             return;
         }
 
-        using var connectedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, MainCts?.Token ?? CancellationToken.None);
+        using var connectedCts =
+            CancellationTokenSource.CreateLinkedTokenSource(cancellationToken,
+                MainCts?.Token ?? CancellationToken.None);
         await SendAsync(message, WebSocketMessageType.Binary, true, connectedCts.Token);
     }
 
@@ -577,9 +579,9 @@ public class ReactiveWebSocketClient(Uri url, RecyclableMemoryStreamManager? mem
             ConnectionHappenedSource.OnCompleted();
             DisconnectionHappenedSource.OnCompleted();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _ = ex;
+            // no op
         }
 
         MessageReceivedSource.Dispose();

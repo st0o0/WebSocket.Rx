@@ -1,4 +1,5 @@
 ﻿using System.Net.WebSockets;
+using R3;
 using WebSocket.Rx.Tests.Internal;
 
 namespace WebSocket.Rx.Tests;
@@ -16,7 +17,7 @@ public class KeepAliveTests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        _client?.Dispose();
+        _client.Dispose();
         await _server.DisposeAsync();
     }
 
@@ -459,6 +460,7 @@ public class KeepAliveTests : IAsyncLifetime
             KeepAliveInterval = TimeSpan.FromMilliseconds(200),
             KeepAliveTimeout = TimeSpan.FromMilliseconds(100)
         };
+
 
         _client.DisconnectionHappened.Subscribe(d => disconnections.Add(d));
 
