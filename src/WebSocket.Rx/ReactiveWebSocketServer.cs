@@ -32,6 +32,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
     private readonly HttpListener _listener;
     private Task? _serverLoopTask;
+    private readonly ConcurrentDictionary<Guid, Task> _connectionTasks = new();
     private readonly ConcurrentDictionary<Guid, Client> _clients = new();
 
     private readonly Subject<ClientConnected> _clientConnectedSource = new();
@@ -116,10 +117,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
             try
             {
-                if (_listener.IsListening)
-                {
-                    _listener.Stop();
-                }
+                _listener.Stop();
             }
             catch (ObjectDisposedException)
             {
@@ -138,13 +136,15 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
             .Select(client => client.Socket.StopAsync(status, statusDescription))
             .ToList()).ConfigureAwait(false);
 
+        _listener.Close();
+        _listener.Try(x => x.Abort());
+        
         foreach (var clientId in clientsToStop.Keys)
         {
             _clients.TryRemove(clientId, out _);
         }
 
         await (_serverLoopTask ?? Task.CompletedTask).ConfigureAwait(false);
-        _listener.Close();
 
         return true;
     }
@@ -242,7 +242,12 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
                 var ctx = await _listener.GetContextAsync();
                 if (ctx.Request.IsWebSocketRequest)
                 {
-                    _ = HandleWebSocketAsync(ctx, ctx.GetMetadata());
+                    var metadata = ctx.GetMetadata();
+                    var task = HandleWebSocketAsync(ctx, metadata);
+                    _connectionTasks[metadata.Id] = task;
+
+                    _ = task.ContinueWith(_ => _connectionTasks.TryRemove(metadata.Id, out var _),
+                        CancellationToken.None);
                 }
                 else
                 {
@@ -352,19 +357,20 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
         await _disposeLock.WaitAsync().ConfigureAwait(false);
         try
         {
-            // Cancel main operation
             _mainCts?.Try(x => x.Cancel());
 
-            // Stop server if running
             if (IsRunning)
             {
                 await StopAsync(WebSocketCloseStatus.InternalServerError, "Server disposed").ConfigureAwait(false);
             }
 
-            // Dispose all clients
-            var clientsToDispose = _clients.Values.ToArray();
-            _clients.Clear();
+            var remainingTasks = _connectionTasks.Values.ToArray();
+            if (remainingTasks.Length > 0)
+            {
+                await Task.WhenAll(remainingTasks).WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+            }
 
+            var clientsToDispose = _clients.Values.ToArray();
             foreach (var client in clientsToDispose)
             {
                 try
@@ -373,14 +379,12 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
                 }
                 catch (Exception)
                 {
-                    // Continue disposing other clients
+                    // noop
                 }
             }
 
-            // Complete subjects
             CompleteSubjects();
 
-            // Dispose main cancellation token
             _mainCts?.Dispose();
             IsRunning = false;
         }

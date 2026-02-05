@@ -1,7 +1,7 @@
 {
   "version": 1,
   "createdAt": "2026-02-03T12:24:26.2723659+00:00",
-  "updatedAt": "2026-02-05T17:47:52.1236012+00:00",
+  "updatedAt": "2026-02-05T18:51:00.7616461+00:00",
   "description": "Initial baseline created by 'slopwatch init' on 2026-02-03 12:24:26 UTC",
   "entries": [
     {
@@ -318,6 +318,24 @@
       "codeSnippet": "Task.Delay(10)",
       "message": "Test uses Task.Delay(10) which may indicate a timing-dependent test",
       "baselinedAt": "2026-02-05T17:47:52.1236012+00:00"
+    },
+    {
+      "hash": "8c9f9d9b22a7a5ee",
+      "ruleId": "SW003",
+      "filePath": "src/WebSocket.Rx/ReactiveWebSocketServer.cs",
+      "lineNumber": 379,
+      "codeSnippet": "catch (Exception)\r\n                {\r\n                    // noop\r\n                }",
+      "message": "Empty catch block swallows exceptions without handling",
+      "baselinedAt": "2026-02-05T18:51:00.470455+00:00"
+    },
+    {
+      "hash": "a28f409572c81e37",
+      "ruleId": "SW004",
+      "filePath": "src/WebSocket.Rx.Tests/ReactiveWebSocketServerTests.cs",
+      "lineNumber": 31,
+      "codeSnippet": "Task.Delay(200)",
+      "message": "Test uses Task.Delay(200) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-05T18:51:00.7616453+00:00"
     }
   ]
 }
