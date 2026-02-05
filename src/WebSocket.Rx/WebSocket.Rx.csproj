@@ -25,11 +25,7 @@
         <EmbedUntrackedSources>true</EmbedUntrackedSources>
     </PropertyGroup>
     <PropertyGroup>
-        <PublishAot>true</PublishAot>
         <IsAotCompatible>true</IsAotCompatible>
-        <PublishTrimmed>true</PublishTrimmed>
-        <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
-        <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
     </PropertyGroup>
     <ItemGroup>
         <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" Version="[3.0.1,)"/>
@@ -41,6 +37,5 @@
         <None Include="../../LICENSE" Pack="true" Visible="false" PackagePath="\"/>
         <None Include="../../docs/logo/logo.png" Visible="false" Pack="true" PackagePath="\"/>
     </ItemGroup>
-
 
 </Project>

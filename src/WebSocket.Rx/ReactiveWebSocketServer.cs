@@ -32,7 +32,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
     private readonly Subject<ClientDisconnected> _clientDisconnectedSource = new();
     private readonly Subject<ServerReceivedMessage> _messageReceivedSource = new();
 
-    private CancellationTokenSource _mainCts;
+    private CancellationTokenSource? _mainCts;
     private readonly AsyncLock _serverLock = new();
 
     #endregion
@@ -101,7 +101,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
                 return false;
             }
 
-            await (_mainCts?.CancelAsync() ?? Task.CompletedTask);
+            _mainCts?.Try(x => x.Cancel());
 
             try
             {
@@ -125,14 +125,11 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
         await Task.WhenAll(clientsToStop.Values
             .Select(client => client.Socket.StopAsync(status, statusDescription))
-            .ToList());
+            .ToList()).ConfigureAwait(false);
 
         foreach (var clientId in clientsToStop.Keys)
         {
-            if (_clients.TryRemove(clientId, out var removedClient))
-            {
-                //removedClient.Disposables.Dispose();
-            }
+            _clients.TryRemove(clientId, out _);
         }
 
         await (_serverLoopTask ?? Task.CompletedTask).ConfigureAwait(false);
@@ -312,15 +309,12 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
     protected virtual void Dispose(bool disposing)
     {
-        if (IsDisposed)
+        if (IsDisposed || !disposing)
         {
             return;
         }
 
-        if (!disposing)
-        {
-            return;
-        }
+        _mainCts?.Try(x => x.Cancel());
 
         if (IsRunning)
         {
