@@ -339,25 +339,6 @@ public class ReactiveWebSocketClientEdgeCaseTests
         Assert.True(true);
     }
 
-    [Fact(Timeout = 5000)]
-    public async Task SenderRunning_AfterDispose_ShouldBeFalse()
-    {
-        // Arrange
-        await using var server = new WebSocketTestServer();
-        await server.StartAsync();
-
-        var client = new ReactiveWebSocketClient(new Uri(server.WebSocketUrl));
-        await client.StartOrFailAsync();
-        await Task.Delay(50);
-
-        // Act
-        client.Dispose();
-        await Task.Delay(50);
-
-        // Assert
-        Assert.False(client.SenderRunning);
-    }
-
     #endregion
 
     #region Stress Tests

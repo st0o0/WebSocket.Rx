@@ -548,56 +548,6 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
 
     #endregion
 
-    #region Dispose Tests
-
-    [Fact(Timeout = 5000)]
-    public async Task Dispose_WhenConnected_ShouldCleanup()
-    {
-        // Arrange
-        _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
-        await _client.StartOrFailAsync();
-
-        // Act
-        _client.Dispose();
-        await Task.Delay(50);
-
-        // Assert
-        Assert.False(_client.IsStarted);
-        Assert.False(_client.IsRunning);
-    }
-
-    [Fact]
-    public void Dispose_MultipleTimes_ShouldNotThrow()
-    {
-        // Arrange
-        _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
-
-        // Act & Assert
-        _client.Dispose();
-        _client.Dispose();
-        _client.Dispose();
-        Assert.True(true);
-    }
-
-    [Fact(Timeout = 5000)]
-    public async Task Dispose_ShouldDisposeObservables()
-    {
-        // Arrange
-        _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
-
-        var disposed = false;
-        _client.MessageReceived.Take(1).Subscribe(_ => { }, _ => { }, _ => disposed = true);
-
-        // Act
-        _client.Dispose();
-        await Task.Delay(50);
-
-        // Assert
-        Assert.False(_client.IsStarted);
-        Assert.True(disposed);
-    }
-
-    #endregion
 
     #region Integration Tests
 

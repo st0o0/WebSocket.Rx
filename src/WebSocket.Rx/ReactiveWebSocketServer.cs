@@ -15,6 +15,12 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
         ServerWebSocketAdapter Socket,
         CompositeDisposable Disposables)
     {
+        public async ValueTask DisposeAsync()
+        {
+            await Socket.DisposeAsync().ConfigureAwait(false);
+            Disposables.Dispose();
+        }
+
         public void Dispose()
         {
             Socket.Dispose();
@@ -34,13 +40,17 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
     private CancellationTokenSource? _mainCts;
     private readonly AsyncLock _serverLock = new();
+    private int _disposed;
+    private readonly SemaphoreSlim _disposeLock = new(1, 1);
 
     #endregion
 
     #region Properties
 
-    public bool IsDisposed { get; private set; }
+    public bool IsDisposed => _disposed != 0;
     public bool IsRunning { get; private set; }
+    public bool IsStarted { get; private set; }
+    public bool IsListing => _listener.IsListening;
     public TimeSpan IdleConnection { get; set; } = TimeSpan.FromSeconds(30);
     public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(10);
     public Encoding MessageEncoding { get; set; } = Encoding.UTF8;
@@ -49,7 +59,6 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
     public IReadOnlyDictionary<Guid, Metadata> ConnectedClients
         => _clients.ToDictionary(x => x.Key, x => x.Value.Socket.Metadata);
-
 
     public Observable<ClientConnected> ClientConnected => _clientConnectedSource.AsObservable();
     public Observable<ClientDisconnected> ClientDisconnected => _clientDisconnectedSource.AsObservable();
@@ -75,6 +84,8 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
     public async Task StartAsync()
     {
+        ThrowIfDisposed();
+
         using (await _serverLock.LockAsync().ConfigureAwait(false))
         {
             if (IsDisposed)
@@ -218,10 +229,6 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
         return true;
     }
 
-    #region Broadcast
-
-    #endregion
-
     #endregion
 
     #region Client Handling
@@ -287,14 +294,26 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
         }
         catch (Exception)
         {
-            socket?.Dispose();
+            if (socket != null)
+            {
+                await socket.DisposeAsync().ConfigureAwait(false);
+            }
+
             _clients.TryRemove(metadata.Id, out _);
         }
     }
 
     #endregion
 
-    #region Disposable
+    #region Dispose
+
+    protected void ThrowIfDisposed()
+    {
+        if (IsDisposed)
+        {
+            throw new ObjectDisposedException(GetType().FullName);
+        }
+    }
 
     public void Dispose()
     {
@@ -302,45 +321,113 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
         GC.SuppressFinalize(this);
     }
 
+    public async ValueTask DisposeAsync()
+    {
+        await DisposeAsyncCore().ConfigureAwait(false);
+        Dispose(false);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+        {
+            return;
+        }
+
+        if (disposing)
+        {
+            // Fire and forget async cleanup
+            _ = DisposeAsyncCore();
+        }
+    }
+
+    protected virtual async ValueTask DisposeAsyncCore()
+    {
+        if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+        {
+            return;
+        }
+
+        await _disposeLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            // Cancel main operation
+            _mainCts?.Try(x => x.Cancel());
+
+            // Stop server if running
+            if (IsRunning)
+            {
+                await StopAsync(WebSocketCloseStatus.InternalServerError, "Server disposed").ConfigureAwait(false);
+            }
+
+            // Dispose all clients
+            var clientsToDispose = _clients.Values.ToArray();
+            _clients.Clear();
+
+            foreach (var client in clientsToDispose)
+            {
+                try
+                {
+                    await client.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception)
+                {
+                    // Continue disposing other clients
+                }
+            }
+
+            // Complete subjects
+            CompleteSubjects();
+
+            // Dispose main cancellation token
+            _mainCts?.Dispose();
+            IsRunning = false;
+        }
+        finally
+        {
+            if (_disposeLock.CurrentCount == 0)
+            {
+                _disposeLock.Release();
+            }
+
+            _disposeLock.Dispose();
+        }
+    }
+
+    private void CompleteSubjects()
+    {
+        try
+        {
+            _clientConnectedSource.OnCompleted();
+            _clientDisconnectedSource.OnCompleted();
+            _messageReceivedSource.OnCompleted();
+        }
+        catch (Exception)
+        {
+            // Subjects already completed or disposed
+        }
+
+        _clientConnectedSource.Dispose();
+        _clientDisconnectedSource.Dispose();
+        _messageReceivedSource.Dispose();
+    }
+
     ~ReactiveWebSocketServer()
     {
         Dispose(false);
     }
 
-    protected virtual void Dispose(bool disposing)
-    {
-        if (IsDisposed || !disposing)
-        {
-            return;
-        }
-
-        _mainCts?.Try(x => x.Cancel());
-
-        if (IsRunning)
-        {
-            _ = StopAsync(WebSocketCloseStatus.InternalServerError, "Server disposed");
-        }
-
-        foreach (var client in _clients.Values.ToArray())
-        {
-            client.Try(x => x.Dispose());
-        }
-
-        _clientConnectedSource.OnCompleted();
-        _clientDisconnectedSource.OnCompleted();
-        _messageReceivedSource.OnCompleted();
-        _clientConnectedSource.Dispose();
-        _clientDisconnectedSource.Dispose();
-        _messageReceivedSource.Dispose();
-        _mainCts?.Dispose();
-        IsDisposed = true;
-    }
-
     #endregion
+
+    #region ServerWebSocketAdapter
 
     public sealed class ServerWebSocketAdapter : ReactiveWebSocketClient
     {
         private readonly CancellationTokenSource _adapterCts = new();
+        private int _adapterDisposed;
+        private readonly SemaphoreSlim _adapterDisposeLock = new(1, 1);
+
         public System.Net.WebSockets.WebSocket NativeServerSocket { get; }
         public Metadata Metadata { get; }
 
@@ -436,7 +523,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
             }
             catch (WebSocketException ex) when (ex.InnerException is HttpListenerException)
             {
-                // no op
+                // noop
             }
             catch (Exception ex)
             {
@@ -479,21 +566,81 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
         protected override void Dispose(bool disposing)
         {
-            if (IsDisposed)
+            if (Interlocked.CompareExchange(ref _adapterDisposed, 1, 0) != 0)
             {
                 return;
             }
 
-            IsDisposed = true;
+            if (disposing)
+            {
+                // Fire and forget async cleanup
+                _ = DisposeAdapterAsyncCore();
+            }
+        }
 
-            _ = StopAsync(WebSocketCloseStatus.NormalClosure, "Adapter disposed");
+        protected override async ValueTask DisposeAsyncCore()
+        {
+            if (Interlocked.CompareExchange(ref _adapterDisposed, 1, 0) != 0)
+            {
+                return;
+            }
 
-            MainCts?.Try(x => x.Cancel());
-            MainCts?.Try(x => x.Dispose());
+            await DisposeAdapterAsyncCore().ConfigureAwait(false);
+        }
 
-            MessageReceivedSource.Dispose();
-            ConnectionHappenedSource.Dispose();
-            DisconnectionHappenedSource.Dispose();
+        private async ValueTask DisposeAdapterAsyncCore()
+        {
+            await _adapterDisposeLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                // Stop the adapter
+                await StopAsync(WebSocketCloseStatus.NormalClosure, "Adapter disposed").ConfigureAwait(false);
+
+                // Cancel operations
+                MainCts?.Try(x => x.Cancel());
+
+                // Wait for tasks
+                var tasks = new List<Task>();
+                if (SendLoopTask != null) tasks.Add(SendLoopTask);
+                if (ReceiveLoopTask != null) tasks.Add(ReceiveLoopTask);
+
+                if (tasks.Count > 0)
+                {
+                    try
+                    {
+                        await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    }
+                    catch (TimeoutException)
+                    {
+                        // Continue cleanup
+                    }
+                }
+
+                // Dispose resources
+                MainCts?.Try(x => x.Dispose());
+                _adapterCts.Dispose();
+
+                // Complete subjects
+                MessageReceivedSource.OnCompleted();
+                ConnectionHappenedSource.OnCompleted();
+                DisconnectionHappenedSource.OnCompleted();
+
+                MessageReceivedSource.Dispose();
+                ConnectionHappenedSource.Dispose();
+                DisconnectionHappenedSource.Dispose();
+
+                // Dispose semaphore
+                _adapterDisposeLock.Dispose();
+            }
+            finally
+            {
+                if (_adapterDisposeLock.CurrentCount == 0)
+                {
+                    _adapterDisposeLock.Release();
+                }
+            }
         }
     }
+
+    #endregion
 }
