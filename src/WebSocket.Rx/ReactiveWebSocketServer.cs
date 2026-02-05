@@ -93,6 +93,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
     public async Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription)
     {
+        Dictionary<Guid, Client> clientsToStop;
         using (await _serverLock.LockAsync().ConfigureAwait(false))
         {
             if (IsDisposed || !IsRunning)
@@ -117,21 +118,26 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
             {
                 // noop
             }
+
+            clientsToStop = _clients.ToDictionary();
+            IsRunning = false;
         }
 
-        await Task.WhenAll(_clients
-            .Values
+        await Task.WhenAll(clientsToStop.Values
             .Select(client => client.Socket.StopAsync(status, statusDescription))
             .ToList());
+
+        foreach (var clientId in clientsToStop.Keys)
+        {
+            if (_clients.TryRemove(clientId, out var removedClient))
+            {
+                //removedClient.Disposables.Dispose();
+            }
+        }
 
         await (_serverLoopTask ?? Task.CompletedTask).ConfigureAwait(false);
         _listener.Close();
 
-        _clientConnectedSource.OnCompleted();
-        _clientDisconnectedSource.OnCompleted();
-        _messageReceivedSource.OnCompleted();
-
-        IsRunning = false;
         return true;
     }
 
@@ -277,7 +283,6 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
                     .Select(x => new ClientDisconnected(metadata, x))
                     .Subscribe(_clientDisconnectedSource.AsObserver()),
                 socket.DisconnectionHappened
-                    .Delay(TimeSpan.FromMilliseconds(10))
                     .Subscribe(_ => _clients.TryRemove(metadata.Id, out var _))
             };
             _clients[metadata.Id] = new Client(socket, disposables);
@@ -327,7 +332,9 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
             client.Try(x => x.Dispose());
         }
 
-        _clients.Clear();
+        _clientConnectedSource.OnCompleted();
+        _clientDisconnectedSource.OnCompleted();
+        _messageReceivedSource.OnCompleted();
         _clientConnectedSource.Dispose();
         _clientDisconnectedSource.Dispose();
         _messageReceivedSource.Dispose();
@@ -454,7 +461,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
                 return false;
             }
 
-            DisconnectionHappenedSource.OnNext(Disconnected.Create(DisconnectReason.ServerInitiated));
+            _adapterCts.Try(x => x.Cancel());
 
             if (NativeServerSocket.State == WebSocketState.Open)
             {
@@ -469,7 +476,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
                 }
             }
 
-            _adapterCts.Try(x => x.Cancel());
+            DisconnectionHappenedSource.OnNext(Disconnected.Create(DisconnectReason.ServerInitiated));
 
             IsStarted = false;
             IsRunning = false;

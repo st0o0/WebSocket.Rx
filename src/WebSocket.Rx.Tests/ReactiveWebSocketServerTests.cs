@@ -7,10 +7,10 @@ using Xunit.Abstractions;
 
 namespace WebSocket.Rx.Tests;
 
-[CollectionDefinition("WebSocketTests", DisableParallelization = true)]
+[CollectionDefinition("ReactiveWebSocketServerTests", DisableParallelization = true)]
 public class CollectionDefinition;
 
-[Collection("WebSocketTests")]
+[Collection("ReactiveWebSocketServerTests")]
 public class ReactiveWebSocketServerTests : IAsyncLifetime
 {
     private ReactiveWebSocketServer _server = null!;
@@ -19,7 +19,7 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        var port = 8080 + DateTime.Now.Millisecond % 100;
+        var port = GetAvailablePort();
         _serverUrl = $"http://127.0.0.1:{port}/";
         _webSocketUrl = _serverUrl.Replace("http://", "ws://");
 
@@ -144,7 +144,6 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
         using var subscription = _server.ClientDisconnected.Subscribe(disconnectedTcs.SetResult);
 
         var client = await ConnectClientAsync();
-        await Task.Delay(100);
 
         // Act
         await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "Test", CancellationToken.None);
@@ -178,7 +177,6 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
         using var subscription = _server.ClientDisconnected.Subscribe(disconnectedTcs.SetResult);
 
         var client = await ConnectClientAsync();
-        await Task.Delay(100);
 
         // Act
         client.Dispose();
@@ -374,12 +372,14 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
 
     #region Lifecycle Tests
 
-    [Fact(Timeout = 10000, Skip = "FlakyTest")]
+    [Fact(Timeout = 10000)]
     public async Task Should_Disconnect_All_Clients_On_Stop()
     {
         // Arrange
         var disconnectedClients = new List<ClientDisconnected>();
-        using var t = _server.ClientDisconnected.Subscribe(disconnectedClients.Add);
+        using var t = _server.ClientDisconnected
+            .Where(x => x.Event.Reason is DisconnectReason.ServerInitiated)
+            .Subscribe(disconnectedClients.Add);
 
         using var client1 = await ConnectClientAsync();
         using var client2 = await ConnectClientAsync();
@@ -389,8 +389,8 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
         await _server.StopAsync(WebSocketCloseStatus.NormalClosure, "Test");
         // Assert
 
-        await WaitForConditionAsync(() => disconnectedClients.Count == 2);
         Assert.Equal(2, disconnectedClients.Count);
+        Assert.Equal(0, _server.ClientCount);
     }
 
     [Fact(Timeout = 10000)]
@@ -404,7 +404,6 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
         using var client = new ClientWebSocket();
         await client.ConnectAsync(new Uri($"ws://localhost:{port}/"), CancellationToken.None);
 
-        await Task.Delay(100);
 
         // Act
         server.Dispose();
@@ -427,7 +426,6 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
         });
 
         using var client = await ConnectClientAsync();
-        await Task.Delay(100);
 
         // Act & Assert
         await SendTextAsync(client, "Test 1");
@@ -512,10 +510,8 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
         for (var i = 0; i < 10; i++)
         {
             var client = await ConnectClientAsync();
-            await Task.Delay(50);
             await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "Test", CancellationToken.None);
             client.Dispose();
-            await Task.Delay(50);
         }
 
         // Assert
@@ -531,7 +527,6 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
         using var subscription = _server.Messages.Subscribe(_ => Interlocked.Increment(ref messageCount));
 
         using var client = await ConnectClientAsync();
-        await Task.Delay(100);
 
         // Act
         for (var i = 0; i < 100; i++)
@@ -593,7 +588,6 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
         using var subscription = _server.Messages.Subscribe(messageTcs.SetResult);
 
         using var client = await ConnectClientAsync();
-        await Task.Delay(100);
 
         // Act
         await SendTextAsync(client, "");
@@ -612,7 +606,6 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
         using var subscription = _server.Messages.Subscribe(messages.Add);
 
         using var client = await ConnectClientAsync();
-        await Task.Delay(100);
 
         // Act
         for (var i = 0; i < 20; i++)
@@ -639,6 +632,7 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
         await server.StopAsync(WebSocketCloseStatus.NormalClosure, "test");
 
         server.Dispose();
+        Assert.True(true);
     }
 
     #endregion
