@@ -1,14 +1,15 @@
 ﻿using System.Net.WebSockets;
 using System.Text;
+using R3;
 
 namespace WebSocket.Rx;
 
 public interface IReactiveWebSocketClient : IDisposable
 {
     Uri Url { get; set; }
-    IObservable<ReceivedMessage> MessageReceived { get; }
-    IObservable<Connected> ConnectionHappened { get; }
-    IObservable<Disconnected> DisconnectionHappened { get; }
+    Observable<ReceivedMessage> MessageReceived { get; }
+    Observable<Connected> ConnectionHappened { get; }
+    Observable<Disconnected> DisconnectionHappened { get; }
     TimeSpan ConnectTimeout { get; set; }
     TimeSpan KeepAliveInterval { get; set; }
     TimeSpan KeepAliveTimeout { get; set; }

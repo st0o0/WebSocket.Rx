@@ -1,6 +1,5 @@
 ﻿using System.Net.WebSockets;
-using System.Reactive.Linq;
-using System.Reactive.Threading.Tasks;
+using R3;
 using System.Text;
 using WebSocket.Rx.Tests.Internal;
 
@@ -219,10 +218,12 @@ public class ReactiveWebSocketClientEdgeCaseTests
         client.KeepAliveInterval = TimeSpan.FromMilliseconds(50);
         client.IsReconnectionEnabled = true;
 
-        var reconnectTask = client.ConnectionHappened
+        var reconnected = new TaskCompletionSource<bool>();
+        var reconnectTask = reconnected.Task;
+        client.ConnectionHappened
             .Where(c => c.Reason == ConnectReason.Reconnect)
             .Take(1)
-            .ToTask();
+            .Subscribe(x => reconnected.TrySetResult(true));
 
         await client.StartOrFailAsync();
 
@@ -230,7 +231,7 @@ public class ReactiveWebSocketClientEdgeCaseTests
         await server.DisconnectAllAsync();
 
         // Assert
-        await reconnectTask.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.True(await reconnectTask.WaitAsync(TimeSpan.FromSeconds(1)));
         Assert.True(reconnectTask.IsCompletedSuccessfully);
     }
 

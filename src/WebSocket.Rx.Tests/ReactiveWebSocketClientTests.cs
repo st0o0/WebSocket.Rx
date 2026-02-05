@@ -1,8 +1,6 @@
 ﻿using System.Net.WebSockets;
-using System.Reactive.Linq;
-using System.Reactive.Threading.Tasks;
+using R3;
 using System.Text;
-using LanguageExt;
 using WebSocket.Rx.Tests.Internal;
 
 namespace WebSocket.Rx.Tests;
@@ -123,10 +121,12 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         // Arrange
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
         await _client.StartOrFailAsync();
-        var disconnected = _client.DisconnectionHappened
+        var disconnected = new TaskCompletionSource<bool>();
+        var disconnectedTask = disconnected.Task;
+        _client.DisconnectionHappened
             .Where(x => x.Reason is DisconnectReason.ClientInitiated)
             .Take(1)
-            .ToTask();
+            .Subscribe(x => disconnected.SetResult(true));
 
         // Act
         var result = await _client.StopAsync(WebSocketCloseStatus.NormalClosure, "Test stop");
@@ -136,8 +136,8 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         Assert.True(result);
         Assert.False(_client.IsStarted);
         Assert.False(_client.IsRunning);
-        Assert.NotNull(await disconnected.WaitAsync(TimeSpan.FromSeconds(1)));
-        Assert.True(disconnected.IsCompletedSuccessfully);
+        Assert.True(await disconnectedTask.WaitAsync(TimeSpan.FromSeconds(1)));
+        Assert.True(disconnectedTask.IsCompletedSuccessfully);
     }
 
     [Fact(Timeout = 5000)]
@@ -576,6 +576,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         _client.Dispose();
         _client.Dispose();
         _client.Dispose();
+        Assert.True(true);
     }
 
     [Fact(Timeout = 5000)]
@@ -585,7 +586,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
 
         var disposed = false;
-        _client.MessageReceived.Take(1).Subscribe(_ => { }, _ => { }, () => disposed = true);
+        _client.MessageReceived.Take(1).Subscribe(_ => { }, _ => { }, _ => disposed = true);
 
         // Act
         _client.Dispose();

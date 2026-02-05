@@ -17,8 +17,6 @@ WebSocket.Rx is a powerful .NET NuGet package for reactive WebSocket communicati
 dotnet add package WebSocket.Rx
 ```
 
-Requires: `System.Reactive` and a WebSocket implementation like `Websocket.Client`.
-
 ## Features
 
 - **Reactive Streams**: Observable sequences for `MessageReceived`, `ReconnectionHappened`, `StateChanged`
@@ -30,9 +28,9 @@ Requires: `System.Reactive` and a WebSocket implementation like `Websocket.Clien
 
 ```csharp
 using WebSocket.Rx;
-using System.Reactive.Linq;
+using R3
 
-var client = new WebSocketRxClient("wss://echo.websocket.org")
+var client = new ReactiveWebSocketClient("wss://echo.websocket.org")
 {
     ReconnectTimeout = TimeSpan.FromSeconds(5)
 };
