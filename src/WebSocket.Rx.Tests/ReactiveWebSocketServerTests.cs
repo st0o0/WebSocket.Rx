@@ -383,43 +383,11 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
         Assert.Equal(0, _server.ClientCount);
     }
 
-    [Fact(Timeout = 10000)]
-    public async Task Should_Be_Disposable()
-    {
-        // Arrange
-        var port = GetAvailablePort();
-        var server = new ReactiveWebSocketServer($"http://localhost:{port}/");
-        await server.StartAsync();
-
-        var connectedTcs = new TaskCompletionSource<ClientConnected>();
-        using var sub = server.ClientConnected.Subscribe(connectedTcs.SetResult);
-
-        using var client = new ClientWebSocket();
-        await client.ConnectAsync(new Uri($"ws://localhost:{port}/"), CancellationToken.None);
-
-        await WaitAsync(connectedTcs);
-
-        // Act
-        if (server is IAsyncDisposable asyncDisposable)
-        {
-            await asyncDisposable.DisposeAsync();
-        }
-        else
-        {
-            server.Dispose();
-        }
-
-        // Assert
-        Assert.True(server.IsDisposed);
-        Assert.False(server.IsRunning);
-        Assert.Equal(0, server.ClientCount);
-    }
-
     #endregion
 
     #region Integration Tests
 
-    [Fact(Timeout = 1000000)]
+    [Fact(Timeout = 10000)]
     public async Task EchoServer_Should_Reply_To_All_Messages()
     {
         // Arrange

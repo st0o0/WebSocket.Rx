@@ -4,7 +4,7 @@ using R3;
 
 namespace WebSocket.Rx;
 
-public interface IReactiveWebSocketClient : IDisposable
+public interface IReactiveWebSocketClient : IDisposable, IAsyncDisposable
 {
     Uri Url { get; set; }
     Observable<ReceivedMessage> MessageReceived { get; }

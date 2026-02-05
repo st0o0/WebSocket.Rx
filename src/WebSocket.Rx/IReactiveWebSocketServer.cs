@@ -4,7 +4,7 @@ using R3;
 
 namespace WebSocket.Rx;
 
-public interface IReactiveWebSocketServer : IDisposable
+public interface IReactiveWebSocketServer : IDisposable, IAsyncDisposable
 {
     TimeSpan IdleConnection { get; set; }
     TimeSpan ConnectTimeout { get; set; }

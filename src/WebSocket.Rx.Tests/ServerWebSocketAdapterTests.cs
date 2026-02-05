@@ -301,19 +301,6 @@ public class ServerWebSocketAdapterTests : IAsyncLifetime
         _mockWebSocket.Received(1).Abort();
     }
 
-    [Fact]
-    public void Dispose_ShouldCleanupResources()
-    {
-        // Arrange
-        _adapter = new ReactiveWebSocketServer.ServerWebSocketAdapter(_mockWebSocket,
-            new Metadata(Guid.Empty, IPAddress.Any, 0));
-
-        // Act
-        _adapter.Dispose();
-
-        // Assert
-        Assert.True(_adapter.IsDisposed);
-    }
 
     [Fact]
     public void Dispose_CalledTwice_ShouldNotThrow()
