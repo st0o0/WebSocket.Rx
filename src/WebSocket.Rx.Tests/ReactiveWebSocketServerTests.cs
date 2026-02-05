@@ -3,7 +3,6 @@ using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Text;
 using R3;
-using Xunit.Abstractions;
 
 namespace WebSocket.Rx.Tests;
 
@@ -24,17 +23,7 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
         _webSocketUrl = _serverUrl.Replace("http://", "ws://");
 
         _server = new ReactiveWebSocketServer(_serverUrl);
-
-        try
-        {
-            await _server.StartAsync();
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException(
-                $"Failed to start server on {_serverUrl}. " +
-                $"Make sure no other service is using this port. Error: {ex.Message}", ex);
-        }
+        await _server.StartAsync();
     }
 
     public async Task DisposeAsync()
@@ -80,9 +69,10 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
         return await tcs.Task.WaitAsync(cts.Token);
     }
 
-    private static async Task WaitForConditionAsync(Func<bool> condition, int timeoutMs = 5000)
+    private static async Task WaitForConditionAsync(Func<bool> condition, TimeSpan? timeout = null)
     {
-        var endTime = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        timeout ??= TimeSpan.FromSeconds(5);
+        var endTime = DateTime.UtcNow.Add(timeout.Value);
         while (!condition() && DateTime.UtcNow < endTime)
         {
             await Task.Delay(10);
@@ -401,15 +391,28 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
         var server = new ReactiveWebSocketServer($"http://localhost:{port}/");
         await server.StartAsync();
 
+        var connectedTcs = new TaskCompletionSource<ClientConnected>();
+        using var sub = server.ClientConnected.Subscribe(connectedTcs.SetResult);
+
         using var client = new ClientWebSocket();
         await client.ConnectAsync(new Uri($"ws://localhost:{port}/"), CancellationToken.None);
 
+        await WaitAsync(connectedTcs);
 
         // Act
-        server.Dispose();
+        if (server is IAsyncDisposable asyncDisposable)
+        {
+            await asyncDisposable.DisposeAsync();
+        }
+        else
+        {
+            server.Dispose();
+        }
 
         // Assert
         Assert.True(server.IsDisposed);
+        Assert.False(server.IsRunning);
+        Assert.Equal(0, server.ClientCount);
     }
 
     #endregion
@@ -534,7 +537,7 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
             await SendTextAsync(client, $"Message {i}");
         }
 
-        await WaitForConditionAsync(() => messageCount == 100, 10000);
+        await WaitForConditionAsync(() => messageCount == 100, TimeSpan.FromSeconds(10));
 
         // Assert
         Assert.Equal(100, messageCount);
