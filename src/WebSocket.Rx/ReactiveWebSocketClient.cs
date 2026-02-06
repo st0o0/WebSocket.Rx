@@ -48,7 +48,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
     public bool IsDisposed => _disposed != 0;
     public bool SenderRunning => SendLoopTask?.Status is TaskStatus.Running or TaskStatus.WaitingForActivation;
     public bool IsInsideLock => ConnectionLock.IsLocked;
-    public bool IsTextMessageConversionEnabled { get; set; }
+    public bool IsTextMessageConversionEnabled { get; set; } = true;
     public Encoding MessageEncoding { get; set; } = Encoding.UTF8;
     public ClientWebSocket NativeClient { get; private set; } = new();
 
@@ -374,6 +374,9 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
                     DisconnectionHappenedSource.OnNext(Disconnected.Create(DisconnectReason.ServerInitiated));
+                    await NativeClient
+                        .CloseAsync(result.CloseStatus ?? WebSocketCloseStatus.NormalClosure,
+                            result.CloseStatusDescription ?? "", CancellationToken.None);
                     _ = ScheduleReconnectAsync().ConfigureAwait(false);
                     return;
                 }

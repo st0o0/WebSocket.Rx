@@ -2,15 +2,24 @@
 using R3;
 using System.Text;
 using WebSocket.Rx.Tests.Internal;
+using Xunit.Abstractions;
 
 namespace WebSocket.Rx.Tests;
 
 public class ReactiveWebSocketClientTests : IAsyncLifetime
 {
+    private readonly ITestOutputHelper _output;
+    private const int DefaultTimeoutMs = 10000;
+
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
     private WebSocketTestServer _server;
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
     private ReactiveWebSocketClient? _client;
+
+    public ReactiveWebSocketClientTests(ITestOutputHelper output)
+    {
+        _output = output;
+    }
 
     public async Task InitializeAsync()
     {
@@ -23,6 +32,57 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         _client?.Dispose();
         await _server.DisposeAsync();
     }
+
+    #region Helper Methods
+
+    private async Task<T> WaitForEventAsync<T>(
+        Observable<T> observable,
+        Func<T, bool>? predicate = null,
+        int? timeoutMs = null)
+    {
+        var timeout = timeoutMs ?? DefaultTimeoutMs;
+        var tcs = new TaskCompletionSource<T>();
+        using var cts = new CancellationTokenSource(timeout);
+        using var registration = cts.Token.Register(() =>
+        {
+            var msg = $"Event {typeof(T).Name} not received within {timeout}ms";
+            _output.WriteLine($"[TIMEOUT] {msg}");
+            tcs.TrySetException(new TimeoutException(msg));
+        });
+
+        using var subscription = observable.Subscribe(value =>
+        {
+            if (predicate == null || predicate(value))
+            {
+                tcs.TrySetResult(value);
+            }
+        });
+
+        return await tcs.Task;
+    }
+
+    private async Task WaitForConditionAsync(
+        Func<bool> condition,
+        TimeSpan? timeout = null,
+        string? errorMessage = null)
+    {
+        timeout ??= TimeSpan.FromMilliseconds(DefaultTimeoutMs);
+        var endTime = DateTime.UtcNow.Add(timeout.Value);
+
+        while (!condition() && DateTime.UtcNow < endTime)
+        {
+            await Task.Delay(10);
+        }
+
+        if (!condition())
+        {
+            var msg = errorMessage ?? $"Condition was not met within {timeout.Value.TotalSeconds}s";
+            _output.WriteLine($"[TIMEOUT] {msg}");
+            throw new TimeoutException(msg);
+        }
+    }
+
+    #endregion
 
     #region Constructor Tests
 
@@ -514,7 +574,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         // Assert
         Assert.Equal(TimeSpan.FromSeconds(10), _client.ConnectTimeout);
         Assert.True(_client.IsReconnectionEnabled);
-        Assert.False(_client.IsTextMessageConversionEnabled);
+        Assert.True(_client.IsTextMessageConversionEnabled);
         Assert.Equal(Encoding.UTF8, _client.MessageEncoding);
     }
 
@@ -551,7 +611,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
 
     #region Integration Tests
 
-    [Fact(Timeout = 50000)]
+    [Fact(Timeout = 5000)]
     public async Task FullWorkflow_ConnectSendReceiveDisconnect_ShouldWork()
     {
         // Arrange
