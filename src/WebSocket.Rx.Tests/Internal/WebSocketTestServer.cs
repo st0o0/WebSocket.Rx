@@ -13,25 +13,53 @@ public class WebSocketTestServer : IAsyncDisposable
     private readonly CancellationTokenSource _cts;
     private Task? _serverTask;
 
-    public int Port { get; }
-    public string Url => $"http://localhost:{Port}/";
-    public string WebSocketUrl => $"ws://localhost:{Port}/";
+    public int Port { get; private set; }
+    public string Url => $"http://127.0.0.1:{Port}/";
+    public string WebSocketUrl => $"ws://127.0.0.1:{Port}/";
     public event Action<string>? OnMessageReceived;
     public event Action<byte[]>? OnBytesReceived;
 
     public WebSocketTestServer(int? port = null)
     {
-        Port = port ?? GetAvailablePort();
+        Port = port ?? 0;
         _httpListener = new HttpListener();
-        _httpListener.Prefixes.Add(Url);
         _cts = new CancellationTokenSource();
     }
 
     public async Task StartAsync()
     {
-        _httpListener.Start();
-        _serverTask = Task.Run(() => AcceptConnectionsAsync(_cts.Token));
-        await Task.Delay(100);
+        const int maxRetries = 10;
+        for (var i = 0; i < maxRetries; i++)
+        {
+            try
+            {
+                if (Port == 0 || i > 0)
+                {
+                    Port = GetAvailablePort();
+                }
+
+                _httpListener.Prefixes.Clear();
+                _httpListener.Prefixes.Add(Url);
+                _httpListener.Start();
+                _serverTask = Task.Run(() => AcceptConnectionsAsync(_cts.Token));
+                await Task.Delay(100);
+                return;
+            }
+            catch (HttpListenerException) when (i < maxRetries - 1)
+            {
+                await Task.Delay(100);
+            }
+        }
+
+        // Final attempt that will throw if it fails
+        if (!_httpListener.IsListening)
+        {
+            _httpListener.Prefixes.Clear();
+            _httpListener.Prefixes.Add(Url);
+            _httpListener.Start();
+            _serverTask = Task.Run(() => AcceptConnectionsAsync(_cts.Token));
+            await Task.Delay(100);
+        }
     }
 
     private async Task AcceptConnectionsAsync(CancellationToken cancellationToken)

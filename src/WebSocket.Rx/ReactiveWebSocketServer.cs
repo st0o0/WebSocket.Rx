@@ -20,12 +20,6 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
             await Socket.DisposeAsync().ConfigureAwait(false);
             Disposables.Dispose();
         }
-
-        public void Dispose()
-        {
-            Socket.Dispose();
-            Disposables.Dispose();
-        }
     };
 
     #region Fields & State
@@ -138,7 +132,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
         _listener.Close();
         _listener.Try(x => x.Abort());
-        
+
         foreach (var clientId in clientsToStop.Keys)
         {
             _clients.TryRemove(clientId, out _);
@@ -287,14 +281,34 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
             {
                 socket.MessageReceived
                     .Select(x => new ServerReceivedMessage(metadata, x))
-                    .Subscribe(_messageReceivedSource.AsObserver()),
+                    .Subscribe(msg =>
+                    {
+                        lock (_messageReceivedSource)
+                        {
+                            _messageReceivedSource.OnNext(msg);
+                        }
+                    }),
                 socket.DisconnectionHappened
                     .Select(x => new ClientDisconnected(metadata, x))
-                    .Subscribe(_clientDisconnectedSource.AsObserver()),
+                    .Subscribe(disconnected =>
+                    {
+                        lock (_clientDisconnectedSource)
+                        {
+                            _clientDisconnectedSource.OnNext(disconnected);
+                        }
+                    }),
                 socket.DisconnectionHappened
                     .Subscribe(_ => _clients.TryRemove(metadata.Id, out var _))
             };
+            socket.Start();
+
             _clients[metadata.Id] = new Client(socket, disposables);
+
+            if (socket.NativeServerSocket.State != WebSocketState.Open)
+            {
+                _clients.TryRemove(metadata.Id, out _);
+            }
+
             _clientConnectedSource.OnNext(new ClientConnected(metadata, Connected.Create(ConnectReason.Initial)));
         }
         catch (Exception)
@@ -451,6 +465,10 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
             });
 
             MainCts = _adapterCts;
+        }
+
+        public void Start()
+        {
             SendLoopTask = Task.Run(() => SendLoopAsync(_adapterCts.Token), CancellationToken.None);
             ReceiveLoopTask = Task.Run(() => ReceiveLoopAdapterAsync(_adapterCts.Token), CancellationToken.None);
         }
