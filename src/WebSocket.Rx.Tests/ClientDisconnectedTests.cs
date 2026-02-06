@@ -12,7 +12,7 @@ public class ClientDisconnectedTests
         const DisconnectReason reason = DisconnectReason.ClientInitiated;
 
         // Act
-        var disconnected = new ClientDisconnected(new Metadata(id, IPAddress.Any, 0), Disconnected.Create(reason));
+        var disconnected = new ClientDisconnected(new Metadata(id, IPAddress.Any, 0), new Disconnected(reason));
 
         // Assert
         Assert.Equal(id, disconnected.Metadata.Id);
@@ -29,7 +29,7 @@ public class ClientDisconnectedTests
 
         // Act
         var disconnected = new ClientDisconnected(new Metadata(Guid.Empty, IPAddress.Any, 0),
-            Disconnected.Create(reason, error));
+            new Disconnected(reason, error));
 
         // Assert
         Assert.Equal(Guid.Empty, disconnected.Metadata.Id);
@@ -42,7 +42,7 @@ public class ClientDisconnectedTests
     {
         // Arrange
         var error = new Exception("Test");
-        var @event = Disconnected.Create(DisconnectReason.Error, error);
+        var @event = new Disconnected(DisconnectReason.Error, error);
         var metadata = new Metadata(Guid.Empty, IPAddress.Any, 0);
         var disconnected1 = new ClientDisconnected(metadata, @event);
         var disconnected2 = new ClientDisconnected(metadata, @event);

@@ -311,7 +311,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
             lock (_clientConnectedSource)
             {
-                _clientConnectedSource.OnNext(new ClientConnected(metadata, Connected.Create(ConnectReason.Initial)));
+                _clientConnectedSource.OnNext(new ClientConnected(metadata, new Connected(ConnectReason.Initial)));
             }
         }
         catch (Exception)
@@ -512,7 +512,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
                             .CloseAsync(result.CloseStatus ?? WebSocketCloseStatus.NormalClosure,
                                 result.CloseStatusDescription ?? "", CancellationToken.None)
                             .ConfigureAwait(false);
-                        DisconnectionHappenedSource.OnNext(Disconnected.Create(DisconnectReason.ClientInitiated));
+                        DisconnectionHappenedSource.OnNext(new Disconnected(DisconnectReason.ClientInitiated));
                         break;
                     }
 
@@ -543,7 +543,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
                     _ => DisconnectReason.ConnectionLost
                 };
-                DisconnectionHappenedSource.OnNext(Disconnected.Create(reason, ex));
+                DisconnectionHappenedSource.OnNext(new Disconnected(reason, ex));
             }
             catch (WebSocketException ex) when (ex.InnerException is HttpListenerException)
             {
@@ -551,7 +551,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
             }
             catch (Exception ex)
             {
-                DisconnectionHappenedSource.OnNext(Disconnected.Create(DisconnectReason.Error, ex));
+                DisconnectionHappenedSource.OnNext(new Disconnected(DisconnectReason.Error, ex));
             }
             finally
             {
@@ -581,7 +581,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
                 }
             }
 
-            DisconnectionHappenedSource.OnNext(Disconnected.Create(DisconnectReason.ServerInitiated));
+            DisconnectionHappenedSource.OnNext(new Disconnected(DisconnectReason.ServerInitiated));
 
             IsStarted = false;
             IsRunning = false;
