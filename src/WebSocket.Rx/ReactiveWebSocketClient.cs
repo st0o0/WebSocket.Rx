@@ -131,7 +131,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
                 }
             }
 
-            DisconnectionHappenedSource.OnNext(new Disconnected(DisconnectReason.ClientInitiated));
+            DisconnectionHappenedSource.OnNext(new Disconnected(DisconnectReason.Shutdown));
 
             await CleanupAsync();
 
