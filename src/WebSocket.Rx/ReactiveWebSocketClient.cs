@@ -336,18 +336,18 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
         }
     }
 
-    protected virtual async Task SendAsync(byte[] data, WebSocketMessageType type, bool endOfMessage,
+    protected virtual async Task<bool> SendAsync(byte[] data, WebSocketMessageType type, bool endOfMessage,
         CancellationToken cancellationToken = default)
     {
-        if (NativeClient.State == WebSocketState.Open)
-        {
-            await NativeClient.SendAsync(
-                data,
-                type,
-                endOfMessage,
-                cancellationToken
-            );
-        }
+        if (NativeClient.State is not WebSocketState.Open) return false;
+
+        await NativeClient.SendAsync(
+            data,
+            type,
+            endOfMessage,
+            cancellationToken
+        );
+        return true;
     }
 
     private async Task ReceiveLoopAsync(CancellationToken cancellationToken)
@@ -433,68 +433,70 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
     #region Send Methods
 
-    public async Task SendInstantAsync(string message, CancellationToken cancellationToken = default)
+    public async Task<bool> SendInstantAsync(string message, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(message))
         {
-            return;
+            return false;
         }
 
-        await SendAsync(MessageEncoding.GetBytes(message), WebSocketMessageType.Binary, true, cancellationToken)
+        return await SendAsync(MessageEncoding.GetBytes(message), WebSocketMessageType.Binary, true, cancellationToken)
             .ConfigureAwait(false);
     }
 
-    public async Task SendInstantAsync(byte[] message, CancellationToken cancellationToken = default)
+    public async Task<bool> SendInstantAsync(byte[] message, CancellationToken cancellationToken = default)
     {
         if (message.Length == 0)
         {
-            return;
+            return false;
         }
 
         using var connectedCts =
             CancellationTokenSource.CreateLinkedTokenSource(cancellationToken,
                 MainCts?.Token ?? CancellationToken.None);
-        await SendAsync(message, WebSocketMessageType.Binary, true, connectedCts.Token);
+        return await SendAsync(message, WebSocketMessageType.Binary, true, connectedCts.Token);
     }
 
-    public async Task SendAsBinaryAsync(string message, CancellationToken cancellationToken = default)
+    public async Task<bool> SendAsBinaryAsync(string message, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(message))
         {
-            return;
+            return false;
         }
 
-        await SendAsBinaryAsync(MessageEncoding.GetBytes(message), cancellationToken);
+        return await SendAsBinaryAsync(MessageEncoding.GetBytes(message), cancellationToken);
     }
 
-    public async Task SendAsBinaryAsync(byte[] message, CancellationToken cancellationToken = default)
+    public async Task<bool> SendAsBinaryAsync(byte[] message, CancellationToken cancellationToken = default)
     {
         if (!IsRunning || message.Length == 0)
         {
-            return;
+            return false;
         }
 
         await SendWriter.WriteAsync(new Payload(message, WebSocketMessageType.Binary), cancellationToken);
+        return true;
     }
 
-    public async Task SendAsTextAsync(string message, CancellationToken cancellationToken = default)
+    public async Task<bool> SendAsTextAsync(string message, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(message))
         {
-            return;
+            return false;
         }
 
-        await SendAsTextAsync(MessageEncoding.GetBytes(message), cancellationToken);
+        return await SendAsTextAsync(MessageEncoding.GetBytes(message), cancellationToken);
     }
 
-    public async Task SendAsTextAsync(byte[] message, CancellationToken cancellationToken = default)
+    public async Task<bool> SendAsTextAsync(byte[] message, CancellationToken cancellationToken = default)
     {
         if (!IsRunning || message.Length == 0)
         {
-            return;
+            return false;
         }
 
         await SendWriter.WriteAsync(new Payload(message, WebSocketMessageType.Text), cancellationToken);
+        return true;
     }
 
     public bool TrySendAsBinary(string message)
@@ -525,6 +527,162 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
         }
 
         return SendWriter.TryWrite(new Payload(message, WebSocketMessageType.Text));
+    }
+
+    public Observable<bool> SendInstant(Observable<byte[]> messages)
+    {
+        return Observable.Create<bool>(observer =>
+        {
+            var disposables = new CompositeDisposable();
+
+            disposables.Add(messages.SubscribeAwait(async (msg, ct) =>
+            {
+                var result = await SendInstantAsync(msg, ct);
+                observer.OnNext(result);
+            }));
+
+            return disposables;
+        });
+    }
+
+    public Observable<bool> SendInstant(Observable<string> messages)
+    {
+        return Observable.Create<bool>(observer =>
+        {
+            var disposables = new CompositeDisposable();
+
+            disposables.Add(messages.SubscribeAwait(async (msg, ct) =>
+            {
+                var result = await SendInstantAsync(msg, ct);
+                observer.OnNext(result);
+            }));
+
+            return disposables;
+        });
+    }
+
+    public Observable<bool> SendAsBinary(Observable<byte[]> messages)
+    {
+        return Observable.Create<bool>(observer =>
+        {
+            var disposables = new CompositeDisposable();
+
+            disposables.Add(messages.SubscribeAwait(async (msg, ct) =>
+            {
+                var result = await SendAsBinaryAsync(msg, ct);
+                observer.OnNext(result);
+            }));
+
+            return disposables;
+        });
+    }
+
+    public Observable<bool> SendAsBinary(Observable<string> messages)
+    {
+        return Observable.Create<bool>(observer =>
+        {
+            var disposables = new CompositeDisposable();
+
+            disposables.Add(messages.SubscribeAwait(async (msg, ct) =>
+            {
+                var result = await SendAsBinaryAsync(msg, ct);
+                observer.OnNext(result);
+            }));
+
+            return disposables;
+        });
+    }
+
+    public Observable<bool> SendAsText(Observable<byte[]> messages)
+    {
+        return Observable.Create<bool>(observer =>
+        {
+            var disposables = new CompositeDisposable();
+
+            disposables.Add(messages.SubscribeAwait(async (msg, ct) =>
+            {
+                var result = await SendAsTextAsync(msg, ct);
+                observer.OnNext(result);
+            }));
+
+            return disposables;
+        });
+    }
+
+    public Observable<bool> SendAsText(Observable<string> messages)
+    {
+        return Observable.Create<bool>(observer =>
+        {
+            var disposables = new CompositeDisposable();
+
+            disposables.Add(messages.SubscribeAwait(async (msg, ct) =>
+            {
+                var result = await SendAsTextAsync(msg, ct);
+                observer.OnNext(result);
+            }));
+
+            return disposables;
+        });
+    }
+
+    public Observable<bool> TrySendAsBinary(Observable<string> messages)
+    {
+        return Observable.Create<bool>(observer =>
+        {
+            var disposables = new CompositeDisposable();
+            disposables.Add(messages.Subscribe(msg =>
+            {
+                var result = TrySendAsBinary(msg);
+                observer.OnNext(result);
+            }));
+
+            return disposables;
+        });
+    }
+
+    public Observable<bool> TrySendAsBinary(Observable<byte[]> messages)
+    {
+        return Observable.Create<bool>(observer =>
+        {
+            var disposables = new CompositeDisposable();
+            disposables.Add(messages.Subscribe(msg =>
+            {
+                var result = TrySendAsBinary(msg);
+                observer.OnNext(result);
+            }));
+
+            return disposables;
+        });
+    }
+
+    public Observable<bool> TrySendAsText(Observable<string> messages)
+    {
+        return Observable.Create<bool>(observer =>
+        {
+            var disposables = new CompositeDisposable();
+            disposables.Add(messages.Subscribe(msg =>
+            {
+                var result = TrySendAsText(msg);
+                observer.OnNext(result);
+            }));
+
+            return disposables;
+        });
+    }
+
+    public Observable<bool> TrySendAsText(Observable<byte[]> messages)
+    {
+        return Observable.Create<bool>(observer =>
+        {
+            var disposables = new CompositeDisposable();
+            disposables.Add(messages.Subscribe(msg =>
+            {
+                var result = TrySendAsText(msg);
+                observer.OnNext(result);
+            }));
+
+            return disposables;
+        });
     }
 
     public void StreamFakeMessage(ReceivedMessage message)

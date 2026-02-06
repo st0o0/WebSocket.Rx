@@ -309,7 +309,10 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
                 _clients.TryRemove(metadata.Id, out _);
             }
 
-            _clientConnectedSource.OnNext(new ClientConnected(metadata, Connected.Create(ConnectReason.Initial)));
+            lock (_clientConnectedSource)
+            {
+                _clientConnectedSource.OnNext(new ClientConnected(metadata, Connected.Create(ConnectReason.Initial)));
+            }
         }
         catch (Exception)
         {
@@ -473,15 +476,14 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
             ReceiveLoopTask = Task.Run(() => ReceiveLoopAdapterAsync(_adapterCts.Token), CancellationToken.None);
         }
 
-        protected override async Task SendAsync(byte[] data, WebSocketMessageType type, bool endOfMessage,
+        protected override async Task<bool> SendAsync(byte[] data, WebSocketMessageType type, bool endOfMessage,
             CancellationToken cancellationToken = default)
         {
-            if (NativeServerSocket.State == WebSocketState.Open)
-            {
-                await NativeServerSocket
-                    .SendAsync(data, type, endOfMessage: true, cancellationToken)
-                    .ConfigureAwait(false);
-            }
+            if (NativeServerSocket.State is not WebSocketState.Open) return false;
+            await NativeServerSocket
+                .SendAsync(data, type, endOfMessage: true, cancellationToken)
+                .ConfigureAwait(false);
+            return true;
         }
 
         private async Task ReceiveLoopAdapterAsync(CancellationToken cancellationToken)

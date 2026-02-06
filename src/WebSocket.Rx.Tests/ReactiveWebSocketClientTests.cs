@@ -1,4 +1,4 @@
-﻿using System.Net.WebSockets;
+using System.Net.WebSockets;
 using R3;
 using System.Text;
 using WebSocket.Rx.Tests.Internal;
@@ -374,6 +374,392 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
 
         // Act & Assert
         await _client.SendInstantAsync("");
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task SendInstantAsync_ByteArray_WhenConnected_ShouldSendMessage()
+    {
+        // Arrange
+        _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
+        await _client.StartOrFailAsync();
+
+        var tcs = new TaskCompletionSource<byte[]>();
+        _server.OnBytesReceived += bytes => tcs.TrySetResult(bytes);
+
+        var testData = new byte[] { 5, 4, 3, 2, 1 };
+
+        // Act
+        var result = await _client.SendInstantAsync(testData);
+        var receivedBytes = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal(testData, receivedBytes);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task SendAsBinaryAsync_String_WhenConnected_ShouldSendMessageAsBinary()
+    {
+        // Arrange
+        _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
+        await _client.StartOrFailAsync();
+
+        var tcs = new TaskCompletionSource<byte[]>();
+        _server.OnBytesReceived += bytes => tcs.TrySetResult(bytes);
+
+        // Act
+        var result = await _client.SendAsBinaryAsync("BinaryString");
+        var receivedBytes = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal(_client.MessageEncoding.GetBytes("BinaryString"), receivedBytes);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task SendAsBinaryAsync_ByteArray_WhenConnected_ShouldSendMessageAsBinary()
+    {
+        // Arrange
+        _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
+        await _client.StartOrFailAsync();
+
+        var tcs = new TaskCompletionSource<byte[]>();
+        _server.OnBytesReceived += bytes => tcs.TrySetResult(bytes);
+
+        var testData = new byte[] { 10, 11, 12 };
+
+        // Act
+        var result = await _client.SendAsBinaryAsync(testData);
+        var receivedBytes = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal(testData, receivedBytes);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task SendAsTextAsync_String_WhenConnected_ShouldSendMessageAsText()
+    {
+        // Arrange
+        _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
+        await _client.StartOrFailAsync();
+
+        var tcs = new TaskCompletionSource<string>();
+        _server.OnMessageReceived += msg => tcs.TrySetResult(msg);
+
+        // Act
+        var result = await _client.SendAsTextAsync("Hello Text");
+        var receivedText = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal("Hello Text", receivedText);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task SendAsTextAsync_ByteArray_WhenConnected_ShouldSendMessageAsText()
+    {
+        // Arrange
+        _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
+        await _client.StartOrFailAsync();
+
+        var tcs = new TaskCompletionSource<string>();
+        _server.OnMessageReceived += msg => tcs.TrySetResult(msg);
+
+        var testData = Encoding.UTF8.GetBytes("Hello Byte Text");
+
+        // Act
+        var result = await _client.SendAsTextAsync(testData);
+        var receivedText = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal("Hello Byte Text", receivedText);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task TrySendAsText_ByteArray_WhenConnected_ShouldSendMessageAsText()
+    {
+        // Arrange
+        _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
+        await _client.StartOrFailAsync();
+
+        var tcs = new TaskCompletionSource<string>();
+        _server.OnMessageReceived += msg => tcs.TrySetResult(msg);
+
+        var testData = Encoding.UTF8.GetBytes("ByteText");
+
+        // Act
+        var result = _client.TrySendAsText(testData);
+        var receivedText = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal("ByteText", receivedText);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task SendInstant_Observable_ShouldSendMessages()
+    {
+        // Arrange
+        _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
+        await _client.StartOrFailAsync();
+
+        var receivedMessages = new List<string>();
+        var tcs = new TaskCompletionSource<bool>();
+        _server.OnBytesReceived += bytes =>
+        {
+            receivedMessages.Add(Encoding.UTF8.GetString(bytes));
+            if (receivedMessages.Count == 2) tcs.TrySetResult(true);
+        };
+
+        var messages = Observable.Return("Msg1").Concat(Observable.Return("Msg2"));
+
+        // Act
+        using var subscription = _client.SendInstant(messages).Subscribe();
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        // Assert
+        Assert.Contains("Msg1", receivedMessages);
+        Assert.Contains("Msg2", receivedMessages);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task SendAsBinary_Observable_ShouldSendMessages()
+    {
+        // Arrange
+        _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
+        await _client.StartOrFailAsync();
+
+        var receivedData = new List<byte[]>();
+        var tcs = new TaskCompletionSource<bool>();
+        _server.OnBytesReceived += bytes =>
+        {
+            receivedData.Add(bytes);
+            if (receivedData.Count == 2) tcs.TrySetResult(true);
+        };
+
+        var data1 = new byte[] { 1, 2 };
+        var data2 = new byte[] { 3, 4 };
+        var messages = Observable.Return(data1).Concat(Observable.Return(data2));
+
+        // Act
+        using var subscription = _client.SendAsBinary(messages).Subscribe();
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        // Assert
+        Assert.Equal(2, receivedData.Count);
+        Assert.Equal(data1, receivedData[0]);
+        Assert.Equal(data2, receivedData[1]);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task SendAsText_Observable_ShouldSendMessages()
+    {
+        // Arrange
+        _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
+        await _client.StartOrFailAsync();
+
+        var receivedMessages = new List<string>();
+        var tcs = new TaskCompletionSource<bool>();
+        _server.OnMessageReceived += msg =>
+        {
+            receivedMessages.Add(msg);
+            if (receivedMessages.Count == 2) tcs.TrySetResult(true);
+        };
+
+        var messages = Observable.Return("Text1").Concat(Observable.Return("Text2"));
+
+        // Act
+        using var subscription = _client.SendAsText(messages).Subscribe();
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        // Assert
+        Assert.Contains("Text1", receivedMessages);
+        Assert.Contains("Text2", receivedMessages);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task TrySendAsBinary_Observable_ShouldSendMessages()
+    {
+        // Arrange
+        _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
+        await _client.StartOrFailAsync();
+
+        var receivedData = new List<byte[]>();
+        var tcs = new TaskCompletionSource<bool>();
+        _server.OnBytesReceived += bytes =>
+        {
+            receivedData.Add(bytes);
+            tcs.TrySetResult(true);
+        };
+
+        var data = new byte[] { 7, 8, 9 };
+        var messages = Observable.Return(data);
+
+        // Act
+        using var subscription = _client.TrySendAsBinary(messages).Subscribe();
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        // Assert
+        Assert.Single(receivedData);
+        Assert.Equal(data, receivedData[0]);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task SendInstant_Observable_ByteArray_ShouldSendMessages()
+    {
+        // Arrange
+        _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
+        await _client.StartOrFailAsync();
+
+        var receivedData = new List<byte[]>();
+        var tcs = new TaskCompletionSource<bool>();
+        _server.OnBytesReceived += bytes =>
+        {
+            receivedData.Add(bytes);
+            tcs.TrySetResult(true);
+        };
+
+        var testData = new byte[] { 9, 8, 7 };
+        var messages = Observable.Return(testData);
+
+        // Act
+        using var subscription = _client.SendInstant(messages).Subscribe();
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        // Assert
+        Assert.Single(receivedData);
+        Assert.Equal(testData, receivedData[0]);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task SendAsBinary_Observable_String_ShouldSendMessages()
+    {
+        // Arrange
+        _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
+        await _client.StartOrFailAsync();
+
+        var receivedData = new List<byte[]>();
+        var tcs = new TaskCompletionSource<bool>();
+        _server.OnBytesReceived += bytes =>
+        {
+            receivedData.Add(bytes);
+            tcs.TrySetResult(true);
+        };
+
+        var messages = Observable.Return("Bin1");
+
+        // Act
+        using var subscription = _client.SendAsBinary(messages).Subscribe();
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        // Assert
+        Assert.Single(receivedData);
+        Assert.Equal(_client.MessageEncoding.GetBytes("Bin1"), receivedData[0]);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task SendAsText_Observable_ByteArray_ShouldSendMessages()
+    {
+        // Arrange
+        _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
+        await _client.StartOrFailAsync();
+
+        var receivedMessages = new List<string>();
+        var tcs = new TaskCompletionSource<bool>();
+        _server.OnMessageReceived += msg =>
+        {
+            receivedMessages.Add(msg);
+            tcs.TrySetResult(true);
+        };
+
+        var testData = Encoding.UTF8.GetBytes("TextB1");
+        var messages = Observable.Return(testData);
+
+        // Act
+        using var subscription = _client.SendAsText(messages).Subscribe();
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        // Assert
+        Assert.Contains("TextB1", receivedMessages);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task TrySendAsBinary_Observable_String_ShouldSendMessages()
+    {
+        // Arrange
+        _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
+        await _client.StartOrFailAsync();
+
+        var receivedData = new List<byte[]>();
+        var tcs = new TaskCompletionSource<bool>();
+        _server.OnBytesReceived += bytes =>
+        {
+            receivedData.Add(bytes);
+            tcs.TrySetResult(true);
+        };
+
+        var messages = Observable.Return("TryBin1");
+
+        // Act
+        using var subscription = _client.TrySendAsBinary(messages).Subscribe();
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        // Assert
+        Assert.Single(receivedData);
+        Assert.Equal(_client.MessageEncoding.GetBytes("TryBin1"), receivedData[0]);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task TrySendAsText_Observable_String_ShouldSendMessages()
+    {
+        // Arrange
+        _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
+        await _client.StartOrFailAsync();
+
+        var receivedMessages = new List<string>();
+        var tcs = new TaskCompletionSource<bool>();
+        _server.OnMessageReceived += msg =>
+        {
+            receivedMessages.Add(msg);
+            tcs.TrySetResult(true);
+        };
+
+        var messages = Observable.Return("TryText1");
+
+        // Act
+        using var subscription = _client.TrySendAsText(messages).Subscribe();
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        // Assert
+        Assert.Contains("TryText1", receivedMessages);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task TrySendAsText_Observable_ByteArray_ShouldSendMessages()
+    {
+        // Arrange
+        _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
+        await _client.StartOrFailAsync();
+
+        var receivedMessages = new List<string>();
+        var tcs = new TaskCompletionSource<bool>();
+        _server.OnMessageReceived += msg =>
+        {
+            receivedMessages.Add(msg);
+            tcs.TrySetResult(true);
+        };
+
+        var testData = Encoding.UTF8.GetBytes("TryTextB1");
+        var messages = Observable.Return(testData);
+
+        // Act
+        using var subscription = _client.TrySendAsText(messages).Subscribe();
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        // Assert
+        Assert.Contains("TryTextB1", receivedMessages);
     }
 
     #endregion
