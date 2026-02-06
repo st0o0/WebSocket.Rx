@@ -33,17 +33,17 @@ public interface IReactiveWebSocketClient : IDisposable, IAsyncDisposable
 
     Task ReconnectOrFailAsync(CancellationToken cancellationToken = default);
 
-    Task SendInstantAsync(string message, CancellationToken cancellationToken = default);
+    Task<bool> SendInstantAsync(byte[] message, CancellationToken cancellationToken = default);
 
-    Task SendInstantAsync(byte[] message, CancellationToken cancellationToken = default);
+    Task<bool> SendInstantAsync(string message, CancellationToken cancellationToken = default);
 
-    Task SendAsBinaryAsync(byte[] message, CancellationToken cancellationToken = default);
+    Task<bool> SendAsBinaryAsync(byte[] message, CancellationToken cancellationToken = default);
 
-    Task SendAsBinaryAsync(string message, CancellationToken cancellationToken = default);
+    Task<bool> SendAsBinaryAsync(string message, CancellationToken cancellationToken = default);
 
-    Task SendAsTextAsync(byte[] message, CancellationToken cancellationToken = default);
+    Task<bool> SendAsTextAsync(byte[] message, CancellationToken cancellationToken = default);
 
-    Task SendAsTextAsync(string message, CancellationToken cancellationToken = default);
+    Task<bool> SendAsTextAsync(string message, CancellationToken cancellationToken = default);
 
     bool TrySendAsBinary(string message);
 
@@ -52,6 +52,26 @@ public interface IReactiveWebSocketClient : IDisposable, IAsyncDisposable
     bool TrySendAsText(byte[] message);
 
     bool TrySendAsText(string message);
+
+    Observable<bool> SendInstant(Observable<byte[]> messages);
+
+    Observable<bool> SendInstant(Observable<string> messages);
+
+    Observable<bool> SendAsBinary(Observable<byte[]> messages);
+
+    Observable<bool> SendAsBinary(Observable<string> messages);
+
+    Observable<bool> SendAsText(Observable<byte[]> messages);
+
+    Observable<bool> SendAsText(Observable<string> messages);
+
+    Observable<bool> TrySendAsBinary(Observable<string> messages);
+
+    Observable<bool> TrySendAsBinary(Observable<byte[]> messages);
+
+    Observable<bool> TrySendAsText(Observable<string> messages);
+
+    Observable<bool> TrySendAsText(Observable<byte[]> messages);
 
     void StreamFakeMessage(ReceivedMessage message);
 }
