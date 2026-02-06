@@ -581,7 +581,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
                 }
             }
 
-            DisconnectionHappenedSource.OnNext(new Disconnected(DisconnectReason.ServerInitiated));
+            DisconnectionHappenedSource.OnNext(new Disconnected(DisconnectReason.Shutdown));
 
             IsStarted = false;
             IsRunning = false;

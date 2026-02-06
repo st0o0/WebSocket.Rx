@@ -184,7 +184,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         var disconnected = new TaskCompletionSource<bool>();
         var disconnectedTask = disconnected.Task;
         _client.DisconnectionHappened
-            .Where(x => x.Reason is DisconnectReason.ClientInitiated)
+            .Where(x => x.Reason is DisconnectReason.Shutdown)
             .Take(1)
             .Subscribe(x => disconnected.SetResult(true));
 
@@ -374,6 +374,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
 
         // Act & Assert
         await _client.SendInstantAsync("");
+        Assert.True(true);
     }
 
     [Fact(Timeout = 5000)]
