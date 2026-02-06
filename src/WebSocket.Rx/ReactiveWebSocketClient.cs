@@ -66,7 +66,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
         }
         catch (Exception ex)
         {
-            DisconnectionHappenedSource.OnNext(Disconnected.Create(DisconnectReason.Error, ex));
+            DisconnectionHappenedSource.OnNext(new Disconnected(DisconnectReason.Error, ex));
         }
     }
 
@@ -131,7 +131,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
                 }
             }
 
-            DisconnectionHappenedSource.OnNext(Disconnected.Create(DisconnectReason.ClientInitiated));
+            DisconnectionHappenedSource.OnNext(new Disconnected(DisconnectReason.ClientInitiated));
 
             await CleanupAsync();
 
@@ -260,7 +260,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
             SendLoopTask = Task.Run(() => SendLoopAsync(MainCts.Token), CancellationToken.None);
             ReceiveLoopTask = Task.Run(() => ReceiveLoopAsync(MainCts.Token), CancellationToken.None);
 
-            ConnectionHappenedSource.OnNext(Connected.Create(reason));
+            ConnectionHappenedSource.OnNext(new Connected(reason));
         }
         catch (Exception)
         {
@@ -373,7 +373,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
-                    DisconnectionHappenedSource.OnNext(Disconnected.Create(DisconnectReason.ServerInitiated));
+                    DisconnectionHappenedSource.OnNext(new Disconnected(DisconnectReason.ServerInitiated));
                     await NativeClient
                         .CloseAsync(result.CloseStatus ?? WebSocketCloseStatus.NormalClosure,
                             result.CloseStatusDescription ?? "", CancellationToken.None);
@@ -412,14 +412,14 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
                 _ => DisconnectReason.ConnectionLost
             };
-            DisconnectionHappenedSource.OnNext(Disconnected.Create(reason, ex));
+            DisconnectionHappenedSource.OnNext(new Disconnected(reason, ex));
             _ = ScheduleReconnectAsync().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             if (!IsDisposed && IsReconnectionEnabled)
             {
-                DisconnectionHappenedSource.OnNext(Disconnected.Create(DisconnectReason.Error, ex));
+                DisconnectionHappenedSource.OnNext(new Disconnected(DisconnectReason.Error, ex));
                 _ = ScheduleReconnectAsync().ConfigureAwait(false);
             }
         }
