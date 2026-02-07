@@ -147,10 +147,12 @@ public class ReactiveWebSocketClientEdgeCaseTests
         client.ConnectTimeout = TimeSpan.FromMilliseconds(50);
 
         var disconnected = false;
-        client.DisconnectionHappened.Subscribe(d =>
+        client.ErrorOccurred.Subscribe(d =>
         {
-            if (d.Reason == DisconnectReason.Error)
+            if (d.Source == ErrorSource.Connection)
+            {
                 disconnected = true;
+            }
         });
 
         // Act
@@ -188,24 +190,6 @@ public class ReactiveWebSocketClientEdgeCaseTests
     #endregion
 
     #region Timeout Scenarios
-
-    [Fact(Timeout = 5000)]
-    public async Task ErrorReconnectTimeout_OnError_ShouldUseCorrectTimeout()
-    {
-        // Arrange
-        using var client = new ReactiveWebSocketClient(new Uri(InvalidUrl));
-        client.KeepAliveInterval = TimeSpan.FromMilliseconds(50);
-        client.IsReconnectionEnabled = true;
-
-        var reconnectAttempts = 0;
-        client.ConnectionHappened.Subscribe(_ => reconnectAttempts++);
-
-        // Act
-        await client.StartAsync();
-
-        // Assert
-        Assert.True(reconnectAttempts >= 0);
-    }
 
     [Fact(Timeout = 40000)]
     public async Task InactivityTimeout_OnConnectionLost_ShouldReconnectQuickly()
@@ -270,7 +254,7 @@ public class ReactiveWebSocketClientEdgeCaseTests
         client.ConnectTimeout = TimeSpan.FromMilliseconds(50);
 
         Exception? capturedException = null;
-        client.DisconnectionHappened.Subscribe(d => capturedException = d.Exception);
+        client.ErrorOccurred.Subscribe(d => capturedException = d.Exception);
 
         // Act
         await client.StartAsync();

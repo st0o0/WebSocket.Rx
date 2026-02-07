@@ -1,29 +1,17 @@
-﻿namespace WebSocket.Rx;
+﻿using System.Net.WebSockets;
 
-public enum DisconnectReason
-{
-    Undefined = 0,
-    ConnectionLost = 1,
-    Timeout = 2,
-    Error = 3,
-    ClientInitiated = 4,
-    ServerInitiated = 5,
-    Shutdown = 6
-}
+namespace WebSocket.Rx;
 
-public enum ConnectReason
+public record Disconnected(
+    DisconnectReason Reason,
+    WebSocketCloseStatus? CloseStatus = null,
+    string? CloseStatusDescription = null,
+    string? SubProtocol = null,
+    WebSocketException? Exception = null)
 {
-    Undefined = 0,
-    Initial = 1,
-    Reconnect = 2
-}
+    public void CancelClosing() => IsClosingCanceled = true;
+    public void CancelReconnection() => IsReconnectionCanceled = true;
 
-public record Disconnected(DisconnectReason Reason, Exception? Exception = null)
-{
-    public static Disconnected Create(DisconnectReason reason, Exception? exception = null) => new(reason, exception);
-}
-
-public record Connected(ConnectReason Reason)
-{
-    public static Connected Create(ConnectReason reason) => new(reason);
+    public bool IsClosingCanceled { get; private set; }
+    public bool IsReconnectionCanceled { get; private set; }
 }

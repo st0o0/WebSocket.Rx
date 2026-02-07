@@ -31,7 +31,7 @@ public class DisposeTests
         Assert.True(client.IsDisposed);
     }
 
-    [Fact]
+    [Fact(Timeout = 10000)]
     public async Task Client_DisposeAsync_ShouldMarkAsDisposed()
     {
         // Arrange
@@ -59,7 +59,7 @@ public class DisposeTests
         Assert.True(client.IsDisposed);
     }
 
-    [Fact]
+    [Fact(Timeout = 10000)]
     public async Task Client_DisposeAsync_MultipleTimes_ShouldBeIdempotent()
     {
         // Arrange
@@ -74,7 +74,7 @@ public class DisposeTests
         Assert.True(client.IsDisposed);
     }
 
-    [Fact]
+    [Fact(Timeout = 10000)]
     public async Task Client_MixedDispose_ShouldBeIdempotent()
     {
         // Arrange
@@ -89,13 +89,13 @@ public class DisposeTests
         Assert.True(client.IsDisposed);
     }
 
-    [Fact]
+    [Fact(Timeout = 10000)]
     public async Task Client_AfterDispose_OperationsShouldThrowOrReturnFalse()
     {
         // Arrange
         var client = new ReactiveWebSocketClient(new Uri($"ws://localhost:{GetAvailablePort()}"));
-        var exceptionSource = new TaskCompletionSource<Disconnected>();
-        client.DisconnectionHappened.Subscribe(msg => exceptionSource.TrySetResult(msg));
+        var exceptionSource = new TaskCompletionSource<ErrorOccurred>();
+        client.ErrorOccurred.Subscribe(msg => exceptionSource.TrySetResult(msg));
         // Act
         client.Dispose();
 
@@ -108,7 +108,7 @@ public class DisposeTests
         Assert.False(result);
     }
 
-    [Fact]
+    [Fact(Timeout = 10000)]
     public async Task Client_Dispose_ShouldCompleteAllObservables()
     {
         // Arrange
@@ -137,7 +137,7 @@ public class DisposeTests
 
         // Act
         await client.DisposeAsync();
-        await Task.Delay(100); // Give observables time to complete
+        await Task.Delay(50);
 
         // Assert
         Assert.True(messageCompleted);
@@ -145,7 +145,7 @@ public class DisposeTests
         Assert.True(disconnectionCompleted);
     }
 
-    [Fact]
+    [Fact(Timeout = 10000)]
     public async Task Client_Dispose_WhileRunning_ShouldStopGracefully()
     {
         // Arrange
@@ -155,7 +155,7 @@ public class DisposeTests
 
         var client = new ReactiveWebSocketClient(new Uri($"ws://localhost:{port}"));
         await client.StartAsync();
-        await Task.Delay(100); // Wait for connection
+        await Task.Delay(50);
 
         // Act
         await client.DisposeAsync();
@@ -171,19 +171,19 @@ public class DisposeTests
     [Fact]
     public void Client_Finalizer_ShouldNotThrow()
     {
-        // Arrange & Act
-        void CreateAndAbandonClient()
-        {
-            var client = new ReactiveWebSocketClient(new Uri("ws://localhost:8080"));
-            // Don't dispose - let finalizer handle it
-        }
-
         CreateAndAbandonClient();
         GC.Collect();
         GC.WaitForPendingFinalizers();
 
-        // Assert - if we get here without exception, the test passes
+        // Assert
         Assert.True(true);
+        return;
+
+        // Arrange & Act
+        void CreateAndAbandonClient()
+        {
+            var client = new ReactiveWebSocketClient(new Uri("ws://localhost:8080"));
+        }
     }
 
     #endregion
@@ -203,7 +203,7 @@ public class DisposeTests
         Assert.True(server.IsDisposed);
     }
 
-    [Fact]
+    [Fact(Timeout = 10000)]
     public async Task Server_DisposeAsync_ShouldMarkAsDisposed()
     {
         // Arrange
@@ -231,7 +231,7 @@ public class DisposeTests
         Assert.True(server.IsDisposed);
     }
 
-    [Fact]
+    [Fact(Timeout = 10000)]
     public async Task Server_DisposeAsync_MultipleTimes_ShouldBeIdempotent()
     {
         // Arrange
@@ -246,7 +246,7 @@ public class DisposeTests
         Assert.True(server.IsDisposed);
     }
 
-    [Fact]
+    [Fact(Timeout = 10000)]
     public async Task Server_AfterDispose_OperationsShouldThrowOrReturnFalse()
     {
         // Arrange
@@ -259,7 +259,7 @@ public class DisposeTests
         await Assert.ThrowsAsync<ObjectDisposedException>(async () => await server.StartAsync());
     }
 
-    [Fact]
+    [Fact(Timeout = 10000)]
     public async Task Server_Dispose_ShouldCompleteAllObservables()
     {
         // Arrange
@@ -288,7 +288,7 @@ public class DisposeTests
 
         // Act
         await server.DisposeAsync();
-        await Task.Delay(100); // Give observables time to complete
+        await Task.Delay(50);
 
         // Assert
         Assert.True(clientConnectedCompleted);
@@ -296,7 +296,7 @@ public class DisposeTests
         Assert.True(messagesCompleted);
     }
 
-    [Fact]
+    [Fact(Timeout = 10000)]
     public async Task Server_Dispose_WhileRunning_ShouldStopGracefully()
     {
         // Arrange
@@ -311,7 +311,7 @@ public class DisposeTests
         Assert.False(server.IsRunning);
     }
 
-    [Fact]
+    [Fact(Timeout = 10000)]
     public async Task Server_Dispose_WithConnectedClients_ShouldDisconnectAll()
     {
         // Arrange
@@ -324,13 +324,13 @@ public class DisposeTests
 
         await client1.StartAsync();
         await client2.StartAsync();
-        await Task.Delay(200); // Wait for connections
+        await Task.Delay(50);
 
         Assert.Equal(2, server.ClientCount);
 
         // Act
         await server.DisposeAsync();
-        await Task.Delay(200); // Wait for disconnections
+        await Task.Delay(50);
 
         // Assert
         Assert.True(server.IsDisposed);
@@ -343,26 +343,26 @@ public class DisposeTests
     [Fact]
     public void Server_Finalizer_ShouldNotThrow()
     {
-        // Arrange & Act
-        void CreateAndAbandonServer()
-        {
-            var server = new ReactiveWebSocketServer($"http://localhost:{GetAvailablePort()}/");
-            // Don't dispose - let finalizer handle it
-        }
-
         CreateAndAbandonServer();
         GC.Collect();
         GC.WaitForPendingFinalizers();
 
-        // Assert - if we get here without exception, the test passes
+        // Assert
         Assert.True(true);
+        return;
+
+        // Arrange & Act
+        void CreateAndAbandonServer()
+        {
+            var server = new ReactiveWebSocketServer($"http://localhost:{GetAvailablePort()}/");
+        }
     }
 
     #endregion
 
     #region ServerWebSocketAdapter Dispose Tests
 
-    [Fact]
+    [Fact(Timeout = 10000)]
     public async Task Adapter_Dispose_ShouldMarkAsDisposed()
     {
         // Arrange
@@ -384,7 +384,7 @@ public class DisposeTests
         });
 
         await client.StartAsync();
-        await Task.Delay(200);
+        await Task.Delay(50);
 
         // Act
         if (adapter != null)
@@ -399,7 +399,7 @@ public class DisposeTests
         await server.DisposeAsync();
     }
 
-    [Fact]
+    [Fact(Timeout = 10000)]
     public async Task Adapter_Dispose_MultipleTimes_ShouldBeIdempotent()
     {
         // Arrange
@@ -423,7 +423,7 @@ public class DisposeTests
 
     #region Integration Dispose Tests
 
-    [Fact]
+    [Fact(Timeout = 10000)]
     public async Task Integration_ServerAndClient_BothDispose_ShouldCleanupProperly()
     {
         // Arrange
@@ -433,7 +433,7 @@ public class DisposeTests
 
         var client = new ReactiveWebSocketClient(new Uri($"ws://localhost:{port}/"));
         await client.StartAsync();
-        await Task.Delay(200);
+        await Task.Delay(50);
 
         // Act
         await client.DisposeAsync();
@@ -444,7 +444,7 @@ public class DisposeTests
         Assert.True(server.IsDisposed);
     }
 
-    [Fact]
+    [Fact(Timeout = 10000)]
     public async Task Integration_MultipleClientsAndServer_AllDispose_ShouldCleanupProperly()
     {
         // Arrange
@@ -460,7 +460,7 @@ public class DisposeTests
             clients.Add(client);
         }
 
-        await Task.Delay(300);
+        await Task.Delay(50);
         Assert.Equal(5, server.ClientCount);
 
         // Act
@@ -481,7 +481,7 @@ public class DisposeTests
         Assert.Equal(0, server.ClientCount);
     }
 
-    [Fact]
+    [Fact(Timeout = 10000)]
     public async Task Integration_DisposeUnderLoad_ShouldHandleGracefully()
     {
         // Arrange
@@ -491,9 +491,8 @@ public class DisposeTests
 
         var client = new ReactiveWebSocketClient(new Uri($"ws://localhost:{port}/"));
         await client.StartAsync();
-        await Task.Delay(200);
+        await Task.Delay(50);
 
-        // Start sending messages
         var sendTask = Task.Run(async () =>
         {
             for (var i = 0; i < 100; i++)
@@ -505,15 +504,14 @@ public class DisposeTests
                 }
                 catch (ObjectDisposedException)
                 {
-                    // Expected when disposed
                     break;
                 }
             }
         });
 
-        await Task.Delay(100);
+        await Task.Delay(50);
 
-        // Act - Dispose while sending
+        // Act
         await client.DisposeAsync();
         await server.DisposeAsync();
 
@@ -521,18 +519,17 @@ public class DisposeTests
         Assert.True(client.IsDisposed);
         Assert.True(server.IsDisposed);
 
-        // Ensure send task completes
         await sendTask;
     }
 
-    [Fact]
+    [Fact(Timeout = 10000)]
     public async Task Integration_ConcurrentDispose_ShouldBeThreadSafe()
     {
         // Arrange
         var server = new ReactiveWebSocketServer($"http://localhost:{GetAvailablePort()}/");
         await server.StartAsync();
 
-        // Act - Try to dispose from multiple threads simultaneously
+        // Act
         var disposeTasks = Enumerable.Range(0, 10)
             .Select(_ => Task.Run(async () => await server.DisposeAsync()))
             .ToArray();
@@ -547,7 +544,7 @@ public class DisposeTests
 
     #region Resource Leak Tests
 
-    [Fact]
+    [Fact(Timeout = 10000)]
     public async Task ResourceLeak_Client_ShouldNotLeakHandles()
     {
         // Arrange & Act
@@ -562,11 +559,11 @@ public class DisposeTests
         GC.WaitForPendingFinalizers();
         GC.Collect();
 
-        // Assert - if we get here without running out of handles, the test passes
+        // Assert
         Assert.True(true);
     }
 
-    [Fact]
+    [Fact(Timeout = 10000)]
     public async Task ResourceLeak_Server_ShouldNotLeakHandles()
     {
         // Arrange & Act
@@ -581,7 +578,7 @@ public class DisposeTests
         GC.WaitForPendingFinalizers();
         GC.Collect();
 
-        // Assert - if we get here without running out of handles, the test passes
+        // Assert
         Assert.True(true);
     }
 
