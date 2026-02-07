@@ -15,6 +15,7 @@ public interface IReactiveWebSocketServer : IDisposable, IAsyncDisposable
     Observable<ClientConnected> ClientConnected { get; }
     Observable<ClientDisconnected> ClientDisconnected { get; }
     Observable<ServerReceivedMessage> Messages { get; }
+    Observable<ServerErrorOccurred> ErrorOccurred { get; }
 
     Task StartAsync();
 
@@ -39,4 +40,24 @@ public interface IReactiveWebSocketServer : IDisposable, IAsyncDisposable
     bool TrySendAsText(Guid clientId, string message);
 
     bool TrySendAsText(Guid clientId, byte[] data);
+    
+    Observable<bool> SendInstant(Guid clientId, Observable<byte[]> messages);
+
+    Observable<bool> SendInstant(Guid clientId, Observable<string> messages);
+
+    Observable<bool> SendAsBinary(Guid clientId, Observable<byte[]> messages);
+
+    Observable<bool> SendAsBinary(Guid clientId, Observable<string> messages);
+
+    Observable<bool> SendAsText(Guid clientId, Observable<byte[]> messages);
+
+    Observable<bool> SendAsText(Guid clientId, Observable<string> messages);
+
+    Observable<bool> TrySendAsBinary(Guid clientId, Observable<string> messages);
+
+    Observable<bool> TrySendAsBinary(Guid clientId, Observable<byte[]> messages);
+
+    Observable<bool> TrySendAsText(Guid clientId, Observable<string> messages);
+
+    Observable<bool> TrySendAsText(Guid clientId, Observable<byte[]> messages);
 }

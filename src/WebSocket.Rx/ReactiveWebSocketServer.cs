@@ -32,6 +32,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
     private readonly Subject<ClientConnected> _clientConnectedSource = new();
     private readonly Subject<ClientDisconnected> _clientDisconnectedSource = new();
     private readonly Subject<ServerReceivedMessage> _messageReceivedSource = new();
+    protected readonly Subject<ServerErrorOccurred> _errorOccurredSource = new();
 
     private CancellationTokenSource? _mainCts;
     private readonly AsyncLock _serverLock = new();
@@ -58,6 +59,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
     public Observable<ClientConnected> ClientConnected => _clientConnectedSource.AsObservable();
     public Observable<ClientDisconnected> ClientDisconnected => _clientDisconnectedSource.AsObservable();
     public Observable<ServerReceivedMessage> Messages => _messageReceivedSource.AsObservable();
+    public Observable<ServerErrorOccurred> ErrorOccurred => _errorOccurredSource.AsObservable();
 
     #endregion
 
@@ -140,86 +142,6 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
         await (_serverLoopTask ?? Task.CompletedTask).ConfigureAwait(false);
 
-        return true;
-    }
-
-    #endregion
-
-    #region Send Methods
-
-    public async Task<bool> SendInstantAsync(Guid clientId, string message,
-        CancellationToken cancellationToken = default)
-    {
-        if (!_clients.TryGetValue(clientId, out var client)) return false;
-        await client.Socket.SendInstantAsync(message, cancellationToken);
-        return true;
-    }
-
-    public async Task<bool> SendInstantAsync(Guid clientId, byte[] message,
-        CancellationToken cancellationToken = default)
-    {
-        if (!_clients.TryGetValue(clientId, out var client)) return false;
-        await client.Socket.SendInstantAsync(message, cancellationToken);
-        return true;
-    }
-
-    public async Task<bool> SendAsBinaryAsync(Guid clientId, byte[] message,
-        CancellationToken cancellationToken = default)
-    {
-        if (!_clients.TryGetValue(clientId, out var client)) return false;
-        await client.Socket.SendAsBinaryAsync(message, cancellationToken);
-        return true;
-    }
-
-    public async Task<bool> SendAsBinaryAsync(Guid clientId, string message,
-        CancellationToken cancellationToken = default)
-    {
-        if (!_clients.TryGetValue(clientId, out var client)) return false;
-        await client.Socket.SendAsBinaryAsync(message, cancellationToken);
-        return true;
-    }
-
-    public async Task<bool> SendAsTextAsync(Guid clientId, byte[] message,
-        CancellationToken cancellationToken = default)
-    {
-        if (!_clients.TryGetValue(clientId, out var client)) return false;
-        await client.Socket.SendAsTextAsync(message, cancellationToken);
-        return true;
-    }
-
-    public async Task<bool> SendAsTextAsync(Guid clientId, string message,
-        CancellationToken cancellationToken = default)
-    {
-        if (!_clients.TryGetValue(clientId, out var client)) return false;
-        await client.Socket.SendAsTextAsync(message, cancellationToken);
-        return true;
-    }
-
-    public bool TrySendAsBinary(Guid clientId, string message)
-    {
-        if (!_clients.TryGetValue(clientId, out var client)) return false;
-        client.Socket.TrySendAsBinary(message);
-        return true;
-    }
-
-    public bool TrySendAsBinary(Guid clientId, byte[] data)
-    {
-        if (!_clients.TryGetValue(clientId, out var client)) return false;
-        client.Socket.TrySendAsBinary(data);
-        return true;
-    }
-
-    public bool TrySendAsText(Guid clientId, string message)
-    {
-        if (!_clients.TryGetValue(clientId, out var client)) return false;
-        client.Socket.TrySendAsText(message);
-        return true;
-    }
-
-    public bool TrySendAsText(Guid clientId, byte[] data)
-    {
-        if (!_clients.TryGetValue(clientId, out var client)) return false;
-        client.Socket.TrySendAsText(data);
         return true;
     }
 
@@ -327,6 +249,224 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
     #endregion
 
+    #region Send Methods
+
+    #region Send Client Methods
+
+    public async Task<bool> SendInstantAsync(Guid clientId, string message,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_clients.TryGetValue(clientId, out var client)) return false;
+        await client.Socket.SendInstantAsync(message, cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> SendInstantAsync(Guid clientId, byte[] message,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_clients.TryGetValue(clientId, out var client)) return false;
+        await client.Socket.SendInstantAsync(message, cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> SendAsBinaryAsync(Guid clientId, byte[] message,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_clients.TryGetValue(clientId, out var client)) return false;
+        await client.Socket.SendAsBinaryAsync(message, cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> SendAsBinaryAsync(Guid clientId, string message,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_clients.TryGetValue(clientId, out var client)) return false;
+        await client.Socket.SendAsBinaryAsync(message, cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> SendAsTextAsync(Guid clientId, byte[] message,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_clients.TryGetValue(clientId, out var client)) return false;
+        await client.Socket.SendAsTextAsync(message, cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> SendAsTextAsync(Guid clientId, string message,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_clients.TryGetValue(clientId, out var client)) return false;
+        await client.Socket.SendAsTextAsync(message, cancellationToken);
+        return true;
+    }
+
+    public bool TrySendAsBinary(Guid clientId, string message)
+    {
+        if (!_clients.TryGetValue(clientId, out var client)) return false;
+        client.Socket.TrySendAsBinary(message);
+        return true;
+    }
+
+    public bool TrySendAsBinary(Guid clientId, byte[] data)
+    {
+        if (!_clients.TryGetValue(clientId, out var client)) return false;
+        client.Socket.TrySendAsBinary(data);
+        return true;
+    }
+
+    public bool TrySendAsText(Guid clientId, string message)
+    {
+        if (!_clients.TryGetValue(clientId, out var client)) return false;
+        client.Socket.TrySendAsText(message);
+        return true;
+    }
+
+    public bool TrySendAsText(Guid clientId, byte[] data)
+    {
+        if (!_clients.TryGetValue(clientId, out var client)) return false;
+        client.Socket.TrySendAsText(data);
+        return true;
+    }
+
+    public Observable<bool> SendInstant(Guid clientId, Observable<byte[]> messages)
+    {
+        return !_clients.TryGetValue(clientId, out var client)
+            ? Observable.Empty<bool>()
+            : client.Socket.SendInstant(messages);
+    }
+
+    public Observable<bool> SendInstant(Guid clientId, Observable<string> messages)
+    {
+        return !_clients.TryGetValue(clientId, out var client)
+            ? Observable.Empty<bool>()
+            : client.Socket.SendInstant(messages);
+    }
+
+    public Observable<bool> SendAsBinary(Guid clientId, Observable<byte[]> messages)
+    {
+        return !_clients.TryGetValue(clientId, out var client)
+            ? Observable.Empty<bool>()
+            : client.Socket.SendAsBinary(messages);
+    }
+
+    public Observable<bool> SendAsBinary(Guid clientId, Observable<string> messages)
+    {
+        return !_clients.TryGetValue(clientId, out var client)
+            ? Observable.Empty<bool>()
+            : client.Socket.SendAsBinary(messages);
+    }
+
+    public Observable<bool> SendAsText(Guid clientId, Observable<byte[]> messages)
+    {
+        return !_clients.TryGetValue(clientId, out var client)
+            ? Observable.Empty<bool>()
+            : client.Socket.SendAsText(messages);
+    }
+
+    public Observable<bool> SendAsText(Guid clientId, Observable<string> messages)
+    {
+        return !_clients.TryGetValue(clientId, out var client)
+            ? Observable.Empty<bool>()
+            : client.Socket.SendAsText(messages);
+    }
+
+    public Observable<bool> TrySendAsBinary(Guid clientId, Observable<byte[]> messages)
+    {
+        return !_clients.TryGetValue(clientId, out var client)
+            ? Observable.Empty<bool>()
+            : client.Socket.TrySendAsBinary(messages);
+    }
+
+    public Observable<bool> TrySendAsBinary(Guid clientId, Observable<string> messages)
+    {
+        return !_clients.TryGetValue(clientId, out var client)
+            ? Observable.Empty<bool>()
+            : client.Socket.TrySendAsBinary(messages);
+    }
+
+    public Observable<bool> TrySendAsText(Guid clientId, Observable<byte[]> messages)
+    {
+        return !_clients.TryGetValue(clientId, out var client)
+            ? Observable.Empty<bool>()
+            : client.Socket.TrySendAsText(messages);
+    }
+
+    public Observable<bool> TrySendAsText(Guid clientId, Observable<string> messages)
+    {
+        return !_clients.TryGetValue(clientId, out var client)
+            ? Observable.Empty<bool>()
+            : client.Socket.TrySendAsText(messages);
+    }
+
+    #endregion
+
+    #region Broadcast Methods
+
+    public async Task<bool> BroadcastInstantAsync(byte[] message, CancellationToken cancellationToken = default)
+    {
+        var sockets = _clients.Values.Select(x => x.Socket).ToArray();
+        return await sockets.Async((client, ct) => client.SendInstantAsync(message, ct), x => x, cancellationToken);
+    }
+
+    public async Task<bool> BroadcastInstantAsync(string message, CancellationToken cancellationToken = default)
+    {
+        var sockets = _clients.Values.Select(x => x.Socket).ToArray();
+        return await sockets.Async((client, ct) => client.SendInstantAsync(message, ct), x => x, cancellationToken);
+    }
+
+    public async Task<bool> BroadcastAsBinaryAsync(byte[] message, CancellationToken cancellationToken = default)
+    {
+        var sockets = _clients.Values.Select(x => x.Socket).ToArray();
+        return await sockets.Async((client, ct) => client.SendAsBinaryAsync(message, ct), x => x, cancellationToken);
+    }
+
+    public async Task<bool> BroadcastAsBinaryAsync(string message, CancellationToken cancellationToken = default)
+    {
+        var sockets = _clients.Values.Select(x => x.Socket).ToArray();
+        return await sockets.Async((client, ct) => client.SendAsBinaryAsync(message, ct), x => x, cancellationToken);
+    }
+
+    public async Task<bool> BroadcastAsTextAsync(byte[] message, CancellationToken cancellationToken = default)
+    {
+        var sockets = _clients.Values.Select(x => x.Socket).ToArray();
+        return await sockets.Async((client, ct) => client.SendAsTextAsync(message, ct), x => x, cancellationToken);
+    }
+
+    public async Task<bool> BroadcastAsTextAsync(string message, CancellationToken cancellationToken = default)
+    {
+        var sockets = _clients.Values.Select(x => x.Socket).ToArray();
+        return await sockets.Async((client, ct) => client.SendAsTextAsync(message, ct), x => x, cancellationToken);
+    }
+
+    public bool TryBroadcastAsBinary(string message)
+    {
+        var sockets = _clients.Values.Select(x => x.Socket).ToArray();
+        return sockets.Select(x => x.TrySendAsBinary(message)).All(x => x);
+    }
+
+    public bool TryBroadcastAsBinary(byte[] message)
+    {
+        var sockets = _clients.Values.Select(x => x.Socket).ToArray();
+        return sockets.Select(x => x.TrySendAsBinary(message)).All(x => x);
+    }
+
+    public bool TryBroadcastAsText(byte[] message)
+    {
+        var sockets = _clients.Values.Select(x => x.Socket).ToArray();
+        return sockets.Select(x => x.TrySendAsText(message)).All(x => x);
+    }
+
+    public bool TryBroadcastAsText(string message)
+    {
+        var sockets = _clients.Values.Select(x => x.Socket).ToArray();
+        return sockets.Select(x => x.TrySendAsText(message)).All(x => x);
+    }
+
+    #endregion
+
+    #endregion
+
     #region Dispose
 
     protected void ThrowIfDisposed()
@@ -426,7 +566,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
         }
         catch (Exception)
         {
-            // Subjects already completed or disposed
+            // noop
         }
 
         _clientConnectedSource.Dispose();
@@ -512,7 +652,10 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
                             .CloseAsync(result.CloseStatus ?? WebSocketCloseStatus.NormalClosure,
                                 result.CloseStatusDescription ?? "", CancellationToken.None)
                             .ConfigureAwait(false);
-                        DisconnectionHappenedSource.OnNext(new Disconnected(DisconnectReason.ClientInitiated));
+
+                        DisconnectionHappenedSource.OnNext(new Disconnected(DisconnectReason.ClientInitiated,
+                            NativeServerSocket.CloseStatus, NativeServerSocket.CloseStatusDescription,
+                            NativeServerSocket.SubProtocol));
                         break;
                     }
 
@@ -543,7 +686,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
                     _ => DisconnectReason.ConnectionLost
                 };
-                DisconnectionHappenedSource.OnNext(new Disconnected(reason, ex));
+                DisconnectionHappenedSource.OnNext(new Disconnected(reason, Exception: ex));
             }
             catch (WebSocketException ex) when (ex.InnerException is HttpListenerException)
             {
@@ -551,7 +694,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
             }
             catch (Exception ex)
             {
-                DisconnectionHappenedSource.OnNext(new Disconnected(DisconnectReason.Error, ex));
+                ErrorOccurredSource.OnNext(new ServerErrorOccurred(Metadata, ErrorSource.ReceiveLoop, ex));
             }
             finally
             {
@@ -636,7 +779,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
                     }
                     catch (TimeoutException)
                     {
-                        // Continue cleanup
+                        // noop
                     }
                 }
 

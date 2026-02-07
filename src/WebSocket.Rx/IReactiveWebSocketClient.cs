@@ -10,6 +10,7 @@ public interface IReactiveWebSocketClient : IDisposable, IAsyncDisposable
     Observable<ReceivedMessage> MessageReceived { get; }
     Observable<Connected> ConnectionHappened { get; }
     Observable<Disconnected> DisconnectionHappened { get; }
+    Observable<ErrorOccurred> ErrorOccurred { get; }
     TimeSpan ConnectTimeout { get; set; }
     TimeSpan KeepAliveInterval { get; set; }
     TimeSpan KeepAliveTimeout { get; set; }
@@ -52,26 +53,6 @@ public interface IReactiveWebSocketClient : IDisposable, IAsyncDisposable
     bool TrySendAsText(byte[] message);
 
     bool TrySendAsText(string message);
-
-    Observable<bool> SendInstant(Observable<byte[]> messages);
-
-    Observable<bool> SendInstant(Observable<string> messages);
-
-    Observable<bool> SendAsBinary(Observable<byte[]> messages);
-
-    Observable<bool> SendAsBinary(Observable<string> messages);
-
-    Observable<bool> SendAsText(Observable<byte[]> messages);
-
-    Observable<bool> SendAsText(Observable<string> messages);
-
-    Observable<bool> TrySendAsBinary(Observable<string> messages);
-
-    Observable<bool> TrySendAsBinary(Observable<byte[]> messages);
-
-    Observable<bool> TrySendAsText(Observable<string> messages);
-
-    Observable<bool> TrySendAsText(Observable<byte[]> messages);
 
     void StreamFakeMessage(ReceivedMessage message);
 }
