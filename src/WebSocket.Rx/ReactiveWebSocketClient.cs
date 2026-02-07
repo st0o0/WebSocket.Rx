@@ -284,7 +284,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
             ErrorOccurredSource.OnNext(new ErrorOccurred(ErrorSource.Connection, ex));
 
-            if (IsReconnectionEnabled && reason is ConnectReason.Reconnect)
+            if (IsReconnectionEnabled)
             {
                 _ = ScheduleReconnectAsync().ConfigureAwait(false);
             }

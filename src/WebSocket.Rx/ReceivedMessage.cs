@@ -27,8 +27,6 @@ public class ReceivedMessage
         return $"Type binary, length: {Binary?.Length}";
     }
 
-    public static ReceivedMessage Empty() => new(null, null, WebSocketMessageType.Close);
-
     public static ReceivedMessage TextMessage(string? data)
         => new(null, data, WebSocketMessageType.Text);
 
