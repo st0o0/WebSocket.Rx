@@ -159,8 +159,6 @@ jobs:
           [![NuGet](https://img.shields.io/nuget/v/WebSocket.Rx?logo=nuget)](https://nuget.org/packages/WebSocket.Rx)
           [![GitHub](https://img.shields.io/github/last-commit/st0o0/WebSocket.Rx/main?logo=github)](https://github.com/st0o0/WebSocket.Rx)
           
-          🚀 Auto-generated from ${{ github.ref_name }}
-          ---
           EOF
           
           gh api repos/${{ github.repository }}/releases/generate-notes \
@@ -172,13 +170,13 @@ jobs:
           echo "release-notes<<EOF" >> $GITHUB_OUTPUT
           cat notes.md >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-          
+
       - name: Create & Publish Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "v${{ needs.build.outputs.releaseVersion }}"
           target_commitish: ${{ github.sha }}
-          name: "WebSocket.Rx v${{ needs.build.outputs.releaseVersion }}"
+          name: "v${{ needs.build.outputs.releaseVersion }}"
           body: ${{ steps.notes.outputs.release-notes }}
           draft: false
           prerelease: false

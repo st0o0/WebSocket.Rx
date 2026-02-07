@@ -23,6 +23,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
     protected readonly Subject<ReceivedMessage> MessageReceivedSource = new();
     protected readonly Subject<Connected> ConnectionHappenedSource = new();
     protected readonly Subject<Disconnected> DisconnectionHappenedSource = new();
+    protected readonly Subject<ErrorOccurred> ErrorOccurredSource = new();
 
     protected ChannelWriter<Payload> SendWriter => SendChannel.Writer;
 
@@ -55,6 +56,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
     public Observable<ReceivedMessage> MessageReceived => MessageReceivedSource.AsObservable();
     public Observable<Connected> ConnectionHappened => ConnectionHappenedSource.AsObservable();
     public Observable<Disconnected> DisconnectionHappened => DisconnectionHappenedSource.AsObservable();
+    public Observable<ErrorOccurred> ErrorOccurred => ErrorOccurredSource.AsObservable();
 
     #region Start/Stop
 
@@ -66,7 +68,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
         }
         catch (Exception ex)
         {
-            DisconnectionHappenedSource.OnNext(new Disconnected(DisconnectReason.Error, ex));
+            ErrorOccurredSource.OnNext(new ErrorOccurred(ErrorSource.Connection, ex));
         }
     }
 
@@ -91,8 +93,9 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
         {
             return await StopOrFailAsync(status, statusDescription);
         }
-        catch
+        catch (Exception ex)
         {
+            ErrorOccurredSource.OnNext(new ErrorOccurred(ErrorSource.Disconnection, ex));
             return false;
         }
     }
@@ -125,8 +128,9 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
                     using var closeCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token);
                     await NativeClient.CloseAsync(status, statusDescription, closeCts.Token);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    ErrorOccurredSource.OnNext(new ErrorOccurred(ErrorSource.Disconnection, ex));
                     NativeClient.Try(x => x.Abort());
                 }
             }
@@ -151,6 +155,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
             SendLoopTask ?? Task.CompletedTask,
             ReceiveLoopTask ?? Task.CompletedTask
         };
+
 
         await Task.WhenAll(tasks).Try(async x => await x.WaitAsync(TimeSpan.FromSeconds(10)));
 
@@ -180,7 +185,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
         }
         catch (Exception ex)
         {
-            _ = ex;
+            ErrorOccurredSource.OnNext(new ErrorOccurred(ErrorSource.Reconnection, ex));
         }
     }
 
@@ -226,6 +231,11 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
             await ConnectInternalAsync(ConnectReason.Reconnect, throwOnError, cancellationToken);
         }
+        catch (Exception ex)
+        {
+            ErrorOccurredSource.OnNext(new ErrorOccurred(ErrorSource.Reconnection, ex));
+            if (throwOnError) throw;
+        }
         finally
         {
             IsReconnecting = false;
@@ -262,7 +272,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
             ConnectionHappenedSource.OnNext(new Connected(reason));
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             NativeClient.Dispose();
             MainCts?.Cancel();
@@ -272,7 +282,9 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
                 throw;
             }
 
-            if (IsReconnectionEnabled && reason == ConnectReason.Reconnect)
+            ErrorOccurredSource.OnNext(new ErrorOccurred(ErrorSource.Connection, ex));
+
+            if (IsReconnectionEnabled && reason is ConnectReason.Reconnect)
             {
                 _ = ScheduleReconnectAsync().ConfigureAwait(false);
             }
@@ -295,9 +307,13 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
                 await ReconnectInternalAsync(throwOnError: false);
             }
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException)
         {
-            _ = ex;
+            // noop
+        }
+        catch (Exception ex)
+        {
+            ErrorOccurredSource.OnNext(new ErrorOccurred(ErrorSource.Reconnection, ex));
         }
     }
 
@@ -319,16 +335,18 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
                 await SendAsync(payload.Data, payload.Type, true, ct);
             }
         }
-        catch (ChannelClosedException ex)
+        catch (ChannelClosedException)
         {
-            _ = ex;
+            // noop
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException)
         {
-            _ = ex;
+            // noop
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            ErrorOccurredSource.OnNext(new ErrorOccurred(ErrorSource.SendLoop, ex));
+
             if (!IsDisposed && IsReconnectionEnabled)
             {
                 _ = ScheduleReconnectAsync();
@@ -373,10 +391,14 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
-                    DisconnectionHappenedSource.OnNext(new Disconnected(DisconnectReason.ServerInitiated));
                     await NativeClient
                         .CloseAsync(result.CloseStatus ?? WebSocketCloseStatus.NormalClosure,
                             result.CloseStatusDescription ?? "", CancellationToken.None);
+
+                    var @event = new Disconnected(DisconnectReason.ServerInitiated, NativeClient.CloseStatus,
+                        NativeClient.CloseStatusDescription, NativeClient.SubProtocol);
+                    DisconnectionHappenedSource.OnNext(@event);
+                    if (!@event.IsClosingCanceled && !IsReconnectionEnabled) return;
                     _ = ScheduleReconnectAsync().ConfigureAwait(false);
                     return;
                 }
@@ -393,9 +415,9 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
                 MessageReceivedSource.OnNext(message);
             }
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException)
         {
-            _ = ex;
+            // noop
         }
         catch (WebSocketException ex)
         {
@@ -412,14 +434,21 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
                 _ => DisconnectReason.ConnectionLost
             };
-            DisconnectionHappenedSource.OnNext(new Disconnected(reason, ex));
+
+            var @event = new Disconnected(reason, Exception: ex);
+            DisconnectionHappenedSource.OnNext(@event);
+            if (@event.IsReconnectionCanceled) return;
             _ = ScheduleReconnectAsync().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
+            ErrorOccurredSource.OnNext(new ErrorOccurred(ErrorSource.ReceiveLoop, ex));
+
             if (!IsDisposed && IsReconnectionEnabled)
             {
-                DisconnectionHappenedSource.OnNext(new Disconnected(DisconnectReason.Error, ex));
+                var @event = new Disconnected(DisconnectReason.ConnectionLost);
+                DisconnectionHappenedSource.OnNext(@event);
+                if (@event.IsReconnectionCanceled) return;
                 _ = ScheduleReconnectAsync().ConfigureAwait(false);
             }
         }
@@ -440,8 +469,20 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
             return false;
         }
 
-        return await SendAsync(MessageEncoding.GetBytes(message), WebSocketMessageType.Binary, true, cancellationToken)
-            .ConfigureAwait(false);
+        try
+        {
+            using var connectedCts =
+                CancellationTokenSource.CreateLinkedTokenSource(cancellationToken,
+                    MainCts?.Token ?? CancellationToken.None);
+            return await SendAsync(MessageEncoding.GetBytes(message), WebSocketMessageType.Binary, true,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            ErrorOccurredSource.OnNext(new ErrorOccurred(ErrorSource.Send, ex));
+            return false;
+        }
     }
 
     public async Task<bool> SendInstantAsync(byte[] message, CancellationToken cancellationToken = default)
@@ -451,10 +492,19 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
             return false;
         }
 
-        using var connectedCts =
-            CancellationTokenSource.CreateLinkedTokenSource(cancellationToken,
-                MainCts?.Token ?? CancellationToken.None);
-        return await SendAsync(message, WebSocketMessageType.Binary, true, connectedCts.Token);
+        try
+        {
+            using var connectedCts =
+                CancellationTokenSource.CreateLinkedTokenSource(cancellationToken,
+                    MainCts?.Token ?? CancellationToken.None);
+            return await SendAsync(message, WebSocketMessageType.Binary, true, connectedCts.Token)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            ErrorOccurredSource.OnNext(new ErrorOccurred(ErrorSource.Send, ex));
+            return false;
+        }
     }
 
     public async Task<bool> SendAsBinaryAsync(string message, CancellationToken cancellationToken = default)
@@ -529,162 +579,6 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
         return SendWriter.TryWrite(new Payload(message, WebSocketMessageType.Text));
     }
 
-    public Observable<bool> SendInstant(Observable<byte[]> messages)
-    {
-        return Observable.Create<bool>(observer =>
-        {
-            var disposables = new CompositeDisposable();
-
-            disposables.Add(messages.SubscribeAwait(async (msg, ct) =>
-            {
-                var result = await SendInstantAsync(msg, ct);
-                observer.OnNext(result);
-            }));
-
-            return disposables;
-        });
-    }
-
-    public Observable<bool> SendInstant(Observable<string> messages)
-    {
-        return Observable.Create<bool>(observer =>
-        {
-            var disposables = new CompositeDisposable();
-
-            disposables.Add(messages.SubscribeAwait(async (msg, ct) =>
-            {
-                var result = await SendInstantAsync(msg, ct);
-                observer.OnNext(result);
-            }));
-
-            return disposables;
-        });
-    }
-
-    public Observable<bool> SendAsBinary(Observable<byte[]> messages)
-    {
-        return Observable.Create<bool>(observer =>
-        {
-            var disposables = new CompositeDisposable();
-
-            disposables.Add(messages.SubscribeAwait(async (msg, ct) =>
-            {
-                var result = await SendAsBinaryAsync(msg, ct);
-                observer.OnNext(result);
-            }));
-
-            return disposables;
-        });
-    }
-
-    public Observable<bool> SendAsBinary(Observable<string> messages)
-    {
-        return Observable.Create<bool>(observer =>
-        {
-            var disposables = new CompositeDisposable();
-
-            disposables.Add(messages.SubscribeAwait(async (msg, ct) =>
-            {
-                var result = await SendAsBinaryAsync(msg, ct);
-                observer.OnNext(result);
-            }));
-
-            return disposables;
-        });
-    }
-
-    public Observable<bool> SendAsText(Observable<byte[]> messages)
-    {
-        return Observable.Create<bool>(observer =>
-        {
-            var disposables = new CompositeDisposable();
-
-            disposables.Add(messages.SubscribeAwait(async (msg, ct) =>
-            {
-                var result = await SendAsTextAsync(msg, ct);
-                observer.OnNext(result);
-            }));
-
-            return disposables;
-        });
-    }
-
-    public Observable<bool> SendAsText(Observable<string> messages)
-    {
-        return Observable.Create<bool>(observer =>
-        {
-            var disposables = new CompositeDisposable();
-
-            disposables.Add(messages.SubscribeAwait(async (msg, ct) =>
-            {
-                var result = await SendAsTextAsync(msg, ct);
-                observer.OnNext(result);
-            }));
-
-            return disposables;
-        });
-    }
-
-    public Observable<bool> TrySendAsBinary(Observable<string> messages)
-    {
-        return Observable.Create<bool>(observer =>
-        {
-            var disposables = new CompositeDisposable();
-            disposables.Add(messages.Subscribe(msg =>
-            {
-                var result = TrySendAsBinary(msg);
-                observer.OnNext(result);
-            }));
-
-            return disposables;
-        });
-    }
-
-    public Observable<bool> TrySendAsBinary(Observable<byte[]> messages)
-    {
-        return Observable.Create<bool>(observer =>
-        {
-            var disposables = new CompositeDisposable();
-            disposables.Add(messages.Subscribe(msg =>
-            {
-                var result = TrySendAsBinary(msg);
-                observer.OnNext(result);
-            }));
-
-            return disposables;
-        });
-    }
-
-    public Observable<bool> TrySendAsText(Observable<string> messages)
-    {
-        return Observable.Create<bool>(observer =>
-        {
-            var disposables = new CompositeDisposable();
-            disposables.Add(messages.Subscribe(msg =>
-            {
-                var result = TrySendAsText(msg);
-                observer.OnNext(result);
-            }));
-
-            return disposables;
-        });
-    }
-
-    public Observable<bool> TrySendAsText(Observable<byte[]> messages)
-    {
-        return Observable.Create<bool>(observer =>
-        {
-            var disposables = new CompositeDisposable();
-            disposables.Add(messages.Subscribe(msg =>
-            {
-                var result = TrySendAsText(msg);
-                observer.OnNext(result);
-            }));
-
-            return disposables;
-        });
-    }
-
     public void StreamFakeMessage(ReceivedMessage message)
     {
         MessageReceivedSource.OnNext(message);
@@ -755,6 +649,10 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
                 {
                     // noop
                 }
+                catch (Exception ex)
+                {
+                    ErrorOccurredSource.OnNext(new ErrorOccurred(ErrorSource.Dispose, ex));
+                }
             }
 
             SendChannel.Writer.Complete();
@@ -786,6 +684,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
             MessageReceivedSource.OnCompleted();
             ConnectionHappenedSource.OnCompleted();
             DisconnectionHappenedSource.OnCompleted();
+            ErrorOccurredSource.OnCompleted();
         }
         catch (Exception)
         {
@@ -795,6 +694,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
         MessageReceivedSource.Dispose();
         ConnectionHappenedSource.Dispose();
         DisconnectionHappenedSource.Dispose();
+        ErrorOccurredSource.Dispose();
     }
 
     ~ReactiveWebSocketClient()

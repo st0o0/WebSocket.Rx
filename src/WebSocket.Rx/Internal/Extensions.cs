@@ -2,7 +2,7 @@
 
 namespace WebSocket.Rx.Internal;
 
-internal static class ObjectExtensions
+internal static class Extensions
 {
     public static async Task Try<T>(this T value, Func<T, Task> func) where T : notnull
     {
@@ -12,7 +12,7 @@ internal static class ObjectExtensions
         }
         catch (Exception)
         {
-            // no op
+            // noop
         }
     }
 
@@ -22,9 +22,9 @@ internal static class ObjectExtensions
         {
             action.Invoke(value);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _ = ex;
+            // noop
         }
     }
 
@@ -36,5 +36,15 @@ internal static class ObjectExtensions
         var idHeaderString = ctx.Request.Headers.Get(Headers.IdHeader);
         var id = Guid.TryParse(idHeaderString, out var guid) ? guid : Guid.NewGuid();
         return new Metadata(id, address, port);
+    }
+
+    public static async Task<bool> Async<TSource, TResult>(this IEnumerable<TSource> values,
+        Func<TSource, CancellationToken, Task<TResult>> func, Func<TResult, bool> condition,
+        CancellationToken cancellationToken = default)
+    {
+        var tasks = new List<Task<TResult>>();
+        tasks.AddRange(values.Select(x => func(x, cancellationToken)));
+        var results = await Task.WhenAll(tasks);
+        return results.All(condition);
     }
 }

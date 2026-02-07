@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Net.WebSockets;
 
 namespace WebSocket.Rx.Tests;
 
@@ -20,29 +21,13 @@ public class ClientDisconnectedTests
         Assert.Null(disconnected.Event.Exception);
     }
 
-    [Fact]
-    public void Constructor_WithError_ShouldSetAllProperties()
-    {
-        // Arrange
-        const DisconnectReason reason = DisconnectReason.Error;
-        var error = new Exception("Test error");
-
-        // Act
-        var disconnected = new ClientDisconnected(new Metadata(Guid.Empty, IPAddress.Any, 0),
-            new Disconnected(reason, error));
-
-        // Assert
-        Assert.Equal(Guid.Empty, disconnected.Metadata.Id);
-        Assert.Equal(reason, disconnected.Event.Reason);
-        Assert.Equal(error, disconnected.Event.Exception);
-    }
 
     [Fact]
     public void Equality_WithSameValues_ShouldBeEqual()
     {
         // Arrange
-        var error = new Exception("Test");
-        var @event = new Disconnected(DisconnectReason.Error, error);
+        var error = new WebSocketException("Test");
+        var @event = new Disconnected(DisconnectReason.Undefined, Exception: error);
         var metadata = new Metadata(Guid.Empty, IPAddress.Any, 0);
         var disconnected1 = new ClientDisconnected(metadata, @event);
         var disconnected2 = new ClientDisconnected(metadata, @event);

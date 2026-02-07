@@ -1,89 +1,98 @@
 {
   "version": 1,
   "createdAt": "2026-02-03T12:24:26.2723659+00:00",
-  "updatedAt": "2026-02-05T18:51:00.7616461+00:00",
+  "updatedAt": "2026-02-07T09:32:12.8068664+00:00",
   "description": "Initial baseline created by 'slopwatch init' on 2026-02-03 12:24:26 UTC",
   "entries": [
     {
-      "hash": "4ddce4c941f19fdf",
-      "ruleId": "SW004",
-      "filePath": "WebSocket.Rx.Tests/AsyncLockTests.cs",
-      "lineNumber": 87,
-      "codeSnippet": "Task.Delay(50)",
-      "message": "Test uses Task.Delay(50) which may indicate a timing-dependent test",
-      "baselinedAt": "2026-02-03T12:24:26.2776943+00:00"
-    },
-    {
-      "hash": "b72c8a6219eac973",
-      "ruleId": "SW004",
-      "filePath": "WebSocket.Rx.Tests/ReactiveWebSocketClientEdgeCaseTests.cs",
-      "lineNumber": 29,
-      "codeSnippet": "Task.Delay(50)",
-      "message": "Test uses Task.Delay(50) which may indicate a timing-dependent test",
-      "baselinedAt": "2026-02-03T12:24:26.2779554+00:00"
-    },
-    {
-      "hash": "9f082e56b1ec8984",
-      "ruleId": "SW004",
-      "filePath": "WebSocket.Rx.Tests/ReactiveWebSocketClientEdgeCaseTests.cs",
-      "lineNumber": 333,
-      "codeSnippet": "Task.Delay(10)",
-      "message": "Test uses Task.Delay(10) which may indicate a timing-dependent test",
-      "baselinedAt": "2026-02-03T12:24:26.2780588+00:00"
-    },
-    {
-      "hash": "562ac9aa0e5fd5c1",
-      "ruleId": "SW004",
-      "filePath": "WebSocket.Rx.Tests/ReactiveWebSocketClientTests.cs",
-      "lineNumber": 72,
-      "codeSnippet": "Task.Delay(50)",
-      "message": "Test uses Task.Delay(50) which may indicate a timing-dependent test",
-      "baselinedAt": "2026-02-03T12:24:26.2781073+00:00"
-    },
-    {
-      "hash": "f194b4adf1d0eced",
+      "hash": "1b85cd3603a43298",
       "ruleId": "SW003",
       "filePath": "src/WebSocket.Rx/ReactiveWebSocketClient.cs",
-      "lineNumber": 582,
-      "codeSnippet": "catch (Exception)\r\n        {\r\n            // no op\r\n        }",
+      "lineNumber": 310,
+      "codeSnippet": "catch (OperationCanceledException)\r\n        {\r\n            // noop\r\n        }",
       "message": "Empty catch block swallows exceptions without handling",
-      "baselinedAt": "2026-02-05T10:37:31.8748286+00:00"
+      "baselinedAt": "2026-02-07T09:32:12.3619547+00:00"
+    },
+    {
+      "hash": "fb899cfa3eeccd9e",
+      "ruleId": "SW003",
+      "filePath": "src/WebSocket.Rx/ReactiveWebSocketClient.cs",
+      "lineNumber": 338,
+      "codeSnippet": "catch (ChannelClosedException)\r\n        {\r\n            // noop\r\n        }",
+      "message": "Empty catch block swallows exceptions without handling",
+      "baselinedAt": "2026-02-07T09:32:12.3621929+00:00"
+    },
+    {
+      "hash": "af99c019b8b14de3",
+      "ruleId": "SW003",
+      "filePath": "src/WebSocket.Rx/ReactiveWebSocketClient.cs",
+      "lineNumber": 648,
+      "codeSnippet": "catch (TimeoutException)\r\n                {\r\n                    // noop\r\n                }",
+      "message": "Empty catch block swallows exceptions without handling",
+      "baselinedAt": "2026-02-07T09:32:12.3631984+00:00"
+    },
+    {
+      "hash": "c1e9cb581a6d35c2",
+      "ruleId": "SW003",
+      "filePath": "src/WebSocket.Rx/ReactiveWebSocketClient.cs",
+      "lineNumber": 689,
+      "codeSnippet": "catch (Exception)\r\n        {\r\n            // noop\r\n        }",
+      "message": "Empty catch block swallows exceptions without handling",
+      "baselinedAt": "2026-02-07T09:32:12.3632634+00:00"
     },
     {
       "hash": "bc0c87d1a77e995b",
       "ruleId": "SW003",
       "filePath": "src/WebSocket.Rx/ReactiveWebSocketServer.cs",
-      "lineNumber": 112,
+      "lineNumber": 118,
       "codeSnippet": "catch (ObjectDisposedException)\r\n            {\r\n                // noop\r\n            }",
       "message": "Empty catch block swallows exceptions without handling",
-      "baselinedAt": "2026-02-05T10:37:31.8868375+00:00"
+      "baselinedAt": "2026-02-07T09:32:12.385534+00:00"
     },
     {
       "hash": "f8a3e17de19e18d3",
       "ruleId": "SW003",
       "filePath": "src/WebSocket.Rx/ReactiveWebSocketServer.cs",
-      "lineNumber": 116,
+      "lineNumber": 122,
       "codeSnippet": "catch (HttpListenerException)\r\n            {\r\n                // noop\r\n            }",
       "message": "Empty catch block swallows exceptions without handling",
-      "baselinedAt": "2026-02-05T10:37:31.8868501+00:00"
+      "baselinedAt": "2026-02-07T09:32:12.3855474+00:00"
     },
     {
-      "hash": "8fd67f16b9bfd01e",
+      "hash": "8c9f9d9b22a7a5ee",
       "ruleId": "SW003",
       "filePath": "src/WebSocket.Rx/ReactiveWebSocketServer.cs",
-      "lineNumber": 436,
-      "codeSnippet": "catch (WebSocketException ex) when (ex.InnerException is HttpListenerException)\r\n            {\r\n                // no op\r\n            }",
+      "lineNumber": 537,
+      "codeSnippet": "catch (Exception)\r\n                {\r\n                    // noop\r\n                }",
       "message": "Empty catch block swallows exceptions without handling",
-      "baselinedAt": "2026-02-05T10:37:31.8874258+00:00"
+      "baselinedAt": "2026-02-07T09:32:12.3864097+00:00"
     },
     {
-      "hash": "468478cb143e2967",
+      "hash": "820abb6be4ea8905",
       "ruleId": "SW003",
-      "filePath": "src/WebSocket.Rx/Internal/ObjectExtensions.cs",
-      "lineNumber": 13,
-      "codeSnippet": "catch (Exception)\r\n        {\r\n            // no op\r\n        }",
+      "filePath": "src/WebSocket.Rx/ReactiveWebSocketServer.cs",
+      "lineNumber": 691,
+      "codeSnippet": "catch (WebSocketException ex) when (ex.InnerException is HttpListenerException)\r\n            {\r\n                // noop\r\n            }",
       "message": "Empty catch block swallows exceptions without handling",
-      "baselinedAt": "2026-02-05T10:37:31.9105287+00:00"
+      "baselinedAt": "2026-02-07T09:32:12.386687+00:00"
+    },
+    {
+      "hash": "94ec30fefafdaa72",
+      "ruleId": "SW003",
+      "filePath": "src/WebSocket.Rx/ReactiveWebSocketServer.cs",
+      "lineNumber": 780,
+      "codeSnippet": "catch (TimeoutException)\r\n                    {\r\n                        // noop\r\n                    }",
+      "message": "Empty catch block swallows exceptions without handling",
+      "baselinedAt": "2026-02-07T09:32:12.3868343+00:00"
+    },
+    {
+      "hash": "98dbb0ddc964e16e",
+      "ruleId": "SW003",
+      "filePath": "src/WebSocket.Rx/Internal/Extensions.cs",
+      "lineNumber": 13,
+      "codeSnippet": "catch (Exception)\r\n        {\r\n            // noop\r\n        }",
+      "message": "Empty catch block swallows exceptions without handling",
+      "baselinedAt": "2026-02-07T09:32:12.4151635+00:00"
     },
     {
       "hash": "f6afe80ca3c7d95c",
@@ -92,7 +101,25 @@
       "lineNumber": 87,
       "codeSnippet": "Task.Delay(50)",
       "message": "Test uses Task.Delay(50) which may indicate a timing-dependent test",
-      "baselinedAt": "2026-02-05T10:37:31.9646292+00:00"
+      "baselinedAt": "2026-02-07T09:32:12.4693317+00:00"
+    },
+    {
+      "hash": "06aed07f348a10a3",
+      "ruleId": "SW004",
+      "filePath": "src/WebSocket.Rx.Tests/DisposeTests.cs",
+      "lineNumber": 140,
+      "codeSnippet": "Task.Delay(50)",
+      "message": "Test uses Task.Delay(50) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-07T09:32:12.5252658+00:00"
+    },
+    {
+      "hash": "fc140272ad35286b",
+      "ruleId": "SW004",
+      "filePath": "src/WebSocket.Rx.Tests/DisposeTests.cs",
+      "lineNumber": 503,
+      "codeSnippet": "Task.Delay(10)",
+      "message": "Test uses Task.Delay(10) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-07T09:32:12.5263962+00:00"
     },
     {
       "hash": "28ceb9ecd7675a1b",
@@ -101,7 +128,7 @@
       "lineNumber": 176,
       "codeSnippet": "Task.Delay(100)",
       "message": "Test uses Task.Delay(100) which may indicate a timing-dependent test",
-      "baselinedAt": "2026-02-05T10:37:32.00796+00:00"
+      "baselinedAt": "2026-02-07T09:32:12.5662896+00:00"
     },
     {
       "hash": "c958b07c9bd85dbf",
@@ -110,7 +137,7 @@
       "lineNumber": 223,
       "codeSnippet": "Task.Delay(250)",
       "message": "Test uses Task.Delay(250) which may indicate a timing-dependent test",
-      "baselinedAt": "2026-02-05T10:37:32.0081221+00:00"
+      "baselinedAt": "2026-02-07T09:32:12.5664529+00:00"
     },
     {
       "hash": "f8cffe0519928c2f",
@@ -119,7 +146,7 @@
       "lineNumber": 285,
       "codeSnippet": "Task.Delay(50)",
       "message": "Test uses Task.Delay(50) which may indicate a timing-dependent test",
-      "baselinedAt": "2026-02-05T10:37:32.0082873+00:00"
+      "baselinedAt": "2026-02-07T09:32:12.5666341+00:00"
     },
     {
       "hash": "03b394ac2c150b36",
@@ -128,7 +155,7 @@
       "lineNumber": 318,
       "codeSnippet": "Task.Delay(200)",
       "message": "Test uses Task.Delay(200) which may indicate a timing-dependent test",
-      "baselinedAt": "2026-02-05T10:37:32.0084238+00:00"
+      "baselinedAt": "2026-02-07T09:32:12.566761+00:00"
     },
     {
       "hash": "51f6994c9f483066",
@@ -137,7 +164,7 @@
       "lineNumber": 418,
       "codeSnippet": "Task.Delay(600)",
       "message": "Test uses Task.Delay(600) which may indicate a timing-dependent test",
-      "baselinedAt": "2026-02-05T10:37:32.0086883+00:00"
+      "baselinedAt": "2026-02-07T09:32:12.56704+00:00"
     },
     {
       "hash": "b0f89888357a6de5",
@@ -146,7 +173,7 @@
       "lineNumber": 444,
       "codeSnippet": "Task.Delay(1000)",
       "message": "Test uses Task.Delay(1000) which may indicate a timing-dependent test",
-      "baselinedAt": "2026-02-05T10:37:32.0087656+00:00"
+      "baselinedAt": "2026-02-07T09:32:12.5671235+00:00"
     },
     {
       "hash": "bfdae1d617686235",
@@ -155,7 +182,7 @@
       "lineNumber": 560,
       "codeSnippet": "Task.Delay(500)",
       "message": "Test uses Task.Delay(500) which may indicate a timing-dependent test",
-      "baselinedAt": "2026-02-05T10:37:32.0091483+00:00"
+      "baselinedAt": "2026-02-07T09:32:12.5675147+00:00"
     },
     {
       "hash": "e47478c21a3953ec",
@@ -164,178 +191,52 @@
       "lineNumber": 28,
       "codeSnippet": "Task.Delay(50)",
       "message": "Test uses Task.Delay(50) which may indicate a timing-dependent test",
-      "baselinedAt": "2026-02-05T10:37:32.0397528+00:00"
+      "baselinedAt": "2026-02-07T09:32:12.595341+00:00"
     },
     {
       "hash": "6f7b1930d101ed38",
       "ruleId": "SW004",
       "filePath": "src/WebSocket.Rx.Tests/ReactiveWebSocketClientEdgeCaseTests.cs",
-      "lineNumber": 335,
+      "lineNumber": 337,
       "codeSnippet": "Task.Delay(10)",
       "message": "Test uses Task.Delay(10) which may indicate a timing-dependent test",
-      "baselinedAt": "2026-02-05T10:37:32.0407375+00:00"
+      "baselinedAt": "2026-02-07T09:32:12.5965593+00:00"
+    },
+    {
+      "hash": "e3213888b6ff09ba",
+      "ruleId": "SW004",
+      "filePath": "src/WebSocket.Rx.Tests/ReactiveWebSocketClientTests.cs",
+      "lineNumber": 74,
+      "codeSnippet": "Task.Delay(10)",
+      "message": "Test uses Task.Delay(10) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-07T09:32:12.7196268+00:00"
     },
     {
       "hash": "fd0e7a3eb7138c70",
       "ruleId": "SW004",
       "filePath": "src/WebSocket.Rx.Tests/ReactiveWebSocketClientTests.cs",
-      "lineNumber": 70,
+      "lineNumber": 130,
       "codeSnippet": "Task.Delay(50)",
       "message": "Test uses Task.Delay(50) which may indicate a timing-dependent test",
-      "baselinedAt": "2026-02-05T10:37:32.0961499+00:00"
-    },
-    {
-      "hash": "4acecc1cdea203db",
-      "ruleId": "SW001",
-      "filePath": "src/WebSocket.Rx.Tests/ReactiveWebSocketServerTests.cs",
-      "lineNumber": 377,
-      "codeSnippet": "Fact(Timeout = 10000, Skip = \"FlakyTest\")",
-      "message": "Test method 'Should_Disconnect_All_Clients_On_Stop' is disabled: FlakyTest",
-      "baselinedAt": "2026-02-05T10:37:32.1220951+00:00"
-    },
-    {
-      "hash": "73ab4e5213a237db",
-      "ruleId": "SW003",
-      "filePath": "src/WebSocket.Rx.Tests/ReactiveWebSocketServerTests.cs",
-      "lineNumber": 580,
-      "codeSnippet": "catch\r\n                {\r\n                    // Ignore cleanup errors\r\n                }",
-      "message": "Empty catch block swallows exceptions without handling",
-      "baselinedAt": "2026-02-05T10:37:32.1478874+00:00"
-    },
-    {
-      "hash": "e49eec3981c1b4ac",
-      "ruleId": "SW004",
-      "filePath": "src/WebSocket.Rx.Tests/ReactiveWebSocketServerTests.cs",
-      "lineNumber": 88,
-      "codeSnippet": "Task.Delay(10)",
-      "message": "Test uses Task.Delay(10) which may indicate a timing-dependent test",
-      "baselinedAt": "2026-02-05T10:37:32.1507809+00:00"
-    },
-    {
-      "hash": "8cd2be226cfdbe24",
-      "ruleId": "SW004",
-      "filePath": "src/WebSocket.Rx.Tests/ReactiveWebSocketServerTests.cs",
-      "lineNumber": 147,
-      "codeSnippet": "Task.Delay(100)",
-      "message": "Test uses Task.Delay(100) which may indicate a timing-dependent test",
-      "baselinedAt": "2026-02-05T10:37:32.1509466+00:00"
-    },
-    {
-      "hash": "1d7c94116cab35af",
-      "ruleId": "SW004",
-      "filePath": "src/WebSocket.Rx.Tests/ReactiveWebSocketServerTests.cs",
-      "lineNumber": 515,
-      "codeSnippet": "Task.Delay(50)",
-      "message": "Test uses Task.Delay(50) which may indicate a timing-dependent test",
-      "baselinedAt": "2026-02-05T10:37:32.152081+00:00"
-    },
-    {
-      "hash": "af99c019b8b14de3",
-      "ruleId": "SW003",
-      "filePath": "src/WebSocket.Rx/ReactiveWebSocketClient.cs",
-      "lineNumber": 593,
-      "codeSnippet": "catch (TimeoutException)\r\n                {\r\n                    // noop\r\n                }",
-      "message": "Empty catch block swallows exceptions without handling",
-      "baselinedAt": "2026-02-05T17:47:51.9851534+00:00"
-    },
-    {
-      "hash": "c1e9cb581a6d35c2",
-      "ruleId": "SW003",
-      "filePath": "src/WebSocket.Rx/ReactiveWebSocketClient.cs",
-      "lineNumber": 629,
-      "codeSnippet": "catch (Exception)\r\n        {\r\n            // noop\r\n        }",
-      "message": "Empty catch block swallows exceptions without handling",
-      "baselinedAt": "2026-02-05T17:47:51.9852884+00:00"
-    },
-    {
-      "hash": "0c451df7e71449b5",
-      "ruleId": "SW003",
-      "filePath": "src/WebSocket.Rx/ReactiveWebSocketServer.cs",
-      "lineNumber": 374,
-      "codeSnippet": "catch (Exception)\r\n                {\r\n                    // Continue disposing other clients\r\n                }",
-      "message": "Empty catch block swallows exceptions without handling",
-      "baselinedAt": "2026-02-05T17:47:51.9998844+00:00"
-    },
-    {
-      "hash": "776aeb394b6ca88d",
-      "ruleId": "SW003",
-      "filePath": "src/WebSocket.Rx/ReactiveWebSocketServer.cs",
-      "lineNumber": 406,
-      "codeSnippet": "catch (Exception)\r\n        {\r\n            // Subjects already completed or disposed\r\n        }",
-      "message": "Empty catch block swallows exceptions without handling",
-      "baselinedAt": "2026-02-05T17:47:51.9999183+00:00"
-    },
-    {
-      "hash": "820abb6be4ea8905",
-      "ruleId": "SW003",
-      "filePath": "src/WebSocket.Rx/ReactiveWebSocketServer.cs",
-      "lineNumber": 524,
-      "codeSnippet": "catch (WebSocketException ex) when (ex.InnerException is HttpListenerException)\r\n            {\r\n                // noop\r\n            }",
-      "message": "Empty catch block swallows exceptions without handling",
-      "baselinedAt": "2026-02-05T17:47:52.0001614+00:00"
-    },
-    {
-      "hash": "f2ffc936da189db4",
-      "ruleId": "SW003",
-      "filePath": "src/WebSocket.Rx/ReactiveWebSocketServer.cs",
-      "lineNumber": 613,
-      "codeSnippet": "catch (TimeoutException)\r\n                    {\r\n                        // Continue cleanup\r\n                    }",
-      "message": "Empty catch block swallows exceptions without handling",
-      "baselinedAt": "2026-02-05T17:47:52.0003191+00:00"
-    },
-    {
-      "hash": "8953fc45518a1a83",
-      "ruleId": "SW004",
-      "filePath": "src/WebSocket.Rx.Tests/DisposeTests.cs",
-      "lineNumber": 140,
-      "codeSnippet": "Task.Delay(100)",
-      "message": "Test uses Task.Delay(100) which may indicate a timing-dependent test",
-      "baselinedAt": "2026-02-05T17:47:52.122462+00:00"
-    },
-    {
-      "hash": "3d9b12ba8856e5a1",
-      "ruleId": "SW004",
-      "filePath": "src/WebSocket.Rx.Tests/DisposeTests.cs",
-      "lineNumber": 327,
-      "codeSnippet": "Task.Delay(200)",
-      "message": "Test uses Task.Delay(200) which may indicate a timing-dependent test",
-      "baselinedAt": "2026-02-05T17:47:52.1229214+00:00"
-    },
-    {
-      "hash": "a5eda65702d9f721",
-      "ruleId": "SW004",
-      "filePath": "src/WebSocket.Rx.Tests/DisposeTests.cs",
-      "lineNumber": 463,
-      "codeSnippet": "Task.Delay(300)",
-      "message": "Test uses Task.Delay(300) which may indicate a timing-dependent test",
-      "baselinedAt": "2026-02-05T17:47:52.1234784+00:00"
-    },
-    {
-      "hash": "fc140272ad35286b",
-      "ruleId": "SW004",
-      "filePath": "src/WebSocket.Rx.Tests/DisposeTests.cs",
-      "lineNumber": 504,
-      "codeSnippet": "Task.Delay(10)",
-      "message": "Test uses Task.Delay(10) which may indicate a timing-dependent test",
-      "baselinedAt": "2026-02-05T17:47:52.1236012+00:00"
-    },
-    {
-      "hash": "8c9f9d9b22a7a5ee",
-      "ruleId": "SW003",
-      "filePath": "src/WebSocket.Rx/ReactiveWebSocketServer.cs",
-      "lineNumber": 379,
-      "codeSnippet": "catch (Exception)\r\n                {\r\n                    // noop\r\n                }",
-      "message": "Empty catch block swallows exceptions without handling",
-      "baselinedAt": "2026-02-05T18:51:00.470455+00:00"
+      "baselinedAt": "2026-02-07T09:32:12.7197805+00:00"
     },
     {
       "hash": "a28f409572c81e37",
       "ruleId": "SW004",
       "filePath": "src/WebSocket.Rx.Tests/ReactiveWebSocketServerTests.cs",
-      "lineNumber": 31,
+      "lineNumber": 43,
       "codeSnippet": "Task.Delay(200)",
       "message": "Test uses Task.Delay(200) which may indicate a timing-dependent test",
-      "baselinedAt": "2026-02-05T18:51:00.7616453+00:00"
+      "baselinedAt": "2026-02-07T09:32:12.8066311+00:00"
+    },
+    {
+      "hash": "e49eec3981c1b4ac",
+      "ruleId": "SW004",
+      "filePath": "src/WebSocket.Rx.Tests/ReactiveWebSocketServerTests.cs",
+      "lineNumber": 118,
+      "codeSnippet": "Task.Delay(10)",
+      "message": "Test uses Task.Delay(10) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-07T09:32:12.8068663+00:00"
     }
   ]
 }

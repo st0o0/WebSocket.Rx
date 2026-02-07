@@ -153,15 +153,15 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
     {
         // Arrange
         _client = new ReactiveWebSocketClient(new Uri("ws://localhost:9999/invalid"));
-        var disconnected = false;
-        _client.DisconnectionHappened.Subscribe(d => disconnected = true);
+        var error = false;
+        _client.ErrorOccurred.Subscribe(d => error = true);
 
         // Act
         await _client.StartAsync();
         await Task.Delay(50);
 
         // Assert
-        Assert.True(disconnected);
+        Assert.True(error);
     }
 
     [Fact(Timeout = 5000)]
