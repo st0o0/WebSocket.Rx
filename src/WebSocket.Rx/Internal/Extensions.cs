@@ -4,27 +4,30 @@ namespace WebSocket.Rx.Internal;
 
 internal static class Extensions
 {
-    public static async Task Try<T>(this T value, Func<T, Task> func) where T : notnull
+    extension<T>(T value) where T : notnull
     {
-        try
+        public async Task Try(Func<T, Task> func)
         {
-            await func.Invoke(value);
+            try
+            {
+                await func.Invoke(value);
+            }
+            catch (Exception)
+            {
+                // noop
+            }
         }
-        catch (Exception)
-        {
-            // noop
-        }
-    }
 
-    public static void Try<T>(this T value, Action<T> action) where T : class
-    {
-        try
+        public void Try(Action<T> action)
         {
-            action.Invoke(value);
-        }
-        catch (Exception)
-        {
-            // noop
+            try
+            {
+                action.Invoke(value);
+            }
+            catch (Exception)
+            {
+                // noop
+            }
         }
     }
 

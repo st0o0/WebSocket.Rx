@@ -27,7 +27,8 @@ public class ClientDisconnectedTests
     {
         // Arrange
         var error = new WebSocketException("Test");
-        var @event = new Disconnected(DisconnectReason.Undefined, Exception: error);
+        var @event = new Disconnected(DisconnectReason.Undefined, WebSocketCloseStatus.Empty, string.Empty,
+            string.Empty, Exception: error);
         var metadata = new Metadata(Guid.Empty, IPAddress.Any, 0);
         var disconnected1 = new ClientDisconnected(metadata, @event);
         var disconnected2 = new ClientDisconnected(metadata, @event);

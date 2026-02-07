@@ -32,7 +32,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
     private readonly Subject<ClientConnected> _clientConnectedSource = new();
     private readonly Subject<ClientDisconnected> _clientDisconnectedSource = new();
     private readonly Subject<ServerReceivedMessage> _messageReceivedSource = new();
-    protected readonly Subject<ServerErrorOccurred> _errorOccurredSource = new();
+    private readonly Subject<ServerErrorOccurred> _errorOccurredSource = new();
 
     private CancellationTokenSource? _mainCts;
     private readonly AsyncLock _serverLock = new();
