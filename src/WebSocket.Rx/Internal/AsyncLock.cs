@@ -1,6 +1,6 @@
 ﻿namespace WebSocket.Rx.Internal;
 
-public sealed class AsyncLock
+internal sealed class AsyncLock
 {
     private readonly SemaphoreSlim _semaphore = new(1, 1);
 

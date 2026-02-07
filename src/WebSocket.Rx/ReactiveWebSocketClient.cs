@@ -16,7 +16,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
     protected readonly RecyclableMemoryStreamManager MemoryStreamManager;
     protected CancellationTokenSource? MainCts;
     protected CancellationTokenSource? ReconnectCts;
-    protected readonly AsyncLock ConnectionLock = new();
+    internal readonly AsyncLock ConnectionLock = new();
 
     protected bool IsReconnecting;
 
@@ -284,7 +284,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
             ErrorOccurredSource.OnNext(new ErrorOccurred(ErrorSource.Connection, ex));
 
-            if (IsReconnectionEnabled && reason is ConnectReason.Reconnect)
+            if (IsReconnectionEnabled)
             {
                 _ = ScheduleReconnectAsync().ConfigureAwait(false);
             }

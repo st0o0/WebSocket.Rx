@@ -40,7 +40,7 @@ public interface IReactiveWebSocketServer : IDisposable, IAsyncDisposable
     bool TrySendAsText(Guid clientId, string message);
 
     bool TrySendAsText(Guid clientId, byte[] data);
-    
+
     Observable<bool> SendInstant(Guid clientId, Observable<byte[]> messages);
 
     Observable<bool> SendInstant(Guid clientId, Observable<string> messages);
@@ -60,4 +60,24 @@ public interface IReactiveWebSocketServer : IDisposable, IAsyncDisposable
     Observable<bool> TrySendAsText(Guid clientId, Observable<string> messages);
 
     Observable<bool> TrySendAsText(Guid clientId, Observable<byte[]> messages);
+
+    Task<bool> BroadcastInstantAsync(byte[] message, CancellationToken cancellationToken = default);
+
+    Task<bool> BroadcastInstantAsync(string message, CancellationToken cancellationToken = default);
+
+    Task<bool> BroadcastAsBinaryAsync(byte[] message, CancellationToken cancellationToken = default);
+
+    Task<bool> BroadcastAsBinaryAsync(string message, CancellationToken cancellationToken = default);
+
+    Task<bool> BroadcastAsTextAsync(byte[] message, CancellationToken cancellationToken = default);
+
+    Task<bool> BroadcastAsTextAsync(string message, CancellationToken cancellationToken = default);
+
+    bool TryBroadcastAsBinary(string message);
+
+    bool TryBroadcastAsBinary(byte[] message);
+
+    bool TryBroadcastAsText(byte[] message);
+
+    bool TryBroadcastAsText(string message);
 }

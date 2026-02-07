@@ -50,14 +50,14 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
         await (_server?.DisposeAsync() ?? ValueTask.CompletedTask);
     }
 
+    #region Helper Methods
+
     private static int GetAvailablePort()
     {
         using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
         socket.Bind(new IPEndPoint(IPAddress.Loopback, 0));
         return ((IPEndPoint)socket.LocalEndPoint!).Port;
     }
-
-    #region Helper Methods
 
     private async Task<ClientWebSocket> ConnectClientAsync(CancellationToken ct = default)
     {
@@ -573,12 +573,12 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
         const int clientCount = 5;
         const int messagesPerClient = 20;
         const int expectedMessageCount = clientCount * messagesPerClient;
-        
+
         var messages = new List<ServerReceivedMessage>();
         using var subscription = _server.Messages.Subscribe(m => messages.Add(m));
 
         var clients = new List<ClientWebSocket>();
-        for (int i = 0; i < clientCount; i++)
+        for (var i = 0; i < clientCount; i++)
         {
             clients.Add(await ConnectClientAsync());
         }
@@ -587,13 +587,13 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
 
         // Act
         var sendTasks = new List<Task>();
-        for (int i = 0; i < clientCount; i++)
+        for (var i = 0; i < clientCount; i++)
         {
             var client = clients[i];
             var clientId = i;
             sendTasks.Add(Task.Run(async () =>
             {
-                for (int j = 0; j < messagesPerClient; j++)
+                for (var j = 0; j < messagesPerClient; j++)
                 {
                     await SendTextAsync(client, $"Client {clientId} Message {j}");
                 }
@@ -604,14 +604,15 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
 
         await WaitForConditionAsync(
             () => messages.Count == expectedMessageCount,
-            errorMessage: $"Expected {expectedMessageCount} messages from concurrent clients, but got {messages.Count}");
+            errorMessage:
+            $"Expected {expectedMessageCount} messages from concurrent clients, but got {messages.Count}");
 
         // Assert
         Assert.Equal(expectedMessageCount, messages.Count);
         var messageList = messages.ToList();
-        for (int i = 0; i < clientCount; i++)
+        for (var i = 0; i < clientCount; i++)
         {
-            for (int j = 0; j < messagesPerClient; j++)
+            for (var j = 0; j < messagesPerClient; j++)
             {
                 var text = $"Client {i} Message {j}";
                 Assert.Contains(messageList, m => m.Message.Text == text);
@@ -623,6 +624,574 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
             client.Dispose();
         }
     }
+
+    #region Broadcast Tests
+
+    [Fact(Timeout = DefaultTimeoutMs)]
+    public async Task BroadcastInstantAsync_WithMultipleClients_ShouldSendToAll()
+    {
+        // Arrange
+        using var client1 = await ConnectClientAsync();
+        using var client2 = await ConnectClientAsync();
+        using var client3 = await ConnectClientAsync();
+
+        await WaitForConditionAsync(() => _server.ClientCount == 3);
+
+        const string message = "Test broadcast message";
+
+        // Act
+        var result = await _server.BroadcastInstantAsync(message, CancellationToken.None);
+
+        // Assert
+        Assert.True(result);
+
+        var received1 = await ReceiveTextAsync(client1);
+        var received2 = await ReceiveTextAsync(client2);
+        var received3 = await ReceiveTextAsync(client3);
+
+        Assert.Equal(message, received1);
+        Assert.Equal(message, received2);
+        Assert.Equal(message, received3);
+    }
+
+    [Fact(Timeout = DefaultTimeoutMs)]
+    public async Task BroadcastInstantAsync_WithNoClients_ShouldReturnTrue()
+    {
+        // Arrange
+        Assert.Equal(0, _server.ClientCount);
+        const string message = "Test message";
+
+        // Act
+        var result = await _server.BroadcastInstantAsync(message, CancellationToken.None);
+
+        // Assert
+        Assert.True(result);
+    }
+
+    [Fact(Timeout = DefaultTimeoutMs)]
+    public async Task BroadcastInstantAsync_WithSingleClient_ShouldSendCorrectly()
+    {
+        // Arrange
+        using var client = await ConnectClientAsync();
+        await WaitForConditionAsync(() => _server.ClientCount == 1);
+
+        const string message = "Solo message";
+
+        // Act
+        var result = await _server.BroadcastInstantAsync(message, CancellationToken.None);
+
+        // Assert
+        Assert.True(result);
+
+        var received = await ReceiveTextAsync(client);
+        Assert.Equal(message, received);
+    }
+
+    [Fact(Timeout = DefaultTimeoutMs)]
+    public async Task BroadcastInstantAsync_ShouldRunInParallel()
+    {
+        // Arrange
+        using var client1 = await ConnectClientAsync();
+        using var client2 = await ConnectClientAsync();
+        using var client3 = await ConnectClientAsync();
+
+        await WaitForConditionAsync(() => _server.ClientCount == 3);
+
+        const string message = "Parallel test";
+        var startTime = DateTime.UtcNow;
+
+        // Act
+        var result = await _server.BroadcastInstantAsync(message, CancellationToken.None);
+
+        // Assert
+        var elapsed = DateTime.UtcNow - startTime;
+
+        Assert.True(result);
+
+        Assert.True(elapsed < TimeSpan.FromSeconds(1),
+            $"Broadcast took {elapsed.TotalMilliseconds}ms - should be fast with parallel execution");
+
+        var received1 = await ReceiveTextAsync(client1);
+        var received2 = await ReceiveTextAsync(client2);
+        var received3 = await ReceiveTextAsync(client3);
+
+        Assert.Equal(message, received1);
+        Assert.Equal(message, received2);
+        Assert.Equal(message, received3);
+    }
+
+    [Fact(Timeout = DefaultTimeoutMs)]
+    public async Task BroadcastInstantAsync_ByteArray_ShouldSendToAll()
+    {
+        // Arrange
+        using var client1 = await ConnectClientAsync();
+        using var client2 = await ConnectClientAsync();
+
+        await WaitForConditionAsync(() => _server.ClientCount == 2);
+
+        var message = new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05 };
+
+        // Act
+        var result = await _server.BroadcastInstantAsync(message, CancellationToken.None);
+
+        // Assert
+        Assert.True(result);
+
+        var buffer1 = new byte[1024];
+        var buffer2 = new byte[1024];
+
+        var result1 = await client1.ReceiveAsync(new ArraySegment<byte>(buffer1), CancellationToken.None);
+        var result2 = await client2.ReceiveAsync(new ArraySegment<byte>(buffer2), CancellationToken.None);
+
+        var received1 = buffer1.Take(result1.Count).ToArray();
+        var received2 = buffer2.Take(result2.Count).ToArray();
+
+        Assert.Equal(message, received1);
+        Assert.Equal(message, received2);
+    }
+
+    [Fact(Timeout = DefaultTimeoutMs)]
+    public async Task BroadcastInstantAsync_AfterClientDisconnects_ShouldContinueWithOthers()
+    {
+        // Arrange
+        using var client1 = await ConnectClientAsync();
+        using var client2 = await ConnectClientAsync();
+        using var client3 = await ConnectClientAsync();
+
+        await WaitForConditionAsync(() => _server.ClientCount == 3);
+
+        await client2.CloseAsync(WebSocketCloseStatus.NormalClosure, "Disconnecting", CancellationToken.None);
+
+        const string message = "Message after disconnect";
+
+        // Act
+        _ = await _server.BroadcastInstantAsync(message, CancellationToken.None);
+
+        // Assert
+        var received1 = await ReceiveTextAsync(client1);
+        var received3 = await ReceiveTextAsync(client3);
+
+        Assert.Equal(message, received1);
+        Assert.Equal(message, received3);
+    }
+
+    [Fact(Timeout = DefaultTimeoutMs)]
+    public async Task BroadcastInstantAsync_WithSimultaneousBroadcasts_ShouldHandleCorrectly()
+    {
+        // Arrange
+        using var client1 = await ConnectClientAsync();
+        using var client2 = await ConnectClientAsync();
+
+        await WaitForConditionAsync(() => _server.ClientCount == 2);
+
+        const string message1 = "Broadcast 1";
+        const string message2 = "Broadcast 2";
+        const string message3 = "Broadcast 3";
+
+        // Act
+        var task1 = _server.BroadcastInstantAsync(message1, CancellationToken.None);
+        var task2 = _server.BroadcastInstantAsync(message2, CancellationToken.None);
+        var task3 = _server.BroadcastInstantAsync(message3, CancellationToken.None);
+
+        var results = await Task.WhenAll(task1, task2, task3);
+
+        // Assert
+        Assert.All(results, Assert.True);
+
+        var messages1 = new List<string>();
+        var messages2 = new List<string>();
+
+        for (var i = 0; i < 3; i++)
+        {
+            messages1.Add(await ReceiveTextAsync(client1));
+            messages2.Add(await ReceiveTextAsync(client2));
+        }
+
+        Assert.Equal(3, messages1.Count);
+        Assert.Equal(3, messages2.Count);
+
+        Assert.Contains(message1, messages1);
+        Assert.Contains(message2, messages1);
+        Assert.Contains(message3, messages1);
+
+        Assert.Contains(message1, messages2);
+        Assert.Contains(message2, messages2);
+        Assert.Contains(message3, messages2);
+    }
+
+    [Fact(Timeout = DefaultTimeoutMs + 5000)]
+    public async Task BroadcastInstantAsync_WithManySimultaneousBroadcasts_ShouldNotDeadlock()
+    {
+        // Arrange
+        var clients = new List<ClientWebSocket>();
+        for (var i = 0; i < 5; i++)
+        {
+            clients.Add(await ConnectClientAsync());
+        }
+
+        await WaitForConditionAsync(() => _server.ClientCount == 5);
+
+        try
+        {
+            // Act
+            var broadcastTasks = Enumerable.Range(0, 20)
+                .Select(i => _server.BroadcastInstantAsync($"Message {i}", CancellationToken.None))
+                .ToList();
+
+            var timeout = Task.Delay(TimeSpan.FromSeconds(10));
+            var allTasks = Task.WhenAll(broadcastTasks);
+
+            var completedTask = await Task.WhenAny(allTasks, timeout);
+
+            // Assert
+            Assert.Same(allTasks, completedTask);
+            var results = await allTasks;
+            Assert.All(results, Assert.True);
+        }
+        finally
+        {
+            foreach (var client in clients)
+            {
+                client.Dispose();
+            }
+        }
+    }
+
+    [Fact(Timeout = DefaultTimeoutMs)]
+    public async Task BroadcastAsBinaryAsync_WithMultipleClients_ShouldSendToAll()
+    {
+        // Arrange
+        using var client1 = await ConnectClientAsync();
+        using var client2 = await ConnectClientAsync();
+
+        await WaitForConditionAsync(() => _server.ClientCount == 2);
+
+        var message = new byte[] { 0x01, 0x02, 0x03 };
+
+        // Act
+        var result = await _server.BroadcastAsBinaryAsync(message, CancellationToken.None);
+
+        // Assert
+        Assert.True(result);
+
+        var buffer1 = new byte[1024];
+        var buffer2 = new byte[1024];
+
+        var result1 = await client1.ReceiveAsync(new ArraySegment<byte>(buffer1), CancellationToken.None);
+        var result2 = await client2.ReceiveAsync(new ArraySegment<byte>(buffer2), CancellationToken.None);
+
+        Assert.Equal(WebSocketMessageType.Binary, result1.MessageType);
+        Assert.Equal(WebSocketMessageType.Binary, result2.MessageType);
+
+        var received1 = buffer1.Take(result1.Count).ToArray();
+        var received2 = buffer2.Take(result2.Count).ToArray();
+
+        Assert.Equal(message, received1);
+        Assert.Equal(message, received2);
+    }
+
+    [Fact(Timeout = DefaultTimeoutMs)]
+    public async Task BroadcastAsBinaryAsync_String_ShouldSendToAll()
+    {
+        // Arrange
+        using var client1 = await ConnectClientAsync();
+        using var client2 = await ConnectClientAsync();
+
+        await WaitForConditionAsync(() => _server.ClientCount == 2);
+
+        const string message = "Binary message as string";
+
+        // Act
+        var result = await _server.BroadcastAsBinaryAsync(message, CancellationToken.None);
+
+        // Assert
+        Assert.True(result);
+
+        var buffer1 = new byte[1024];
+        var buffer2 = new byte[1024];
+
+        var result1 = await client1.ReceiveAsync(new ArraySegment<byte>(buffer1), CancellationToken.None);
+        var result2 = await client2.ReceiveAsync(new ArraySegment<byte>(buffer2), CancellationToken.None);
+
+        Assert.Equal(WebSocketMessageType.Binary, result1.MessageType);
+        Assert.Equal(WebSocketMessageType.Binary, result2.MessageType);
+    }
+
+    [Fact(Timeout = DefaultTimeoutMs)]
+    public async Task BroadcastAsTextAsync_WithMultipleClients_ShouldSendToAll()
+    {
+        // Arrange
+        using var client1 = await ConnectClientAsync();
+        using var client2 = await ConnectClientAsync();
+
+        await WaitForConditionAsync(() => _server.ClientCount == 2);
+
+        const string message = "Text message";
+
+        // Act
+        var result = await _server.BroadcastAsTextAsync(message, CancellationToken.None);
+
+        // Assert
+        Assert.True(result);
+
+        var received1 = await ReceiveTextAsync(client1);
+        var received2 = await ReceiveTextAsync(client2);
+
+        Assert.Equal(message, received1);
+        Assert.Equal(message, received2);
+    }
+
+    [Fact(Timeout = DefaultTimeoutMs)]
+    public async Task BroadcastAsTextAsync_ByteArray_ShouldSendToAll()
+    {
+        // Arrange
+        using var client1 = await ConnectClientAsync();
+        using var client2 = await ConnectClientAsync();
+
+        await WaitForConditionAsync(() => _server.ClientCount == 2);
+
+        var messageBytes = "Text from bytes"u8.ToArray();
+
+        // Act
+        var result = await _server.BroadcastAsTextAsync(messageBytes, CancellationToken.None);
+
+        // Assert
+        Assert.True(result);
+
+        var received1 = await ReceiveTextAsync(client1);
+        var received2 = await ReceiveTextAsync(client2);
+
+        Assert.Equal("Text from bytes", received1);
+        Assert.Equal("Text from bytes", received2);
+    }
+
+    [Fact(Timeout = DefaultTimeoutMs)]
+    public async Task TryBroadcastAsBinary_WithMultipleClients_ShouldSendToAll()
+    {
+        // Arrange
+        using var client1 = await ConnectClientAsync();
+        using var client2 = await ConnectClientAsync();
+
+        await WaitForConditionAsync(() => _server.ClientCount == 2);
+
+        var message = new byte[] { 0x01, 0x02, 0x03 };
+
+        // Act
+        var result = _server.TryBroadcastAsBinary(message);
+
+        // Assert
+        Assert.True(result);
+
+        var buffer1 = new byte[1024];
+        var buffer2 = new byte[1024];
+
+        var result1 = await client1.ReceiveAsync(new ArraySegment<byte>(buffer1), CancellationToken.None);
+        var result2 = await client2.ReceiveAsync(new ArraySegment<byte>(buffer2), CancellationToken.None);
+
+        var received1 = buffer1.Take(result1.Count).ToArray();
+        var received2 = buffer2.Take(result2.Count).ToArray();
+
+        Assert.Equal(message, received1);
+        Assert.Equal(message, received2);
+    }
+
+    [Fact(Timeout = DefaultTimeoutMs)]
+    public async Task TryBroadcastAsText_WithMultipleClients_ShouldSendToAll()
+    {
+        // Arrange
+        using var client1 = await ConnectClientAsync();
+        using var client2 = await ConnectClientAsync();
+
+        await WaitForConditionAsync(() => _server.ClientCount == 2);
+
+        const string message = "Text message";
+
+        // Act
+        var result = _server.TryBroadcastAsText(message);
+
+        // Assert
+        Assert.True(result);
+
+        var received1 = await ReceiveTextAsync(client1);
+        var received2 = await ReceiveTextAsync(client2);
+
+        Assert.Equal(message, received1);
+        Assert.Equal(message, received2);
+    }
+
+    [Fact]
+    public void TryBroadcastAsText_WithNoClients_ShouldReturnTrue()
+    {
+        // Arrange
+        Assert.Equal(0, _server.ClientCount);
+        const string message = "Text message";
+
+        // Act
+        var result = _server.TryBroadcastAsText(message);
+
+        // Assert
+        Assert.True(result);
+    }
+
+    [Fact(Timeout = DefaultTimeoutMs + 5000)]
+    public async Task BroadcastInstantAsync_WithLargeMessage_ShouldHandleCorrectly()
+    {
+        // Arrange
+        using var client = await ConnectClientAsync();
+        await WaitForConditionAsync(() => _server.ClientCount == 1);
+
+        var message = new string('X', 64 * 1024); // 64KB message
+
+        // Act
+        var result = await _server.BroadcastInstantAsync(message, CancellationToken.None);
+
+        // Assert
+        Assert.True(result);
+
+        var buffer = new byte[128 * 1024];
+
+        var receiveResult = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+
+        var received = Encoding.UTF8.GetString(buffer, 0, receiveResult.Count);
+        Assert.Equal(message.Length, received.Length);
+    }
+
+    [Fact(Timeout = DefaultTimeoutMs)]
+    public async Task BroadcastInstantAsync_WithSpecialCharacters_ShouldSendCorrectly()
+    {
+        // Arrange
+        using var client = await ConnectClientAsync();
+        await WaitForConditionAsync(() => _server.ClientCount == 1);
+
+        const string message = "Special: \n\r\t \"quotes\" 'apostrophes' 日本語 emoji: 🚀";
+
+        // Act
+        var result = await _server.BroadcastInstantAsync(message, CancellationToken.None);
+
+        // Assert
+        Assert.True(result);
+
+        var received = await ReceiveTextAsync(client);
+        Assert.Equal(message, received);
+    }
+
+    [Fact(Timeout = DefaultTimeoutMs + 5000)]
+    public async Task BroadcastInstantAsync_ToManyClients_ShouldComplete()
+    {
+        // Arrange
+        var clients = new List<ClientWebSocket>();
+        const int clientCount = 20;
+
+        try
+        {
+            for (var i = 0; i < clientCount; i++)
+            {
+                clients.Add(await ConnectClientAsync());
+            }
+
+            await WaitForConditionAsync(() => _server.ClientCount == clientCount);
+
+            const string message = "Stress test message";
+
+            // Act
+            var startTime = DateTime.UtcNow;
+            var result = await _server.BroadcastInstantAsync(message, CancellationToken.None);
+            var elapsed = DateTime.UtcNow - startTime;
+
+            // Assert
+            Assert.True(result);
+
+            Assert.True(elapsed < TimeSpan.FromSeconds(5),
+                $"Broadcast to {clientCount} clients took {elapsed.TotalSeconds}s");
+
+            // Verify some clients received the message
+            var received1 = await ReceiveTextAsync(clients[0]);
+            var received2 = await ReceiveTextAsync(clients[clientCount / 2]);
+            var received3 = await ReceiveTextAsync(clients[clientCount - 1]);
+
+            Assert.Equal(message, received1);
+            Assert.Equal(message, received2);
+            Assert.Equal(message, received3);
+        }
+        finally
+        {
+            foreach (var client in clients)
+            {
+                client.Dispose();
+            }
+        }
+    }
+
+    [Fact(Timeout = DefaultTimeoutMs)]
+    public async Task BroadcastInstantAsync_MixedClientStates_ShouldHandleGracefully()
+    {
+        // Arrange
+        using var client1 = await ConnectClientAsync();
+        using var client2 = await ConnectClientAsync();
+        using var client3 = await ConnectClientAsync();
+
+        await WaitForConditionAsync(() => _server.ClientCount == 3);
+
+        // Disconnect one client mid-test
+        await client2.CloseAsync(WebSocketCloseStatus.NormalClosure, "Bye", CancellationToken.None);
+        await Task.Delay(100);
+
+        const string message = "Message to mixed clients";
+
+        // Act
+        var result = await _server.BroadcastInstantAsync(message, CancellationToken.None);
+
+        // Assert
+        // The two connected clients should receive the message
+        var received1 = await ReceiveTextAsync(client1);
+        var received3 = await ReceiveTextAsync(client3);
+
+        Assert.Equal(message, received1);
+        Assert.Equal(message, received3);
+    }
+
+    [Fact(Timeout = LongTimeoutMs)]
+    public async Task BroadcastInstantAsync_RepeatedCalls_ShouldNotLeakMemory()
+    {
+        // Arrange
+        var clients = new List<ClientWebSocket>();
+        for (var i = 0; i < 10; i++)
+        {
+            clients.Add(await ConnectClientAsync());
+        }
+
+        await WaitForConditionAsync(() => _server.ClientCount == 10);
+
+        try
+        {
+            // Act
+            for (var i = 0; i < 100; i++)
+            {
+                await _server.BroadcastInstantAsync($"Message {i}", CancellationToken.None);
+            }
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            // Assert
+            Assert.True(true);
+
+            // Verify server is still responsive
+            const string finalMessage = "Final message";
+            var result = await _server.BroadcastInstantAsync(finalMessage, CancellationToken.None);
+            Assert.True(result);
+        }
+        finally
+        {
+            foreach (var client in clients)
+            {
+                client.Dispose();
+            }
+        }
+    }
+
+    #endregion
 
     #endregion
 
