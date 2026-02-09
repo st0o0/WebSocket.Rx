@@ -4,7 +4,9 @@ namespace WebSocket.Rx.Tests;
 
 public class AsyncLockTests
 {
-    [Fact]
+    private const int DefaultTimeoutMs = 10000;
+
+    [Fact(Timeout = DefaultTimeoutMs)]
     public void Constructor_CreatesValidInstance()
     {
         // Act
@@ -15,7 +17,7 @@ public class AsyncLockTests
         Assert.NotNull(asyncLock);
     }
 
-    [Fact]
+    [Fact(Timeout = DefaultTimeoutMs)]
     public void Lock_Synchronous_AcquiresAndTracksState()
     {
         // Arrange
@@ -28,7 +30,7 @@ public class AsyncLockTests
         Assert.True(asyncLock.IsLocked);
     }
 
-    [Fact]
+    [Fact(Timeout = DefaultTimeoutMs)]
     public void Lock_Synchronous_ReleasesAfterDispose()
     {
         var asyncLock = new AsyncLock();
@@ -41,12 +43,12 @@ public class AsyncLockTests
         Assert.False(asyncLock.IsLocked);
     }
 
-    [Fact]
+    [Fact(Timeout = DefaultTimeoutMs)]
     public void LockAsync_FastPath_ReturnsImmediately()
     {
         var asyncLock = new AsyncLock();
 
-        var lockTask = asyncLock.LockAsync();
+        var lockTask = asyncLock.LockAsync(TestContext.Current.CancellationToken);
 
         Assert.True(lockTask.IsCompletedSuccessfully);
 #pragma warning disable xUnit1031
@@ -83,10 +85,10 @@ public class AsyncLockTests
         {
             using var _ = asyncLock.Lock();
             await tcs.Task;
-        });
-        await Task.Delay(50);
+        }, TestContext.Current.CancellationToken);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
         
-        var lockTask = asyncLock.LockAsync();
+        var lockTask = asyncLock.LockAsync(TestContext.Current.CancellationToken);
         Assert.False(lockTask.IsCompleted);
         
         tcs.SetResult(true);
@@ -105,7 +107,7 @@ public class AsyncLockTests
             await Task.Yield();
         }
 
-        var lockTask = asyncLock.LockAsync();
+        var lockTask = asyncLock.LockAsync(TestContext.Current.CancellationToken);
         using var releaser = await lockTask;
 
         Assert.True(asyncLock.IsLocked);
@@ -154,7 +156,7 @@ public class AsyncLockTests
     }
 
 
-    [Fact]
+    [Fact(Timeout = DefaultTimeoutMs)]
     public void LockAndLockAsync_MixWorks()
     {
         var asyncLock = new AsyncLock();
@@ -163,7 +165,7 @@ public class AsyncLockTests
         {
             Assert.True(asyncLock.IsLocked);
 
-            var asyncTask = asyncLock.LockAsync();
+            var asyncTask = asyncLock.LockAsync(TestContext.Current.CancellationToken);
             Assert.False(asyncTask.IsCompleted);
         }
 
@@ -174,7 +176,7 @@ public class AsyncLockTests
     public async Task Releaser_MultipleDisposeCalls_Idempotent()
     {
         var asyncLock = new AsyncLock();
-        var releaser = await asyncLock.LockAsync();
+        var releaser = await asyncLock.LockAsync(TestContext.Current.CancellationToken);
 
         releaser.Dispose();
         Assert.False(asyncLock.IsLocked);
@@ -209,7 +211,7 @@ public class AsyncLockTests
 
         Assert.False(asyncLock.IsLocked);
 
-        using var releaser = await asyncLock.LockAsync();
+        using var releaser = await asyncLock.LockAsync(TestContext.Current.CancellationToken);
         Assert.True(asyncLock.IsLocked);
     }
 
@@ -241,7 +243,7 @@ public class AsyncLockTests
         for (var i = 0; i < iterations; i++)
         {
             Assert.False(asyncLock.IsLocked);
-            var releaser = await asyncLock.LockAsync();
+            var releaser = await asyncLock.LockAsync(TestContext.Current.CancellationToken);
 
             try
             {

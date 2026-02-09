@@ -6,25 +6,18 @@ using System.Text;
 
 namespace WebSocket.Rx.Tests.Internal;
 
-public class WebSocketTestServer : IAsyncDisposable
+public class WebSocketTestServer(int? port = null) : IAsyncDisposable
 {
-    private readonly HttpListener _httpListener;
+    private readonly HttpListener _httpListener = new();
     private readonly ConcurrentBag<System.Net.WebSockets.WebSocket> _clients = [];
-    private readonly CancellationTokenSource _cts;
+    private readonly CancellationTokenSource _cts = new();
     private Task? _serverTask;
 
-    public int Port { get; private set; }
+    public int Port { get; private set; } = port ?? 0;
     public string Url => $"http://127.0.0.1:{Port}/";
     public string WebSocketUrl => $"ws://127.0.0.1:{Port}/";
     public event Action<string>? OnMessageReceived;
     public event Action<byte[]>? OnBytesReceived;
-
-    public WebSocketTestServer(int? port = null)
-    {
-        Port = port ?? 0;
-        _httpListener = new HttpListener();
-        _cts = new CancellationTokenSource();
-    }
 
     public async Task StartAsync()
     {
