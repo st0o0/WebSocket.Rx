@@ -38,7 +38,7 @@ public class ReactiveWebSocketClientLifecycleTests(ITestOutputHelper output) : R
         Client.ConnectionHappened.Subscribe(_ => connected = true);
 
         // Act
-        await Client.StartOrFailAsync();
+        await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(Client.IsStarted);
@@ -105,7 +105,8 @@ public class ReactiveWebSocketClientLifecycleTests(ITestOutputHelper output) : R
             .Subscribe(x => disconnected.SetResult(true));
 
         // Act
-        var result = await Client.StopAsync(WebSocketCloseStatus.NormalClosure, "Test stop");
+        var result = await Client.StopAsync(WebSocketCloseStatus.NormalClosure, "Test stop",
+            TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -122,7 +123,8 @@ public class ReactiveWebSocketClientLifecycleTests(ITestOutputHelper output) : R
         Client = new ReactiveWebSocketClient(new Uri(Server.WebSocketUrl));
 
         // Act
-        var result = await Client.StopAsync(WebSocketCloseStatus.NormalClosure, "Test");
+        var result = await Client.StopAsync(WebSocketCloseStatus.NormalClosure, "Test",
+            TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -133,10 +135,11 @@ public class ReactiveWebSocketClientLifecycleTests(ITestOutputHelper output) : R
     {
         // Arrange
         Client = new ReactiveWebSocketClient(new Uri(Server.WebSocketUrl));
-        await Client.StartOrFailAsync();
+        await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await Client.StopOrFailAsync(WebSocketCloseStatus.NormalClosure, "Test");
+        var result = await Client.StopOrFailAsync(WebSocketCloseStatus.NormalClosure, "Test",
+            TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -211,8 +214,9 @@ public class ReactiveWebSocketClientLifecycleTests(ITestOutputHelper output) : R
         Client.Dispose();
 
         // Assert
-        await Client.StartAsync();
-        var taskResult = await exceptionSource.Task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
+        await Client.StartAsync(TestContext.Current.CancellationToken);
+        var taskResult =
+            await exceptionSource.Task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
         Assert.IsType<ObjectDisposedException>(taskResult.Exception);
 
         var result = Client.TrySendAsText("test");
@@ -261,7 +265,7 @@ public class ReactiveWebSocketClientLifecycleTests(ITestOutputHelper output) : R
     {
         // Arrange
         Client = new ReactiveWebSocketClient(new Uri(Server.WebSocketUrl));
-        await Client.StartAsync();
+        await Client.StartAsync(TestContext.Current.CancellationToken);
         await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Act

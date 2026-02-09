@@ -15,7 +15,7 @@ public abstract class TestBase(ITestOutputHelper output)
         var timeout = timeoutMs ?? DefaultTimeoutMs;
         var tcs = new TaskCompletionSource<T>();
         using var cts = new CancellationTokenSource(timeout);
-        using var registration = cts.Token.Register(() =>
+        await using var registration = cts.Token.Register(() =>
         {
             var msg = $"Event {typeof(T).Name} not received within {timeout}ms";
             Output.WriteLine($"[TIMEOUT] {msg}");

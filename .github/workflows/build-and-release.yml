@@ -11,7 +11,6 @@ env:
   PACKAGE_OUTPUT_DIRECTORY: './packages'
   TEST_OUTPUT_DIRECTORY: './testresults'
   COVERAGE_REPORT_DIRECTORY: './coveragereport'
-  COVERAGE_HISTORY_DIRECTORY: './coveragehistory'
 
 permissions:
   contents: write
@@ -111,39 +110,17 @@ jobs:
           /p:PackageVersion=${{ steps.gitversion.outputs.fullSemVer }}
           /p:PackageReleaseNotes="${{ steps.plain-notes.outputs.release-notes }}"
 
-      - name: Restore coverage history
-        uses: actions/cache/restore@v3
-        with:
-          path: ${{ env.COVERAGE_HISTORY_DIRECTORY }}
-          key: coverage-history-${{ github.ref_name }}-${{ github.sha }}
-
       - name: Report Code Coverage
         uses: danielpalme/ReportGenerator-GitHub-Action@5
         with:
           reports: '${{ env.TEST_OUTPUT_DIRECTORY }}/*/coverage.cobertura.xml'
           targetdir: '${{ env.COVERAGE_REPORT_DIRECTORY }}'
-          reporttypes: 'Html_Dark;MarkdownSummaryGithub'
-          historydir: '${{ env.COVERAGE_HISTORY_DIRECTORY }}'
+          reporttypes: 'MarkdownSummaryGithub'
           tag: '${{ steps.gitversion.outputs.fullSemVer }}'
-
-      - name: Save coverage history
-        uses: actions/cache/save@v3
-        if: always()
-        with:
-          path: ${{ env.COVERAGE_HISTORY_DIRECTORY }}
-          key: coverage-history-${{ github.ref_name }}-${{ github.sha }}
 
       - name: Add Coverage Summary to Job Summary
         if: always()
         run: cat ${{ env.COVERAGE_REPORT_DIRECTORY }}/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
-
-      - name: Upload Coverage Report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: coverage-report-${{ steps.gitversion.outputs.fullSemVer }}
-          path: ${{ env.COVERAGE_REPORT_DIRECTORY }}
-          retention-days: 30
 
       - name: Upload package artifacts
         uses: actions/upload-artifact@v6
