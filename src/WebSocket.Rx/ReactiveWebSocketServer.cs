@@ -79,11 +79,11 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
     #region Start/Stop
 
-    public async Task StartAsync()
+    public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
 
-        using (await _serverLock.LockAsync().ConfigureAwait(false))
+        using (await _serverLock.LockAsync(cancellationToken).ConfigureAwait(false))
         {
             if (IsDisposed)
             {
@@ -99,12 +99,12 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
         _serverLoopTask = Task.Run(() => ServerLoopAsync(_mainCts.Token), CancellationToken.None);
     }
 
-    public async Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription)
+    public async Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription, CancellationToken cancellationToken = default)
     {
         Dictionary<Guid, Client> clientsToStop;
-        using (await _serverLock.LockAsync().ConfigureAwait(false))
+        using (await _serverLock.LockAsync(cancellationToken).ConfigureAwait(false))
         {
-            if (IsDisposed || !IsRunning)
+            if (!IsRunning)
             {
                 return false;
             }
@@ -129,7 +129,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
         }
 
         await Task.WhenAll(clientsToStop.Values
-            .Select(client => client.Socket.StopAsync(status, statusDescription))
+            .Select(client => client.Socket.StopAsync(status, statusDescription, cancellationToken))
             .ToList()).ConfigureAwait(false);
 
         _listener.Close();
@@ -586,7 +586,6 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
     public sealed class ServerWebSocketAdapter : ReactiveWebSocketClient
     {
         private readonly CancellationTokenSource _adapterCts = new();
-        private int _adapterDisposed;
         private readonly SemaphoreSlim _adapterDisposeLock = new(1, 1);
 
         public System.Net.WebSockets.WebSocket NativeServerSocket { get; }
@@ -702,9 +701,9 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
             }
         }
 
-        public new async Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription)
+        public new async Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription, CancellationToken cancellationToken = default)
         {
-            if (IsDisposed)
+            if (!IsStarted)
             {
                 return false;
             }
@@ -715,8 +714,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
             {
                 try
                 {
-                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-                    await NativeServerSocket.CloseAsync(status, statusDescription, cts.Token);
+                    await NativeServerSocket.CloseAsync(status, statusDescription, cancellationToken);
                 }
                 catch
                 {
@@ -733,7 +731,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
         protected override void Dispose(bool disposing)
         {
-            if (Interlocked.CompareExchange(ref _adapterDisposed, 1, 0) != 0)
+            if (Interlocked.CompareExchange(ref DisposedValue, 1, 0) != 0)
             {
                 return;
             }
@@ -747,7 +745,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
         protected override async ValueTask DisposeAsyncCore()
         {
-            if (Interlocked.CompareExchange(ref _adapterDisposed, 1, 0) != 0)
+            if (Interlocked.CompareExchange(ref DisposedValue, 1, 0) != 0)
             {
                 return;
             }
@@ -795,9 +793,6 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
                 MessageReceivedSource.Dispose();
                 ConnectionHappenedSource.Dispose();
                 DisconnectionHappenedSource.Dispose();
-
-                // Dispose semaphore
-                _adapterDisposeLock.Dispose();
             }
             finally
             {
@@ -805,6 +800,8 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
                 {
                     _adapterDisposeLock.Release();
                 }
+
+                _adapterDisposeLock.Dispose();
             }
         }
     }

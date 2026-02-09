@@ -10,7 +10,7 @@ namespace WebSocket.Rx;
 
 public class ReactiveWebSocketClient : IReactiveWebSocketClient
 {
-    private int _disposed;
+    protected int DisposedValue;
     private readonly SemaphoreSlim _disposeLock = new(1, 1);
 
     protected readonly RecyclableMemoryStreamManager MemoryStreamManager;
@@ -46,7 +46,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
     public bool IsReconnectionEnabled { get; set; } = true;
     public bool IsStarted { get; internal set; }
     public bool IsRunning { get; internal set; }
-    public bool IsDisposed => _disposed != 0;
+    public bool IsDisposed => DisposedValue != 0;
     public bool SenderRunning => SendLoopTask?.Status is TaskStatus.Running or TaskStatus.WaitingForActivation;
     public bool IsInsideLock => ConnectionLock.IsLocked;
     public bool IsTextMessageConversionEnabled { get; set; } = true;
@@ -60,11 +60,11 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
     #region Start/Stop
 
-    public async Task StartAsync()
+    public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            await StartOrFailAsync();
+            await StartOrFailAsync(cancellationToken);
         }
         catch (Exception ex)
         {
@@ -72,26 +72,26 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
         }
     }
 
-    public async Task StartOrFailAsync()
+    public async Task StartOrFailAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
 
-        using (await ConnectionLock.LockAsync())
+        using (await ConnectionLock.LockAsync(cancellationToken))
         {
             if (IsStarted)
             {
                 return;
             }
 
-            await ConnectInternalAsync(ConnectReason.Initial, true);
+            await ConnectInternalAsync(ConnectReason.Initial, true, cancellationToken);
         }
     }
 
-    public async Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription)
+    public async Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription, CancellationToken cancellationToken = default)
     {
         try
         {
-            return await StopOrFailAsync(status, statusDescription);
+            return await StopOrFailAsync(status, statusDescription, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -100,16 +100,11 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
         }
     }
 
-    public async Task<bool> StopOrFailAsync(WebSocketCloseStatus status, string statusDescription)
+    public async Task<bool> StopOrFailAsync(WebSocketCloseStatus status, string statusDescription, CancellationToken cancellationToken = default)
     {
-        if (IsDisposed)
+        using (await ConnectionLock.LockAsync(cancellationToken).ConfigureAwait(false))
         {
-            return false;
-        }
-
-        using (await ConnectionLock.LockAsync().ConfigureAwait(false))
-        {
-            if (!IsStarted || IsDisposed)
+            if (!IsStarted)
             {
                 return false;
             }
@@ -124,9 +119,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
             {
                 try
                 {
-                    using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-                    using var closeCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token);
-                    await NativeClient.CloseAsync(status, statusDescription, closeCts.Token);
+                    await NativeClient.CloseAsync(status, statusDescription, cancellationToken);
                 }
                 catch (Exception ex)
                 {
@@ -608,7 +601,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
     protected virtual void Dispose(bool disposing)
     {
-        if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+        if (Interlocked.CompareExchange(ref DisposedValue, 1, 0) != 0)
         {
             return;
         }
@@ -622,7 +615,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
     protected virtual async ValueTask DisposeAsyncCore()
     {
-        if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+        if (Interlocked.CompareExchange(ref DisposedValue, 1, 0) != 0)
         {
             return;
         }

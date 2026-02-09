@@ -12,13 +12,15 @@ internal sealed class AsyncLock
         return new Releaser(_semaphore);
     }
 
-    public Task<IDisposable> LockAsync()
+    public Task<IDisposable> LockAsync(CancellationToken cancellationToken = default)
     {
-        var waitTask = _semaphore.WaitAsync();
+        var waitTask = _semaphore.WaitAsync(cancellationToken);
         return waitTask.IsCompletedSuccessfully
             ? Task.FromResult<IDisposable>(new Releaser(_semaphore))
             : waitTask.ContinueWith<IDisposable>(_ => new Releaser(_semaphore),
-                TaskContinuationOptions.ExecuteSynchronously);
+                cancellationToken,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
     }
 
     private class Releaser(SemaphoreSlim semaphore) : IDisposable

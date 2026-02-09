@@ -17,9 +17,9 @@ public interface IReactiveWebSocketServer : IDisposable, IAsyncDisposable
     Observable<ServerReceivedMessage> Messages { get; }
     Observable<ServerErrorOccurred> ErrorOccurred { get; }
 
-    Task StartAsync();
+    Task StartAsync(CancellationToken cancellationToken = default);
 
-    Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription);
+    Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription, CancellationToken cancellationToken = default);
 
     Task<bool> SendInstantAsync(Guid clientId, string message, CancellationToken cancellationToken = default);
 

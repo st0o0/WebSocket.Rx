@@ -22,13 +22,13 @@ public interface IReactiveWebSocketClient : IDisposable, IAsyncDisposable
     Encoding MessageEncoding { get; set; }
     ClientWebSocket NativeClient { get; }
 
-    Task StartAsync();
+    Task StartAsync(CancellationToken cancellationToken = default);
 
-    Task StartOrFailAsync();
+    Task StartOrFailAsync(CancellationToken cancellationToken = default);
 
-    Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription);
+    Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription, CancellationToken cancellationToken = default);
 
-    Task<bool> StopOrFailAsync(WebSocketCloseStatus status, string statusDescription);
+    Task<bool> StopOrFailAsync(WebSocketCloseStatus status, string statusDescription, CancellationToken cancellationToken = default);
 
     Task ReconnectAsync(CancellationToken cancellationToken = default);
 

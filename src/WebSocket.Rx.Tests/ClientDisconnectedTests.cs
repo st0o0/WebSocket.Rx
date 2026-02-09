@@ -5,7 +5,9 @@ namespace WebSocket.Rx.Tests;
 
 public class ClientDisconnectedTests
 {
-    [Fact]
+    private const int DefaultTimeoutMs = 5000;
+
+    [Fact(Timeout = DefaultTimeoutMs)]
     public void Constructor_WithoutError_ShouldSetProperties()
     {
         // Arrange
@@ -22,7 +24,7 @@ public class ClientDisconnectedTests
     }
 
 
-    [Fact]
+    [Fact(Timeout = DefaultTimeoutMs)]
     public void Equality_WithSameValues_ShouldBeEqual()
     {
         // Arrange
