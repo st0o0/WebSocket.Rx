@@ -3,7 +3,6 @@ using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Text;
 using R3;
-using Xunit.Abstractions;
 
 namespace WebSocket.Rx.Tests;
 
@@ -22,7 +21,7 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
         _output = output;
     }
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         const int maxRetries = 10;
         for (var i = 0; i < maxRetries; i++)
@@ -45,7 +44,7 @@ public class ReactiveWebSocketServerTests : IAsyncLifetime
         }
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         await (_server?.DisposeAsync() ?? ValueTask.CompletedTask);
     }

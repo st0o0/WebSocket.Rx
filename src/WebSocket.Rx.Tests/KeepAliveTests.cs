@@ -9,15 +9,15 @@ public class KeepAliveTests : IAsyncLifetime
     private WebSocketTestServer _server = null!;
     private ReactiveWebSocketClient _client = null!;
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         _server = new WebSocketTestServer();
         await _server.StartAsync();
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        _client.Dispose();
+        await _client.DisposeAsync();
         await _server.DisposeAsync();
     }
 

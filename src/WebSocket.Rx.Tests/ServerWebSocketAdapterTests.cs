@@ -6,19 +6,18 @@ namespace WebSocket.Rx.Tests;
 
 public class ServerWebSocketAdapterTests : IAsyncLifetime
 {
-    private System.Net.WebSockets.WebSocket? _mockWebSocket;
+    private readonly System.Net.WebSockets.WebSocket _mockWebSocket = Substitute.For<System.Net.WebSockets.WebSocket>();
     private ReactiveWebSocketServer.ServerWebSocketAdapter? _adapter;
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
-        _mockWebSocket = Substitute.For<System.Net.WebSockets.WebSocket>();
         _mockWebSocket.State.Returns(WebSocketState.Open);
         await Task.CompletedTask;
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        _adapter?.Dispose();
+        await (_adapter?.DisposeAsync() ?? ValueTask.CompletedTask);
         await Task.CompletedTask;
     }
 

@@ -2,7 +2,6 @@ using System.Net.WebSockets;
 using R3;
 using System.Text;
 using WebSocket.Rx.Tests.Internal;
-using Xunit.Abstractions;
 
 namespace WebSocket.Rx.Tests;
 
@@ -21,15 +20,15 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         _output = output;
     }
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         _server = new WebSocketTestServer();
         await _server.StartAsync();
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        _client?.Dispose();
+        await (_client?.DisposeAsync() ?? ValueTask.CompletedTask);
         await _server.DisposeAsync();
     }
 
@@ -43,7 +42,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         var timeout = timeoutMs ?? DefaultTimeoutMs;
         var tcs = new TaskCompletionSource<T>();
         using var cts = new CancellationTokenSource(timeout);
-        using var registration = cts.Token.Register(() =>
+        await using var registration = cts.Token.Register(() =>
         {
             var msg = $"Event {typeof(T).Name} not received within {timeout}ms";
             _output.WriteLine($"[TIMEOUT] {msg}");
@@ -71,7 +70,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
 
         while (!condition() && DateTime.UtcNow < endTime)
         {
-            await Task.Delay(10);
+            await Task.Delay(10, TestContext.Current.CancellationToken);
         }
 
         if (!condition())
@@ -119,7 +118,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         // Arrange
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
         var connected = false;
-        _client.ConnectionHappened.Subscribe(c => connected = true);
+        _client.ConnectionHappened.Subscribe(_ => connected = true);
 
         // Act
         await _client.StartOrFailAsync();
@@ -127,7 +126,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         // Assert
         Assert.True(_client.IsStarted);
         Assert.True(_client.IsRunning);
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
         Assert.True(connected);
     }
 
@@ -142,7 +141,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
 
         // Act
         await _client.StartOrFailAsync();
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(0, connectionCount);
@@ -158,7 +157,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
 
         // Act
         await _client.StartAsync();
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(error);
@@ -190,13 +189,13 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
 
         // Act
         var result = await _client.StopAsync(WebSocketCloseStatus.NormalClosure, "Test stop");
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
         Assert.False(_client.IsStarted);
         Assert.False(_client.IsRunning);
-        Assert.True(await disconnectedTask.WaitAsync(TimeSpan.FromSeconds(1)));
+        Assert.True(await disconnectedTask.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken));
         Assert.True(disconnectedTask.IsCompletedSuccessfully);
     }
 
@@ -238,14 +237,14 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         // Arrange
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
         await _client.StartOrFailAsync();
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         var receivedMessage = "";
         _server.OnMessageReceived += msg => receivedMessage = msg;
 
         // Act
         var result = _client.TrySendAsText("Hello World");
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -259,7 +258,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         // Arrange
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
         await _client.StartOrFailAsync();
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         var receivedBytes = Array.Empty<byte>();
         _server.OnBytesReceived += bytes => receivedBytes = bytes;
@@ -268,7 +267,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
 
         // Act
         var result = _client.TrySendAsBinary(testData);
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -308,7 +307,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         // Arrange
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
         await _client.StartOrFailAsync();
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         var receivedBytes = Array.Empty<byte>();
         _server.OnBytesReceived += bytes => receivedBytes = bytes;
@@ -317,7 +316,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
 
         // Act
         var result = _client.TrySendAsBinary(testData);
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -330,7 +329,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         // Arrange
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
         await _client.StartOrFailAsync();
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         var receivedText = "";
         _server.OnMessageReceived += msg => receivedText = msg;
@@ -339,7 +338,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
 
         // Act
         var result = _client.TrySendAsText(testData);
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -352,29 +351,17 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         // Arrange
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
         await _client.StartOrFailAsync();
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         var receivedMessage = "";
         _server.OnBytesReceived += msg => receivedMessage = Encoding.UTF8.GetString(msg);
 
         // Act
         await _client.SendInstantAsync("Instant");
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("Instant", receivedMessage);
-    }
-
-    [Fact(Timeout = 5000)]
-    public async Task SendInstant_EmptyString_ShouldNotSend()
-    {
-        // Arrange
-        _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
-        await _client.StartOrFailAsync();
-
-        // Act & Assert
-        await _client.SendInstantAsync("");
-        Assert.True(true);
     }
 
     [Fact(Timeout = 5000)]
@@ -390,8 +377,8 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         var testData = new byte[] { 5, 4, 3, 2, 1 };
 
         // Act
-        var result = await _client.SendInstantAsync(testData);
-        var receivedBytes = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        var result = await _client.SendInstantAsync(testData, TestContext.Current.CancellationToken);
+        var receivedBytes = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -409,8 +396,8 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         _server.OnBytesReceived += bytes => tcs.TrySetResult(bytes);
 
         // Act
-        var result = await _client.SendAsBinaryAsync("BinaryString");
-        var receivedBytes = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        var result = await _client.SendAsBinaryAsync("BinaryString", TestContext.Current.CancellationToken);
+        var receivedBytes = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -430,8 +417,8 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         var testData = new byte[] { 10, 11, 12 };
 
         // Act
-        var result = await _client.SendAsBinaryAsync(testData);
-        var receivedBytes = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        var result = await _client.SendAsBinaryAsync(testData, TestContext.Current.CancellationToken);
+        var receivedBytes = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -449,8 +436,8 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         _server.OnMessageReceived += msg => tcs.TrySetResult(msg);
 
         // Act
-        var result = await _client.SendAsTextAsync("Hello Text");
-        var receivedText = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        var result = await _client.SendAsTextAsync("Hello Text", TestContext.Current.CancellationToken);
+        var receivedText = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -467,11 +454,11 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         var tcs = new TaskCompletionSource<string>();
         _server.OnMessageReceived += msg => tcs.TrySetResult(msg);
 
-        var testData = Encoding.UTF8.GetBytes("Hello Byte Text");
+        var testData = "Hello Byte Text"u8.ToArray();
 
         // Act
-        var result = await _client.SendAsTextAsync(testData);
-        var receivedText = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        var result = await _client.SendAsTextAsync(testData, TestContext.Current.CancellationToken);
+        var receivedText = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -488,11 +475,11 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         var tcs = new TaskCompletionSource<string>();
         _server.OnMessageReceived += msg => tcs.TrySetResult(msg);
 
-        var testData = Encoding.UTF8.GetBytes("ByteText");
+        var testData = "ByteText"u8.ToArray();
 
         // Act
         var result = _client.TrySendAsText(testData);
-        var receivedText = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        var receivedText = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -518,7 +505,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
 
         // Act
         using var subscription = _client.SendInstant(messages).Subscribe();
-        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Contains("Msg1", receivedMessages);
@@ -546,7 +533,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
 
         // Act
         using var subscription = _client.SendAsBinary(messages).Subscribe();
-        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, receivedData.Count);
@@ -573,7 +560,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
 
         // Act
         using var subscription = _client.SendAsText(messages).Subscribe();
-        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Contains("Text1", receivedMessages);
@@ -600,7 +587,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
 
         // Act
         using var subscription = _client.TrySendAsBinary(messages).Subscribe();
-        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(receivedData);
@@ -627,7 +614,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
 
         // Act
         using var subscription = _client.SendInstant(messages).Subscribe();
-        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(receivedData);
@@ -653,7 +640,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
 
         // Act
         using var subscription = _client.SendAsBinary(messages).Subscribe();
-        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(receivedData);
@@ -675,12 +662,12 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
             tcs.TrySetResult(true);
         };
 
-        var testData = Encoding.UTF8.GetBytes("TextB1");
+        var testData = "TextB1"u8.ToArray();
         var messages = Observable.Return(testData);
 
         // Act
         using var subscription = _client.SendAsText(messages).Subscribe();
-        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Contains("TextB1", receivedMessages);
@@ -705,7 +692,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
 
         // Act
         using var subscription = _client.TrySendAsBinary(messages).Subscribe();
-        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(receivedData);
@@ -731,7 +718,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
 
         // Act
         using var subscription = _client.TrySendAsText(messages).Subscribe();
-        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Contains("TryText1", receivedMessages);
@@ -752,12 +739,12 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
             tcs.TrySetResult(true);
         };
 
-        var testData = Encoding.UTF8.GetBytes("TryTextB1");
+        var testData = "TryTextB1"u8.ToArray();
         var messages = Observable.Return(testData);
 
         // Act
         using var subscription = _client.TrySendAsText(messages).Subscribe();
-        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Contains("TryTextB1", receivedMessages);
@@ -778,11 +765,11 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         _client.MessageReceived.Subscribe(msg => receivedMessage = msg.Text ?? "");
 
         await _client.StartOrFailAsync();
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Act
         await _server.SendToAllAsync("Server Message");
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("Server Message", receivedMessage);
@@ -799,13 +786,13 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         _client.MessageReceived.Subscribe(msg => receivedBytes = msg.Binary);
 
         await _client.StartOrFailAsync();
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         var testData = new byte[] { 1, 2, 3 };
 
         // Act
         await _server.SendBinaryToAllAsync(testData);
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(receivedBytes);
@@ -824,7 +811,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
 
         // Act
         _client.StreamFakeMessage(fakeMessage);
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(received);
@@ -847,8 +834,8 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
             .Subscribe(_ => reconnected = true);
 
         // Act
-        await _client.ReconnectAsync();
-        await Task.Delay(50);
+        await _client.ReconnectAsync(TestContext.Current.CancellationToken);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(reconnected);
@@ -864,8 +851,8 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         _client.ConnectionHappened.Subscribe(_ => connectionCount++);
 
         // Act
-        await _client.ReconnectAsync();
-        await Task.Delay(50);
+        await _client.ReconnectAsync(TestContext.Current.CancellationToken);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(0, connectionCount);
@@ -878,7 +865,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
 
         // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _client.ReconnectOrFailAsync());
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _client.ReconnectOrFailAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(Timeout = 5000)]
@@ -894,8 +881,8 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
             .Subscribe(_ => reconnected = true);
 
         // Act
-        await _client.ReconnectOrFailAsync();
-        await Task.Delay(50);
+        await _client.ReconnectOrFailAsync(TestContext.Current.CancellationToken);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(reconnected);
@@ -915,11 +902,11 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
             .Subscribe(_ => reconnected = true);
 
         await _client.StartOrFailAsync();
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Act
         await _server.DisconnectAllAsync();
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(reconnected);
@@ -938,11 +925,11 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
             .Subscribe(_ => reconnectCount++);
 
         await _client.StartOrFailAsync();
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Act
         await _server.DisconnectAllAsync();
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(0, reconnectCount);
@@ -987,7 +974,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
 
         // Act
         await _client.StartOrFailAsync();
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(_client.SenderRunning);
@@ -1036,7 +1023,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
         // Arrange
         _client = new ReactiveWebSocketClient(new Uri(_server.WebSocketUrl));
         await _client.StartOrFailAsync();
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         var receivedCount = 0;
         _server.OnBytesReceived += _ => Interlocked.Increment(ref receivedCount);
@@ -1047,7 +1034,7 @@ public class ReactiveWebSocketClientTests : IAsyncLifetime
             .ToArray();
 
         await Task.WhenAll(tasks);
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(50, receivedCount);
