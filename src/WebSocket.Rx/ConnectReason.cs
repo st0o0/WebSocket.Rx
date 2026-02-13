@@ -3,6 +3,6 @@ namespace WebSocket.Rx;
 public enum ConnectReason
 {
     Undefined = 0,
-    Initial = 1,
-    Reconnect = 2
+    Initialized = 1,
+    Reconnected = 2
 }

@@ -8,7 +8,7 @@ public class ConnectedTests
     public void Equality_WithSameValues_ShouldBeEqual()
     {
         // Arrange
-        const ConnectReason @enum = ConnectReason.Initial;
+        const ConnectReason @enum = ConnectReason.Initialized;
         var connected1 = new Connected(@enum);
         var connected2 = new Connected(@enum);
         

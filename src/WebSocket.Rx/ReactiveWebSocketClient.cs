@@ -83,11 +83,12 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
                 return;
             }
 
-            await ConnectInternalAsync(ConnectReason.Initial, true, cancellationToken);
+            await ConnectInternalAsync(ConnectReason.Initialized, true, cancellationToken);
         }
     }
 
-    public async Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription, CancellationToken cancellationToken = default)
+    public async Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -100,7 +101,8 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
         }
     }
 
-    public async Task<bool> StopOrFailAsync(WebSocketCloseStatus status, string statusDescription, CancellationToken cancellationToken = default)
+    public async Task<bool> StopOrFailAsync(WebSocketCloseStatus status, string statusDescription,
+        CancellationToken cancellationToken = default)
     {
         using (await ConnectionLock.LockAsync(cancellationToken).ConfigureAwait(false))
         {
@@ -128,7 +130,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
                 }
             }
 
-            DisconnectionHappenedSource.OnNext(new Disconnected(DisconnectReason.Shutdown));
+            DisconnectionHappenedSource.OnNext(new Disconnected(DisconnectReason.ClientInitiated));
 
             await CleanupAsync();
 
@@ -222,7 +224,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
                 ReceiveLoopTask ?? Task.CompletedTask
             );
 
-            await ConnectInternalAsync(ConnectReason.Reconnect, throwOnError, cancellationToken);
+            await ConnectInternalAsync(ConnectReason.Reconnected, throwOnError, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -417,15 +419,15 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
             var reason = ex.NativeErrorCode switch
             {
                 // KeepAlive  
-                10060 or 110 => DisconnectReason.Timeout,
+                10060 or 110 => DisconnectReason.TimedOut,
 
                 // Connection lost
-                10054 or 104 => DisconnectReason.ConnectionLost,
+                10054 or 104 => DisconnectReason.Dropped,
 
                 // Aborted/Cancelled
                 10053 or 995 => DisconnectReason.ClientInitiated,
 
-                _ => DisconnectReason.ConnectionLost
+                _ => DisconnectReason.Undefined
             };
 
             var @event = new Disconnected(reason, Exception: ex);
@@ -439,7 +441,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
             if (!IsDisposed && IsReconnectionEnabled)
             {
-                var @event = new Disconnected(DisconnectReason.ConnectionLost);
+                var @event = new Disconnected(DisconnectReason.Closed);
                 DisconnectionHappenedSource.OnNext(@event);
                 if (@event.IsReconnectionCanceled) return;
                 _ = ScheduleReconnectAsync().ConfigureAwait(false);

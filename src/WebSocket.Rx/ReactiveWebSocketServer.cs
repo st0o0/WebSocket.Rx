@@ -99,7 +99,8 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
         _serverLoopTask = Task.Run(() => ServerLoopAsync(_mainCts.Token), CancellationToken.None);
     }
 
-    public async Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription, CancellationToken cancellationToken = default)
+    public async Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription,
+        CancellationToken cancellationToken = default)
     {
         Dictionary<Guid, Client> clientsToStop;
         using (await _serverLock.LockAsync(cancellationToken).ConfigureAwait(false))
@@ -233,7 +234,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
             lock (_clientConnectedSource)
             {
-                _clientConnectedSource.OnNext(new ClientConnected(metadata, new Connected(ConnectReason.Initial)));
+                _clientConnectedSource.OnNext(new ClientConnected(metadata, new Connected(ConnectReason.Initialized)));
             }
         }
         catch (Exception)
@@ -675,15 +676,15 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
                 var reason = ex.NativeErrorCode switch
                 {
                     // KeepAlive  
-                    10060 or 110 => DisconnectReason.Timeout,
+                    10060 or 110 => DisconnectReason.Undefined,
 
                     // Connection lost
-                    10054 or 104 => DisconnectReason.ConnectionLost,
+                    10054 or 104 => DisconnectReason.Undefined,
 
                     // Aborted/Cancelled
                     10053 or 995 => DisconnectReason.ClientInitiated,
 
-                    _ => DisconnectReason.ConnectionLost
+                    _ => DisconnectReason.Undefined
                 };
                 DisconnectionHappenedSource.OnNext(new Disconnected(reason, Exception: ex));
             }
@@ -701,7 +702,8 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
             }
         }
 
-        public new async Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription, CancellationToken cancellationToken = default)
+        public new async Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription,
+            CancellationToken cancellationToken = default)
         {
             if (!IsStarted)
             {
@@ -722,7 +724,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
                 }
             }
 
-            DisconnectionHappenedSource.OnNext(new Disconnected(DisconnectReason.Shutdown));
+            DisconnectionHappenedSource.OnNext(new Disconnected(DisconnectReason.ServerInitiated));
 
             IsStarted = false;
             IsRunning = false;

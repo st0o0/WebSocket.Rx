@@ -58,7 +58,7 @@ public class ReactiveWebSocketClientStressTests(ITestOutputHelper output) : Reac
         var reconnected = new TaskCompletionSource<bool>();
         var reconnectTask = reconnected.Task;
         Client.ConnectionHappened
-            .Where(c => c.Reason == ConnectReason.Reconnect)
+            .Where(c => c.Reason == ConnectReason.Reconnected)
             .Take(1)
             .Subscribe(_ => reconnected.TrySetResult(true));
 

@@ -155,7 +155,7 @@ public class DisconnectedTests
     [Fact]
     public void WithExpression_CopiesValues()
     {
-        var original = new Disconnected(DisconnectReason.Shutdown);
+        var original = new Disconnected(DisconnectReason.ClientInitiated);
         original.CancelClosing();
         original.CancelReconnection();
 
@@ -170,8 +170,8 @@ public class DisconnectedTests
     [Fact]
     public void Flags_DoAffect_RecordEquality()
     {
-        var a = new Disconnected(DisconnectReason.Shutdown);
-        var b = new Disconnected(DisconnectReason.Shutdown);
+        var a = new Disconnected(DisconnectReason.ClientInitiated);
+        var b = new Disconnected(DisconnectReason.ClientInitiated);
 
         a.CancelClosing();
         a.CancelReconnection();

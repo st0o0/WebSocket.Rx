@@ -100,7 +100,7 @@ public class ReactiveWebSocketClientLifecycleTests(ITestOutputHelper output) : R
         var disconnected = new TaskCompletionSource<bool>();
         var disconnectedTask = disconnected.Task;
         Client.DisconnectionHappened
-            .Where(x => x.Reason is DisconnectReason.Shutdown)
+            .Where(x => x.Reason is DisconnectReason.ClientInitiated)
             .Take(1)
             .Subscribe(x => disconnected.SetResult(true));
 

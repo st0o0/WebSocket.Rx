@@ -9,5 +9,5 @@ public enum ErrorSource
     Send,
     SendLoop,
     ReceiveLoop,
-    Dispose,
+    Dispose
 }
