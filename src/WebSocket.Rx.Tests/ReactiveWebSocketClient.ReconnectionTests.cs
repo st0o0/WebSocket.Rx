@@ -15,7 +15,7 @@ public class ReactiveWebSocketClientReconnectionTests(ITestOutputHelper output)
 
         var reconnected = false;
         Client.ConnectionHappened
-            .Where(c => c.Reason == ConnectReason.Reconnect)
+            .Where(c => c.Reason == ConnectReason.Reconnected)
             .Subscribe(_ => reconnected = true);
 
         // Act
@@ -63,7 +63,7 @@ public class ReactiveWebSocketClientReconnectionTests(ITestOutputHelper output)
 
         var reconnected = false;
         Client.ConnectionHappened
-            .Where(c => c.Reason == ConnectReason.Reconnect)
+            .Where(c => c.Reason == ConnectReason.Reconnected)
             .Subscribe(_ => reconnected = true);
 
         // Act
@@ -84,7 +84,7 @@ public class ReactiveWebSocketClientReconnectionTests(ITestOutputHelper output)
 
         var reconnected = false;
         Client.ConnectionHappened
-            .Where(c => c.Reason == ConnectReason.Reconnect)
+            .Where(c => c.Reason == ConnectReason.Reconnected)
             .Subscribe(_ => reconnected = true);
 
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
@@ -107,7 +107,7 @@ public class ReactiveWebSocketClientReconnectionTests(ITestOutputHelper output)
 
         var reconnectCount = 0;
         Client.ConnectionHappened
-            .Where(c => c.Reason == ConnectReason.Reconnect)
+            .Where(c => c.Reason == ConnectReason.Reconnected)
             .Subscribe(_ => reconnectCount++);
 
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);

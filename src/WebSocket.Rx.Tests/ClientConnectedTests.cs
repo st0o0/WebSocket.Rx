@@ -14,7 +14,7 @@ public class ClientConnectedTests
 
         // Act
         var connected =
-            new ClientConnected(new Metadata(id, IPAddress.Any, 0), new Connected(ConnectReason.Initial));
+            new ClientConnected(new Metadata(id, IPAddress.Any, 0), new Connected(ConnectReason.Initialized));
 
         // Assert
         Assert.Equal(id, connected.Metadata.Id);
@@ -24,7 +24,7 @@ public class ClientConnectedTests
     public void Equality_WithSameName_ShouldBeEqual()
     {
         // Arrange
-        var @event = new Connected(ConnectReason.Initial);
+        var @event = new Connected(ConnectReason.Initialized);
         var metadata = new Metadata(Guid.Empty, IPAddress.Any, 0);
         var connected1 = new ClientConnected(metadata, @event);
         var connected2 = new ClientConnected(metadata, @event);
@@ -38,9 +38,9 @@ public class ClientConnectedTests
     {
         // Arrange
         var connected1 = new ClientConnected(new Metadata(Guid.Empty, IPAddress.Any, 0),
-            new Connected(ConnectReason.Initial));
+            new Connected(ConnectReason.Initialized));
         var connected2 = new ClientConnected(new Metadata(Guid.Empty, IPAddress.Any, 1),
-            new Connected(ConnectReason.Initial));
+            new Connected(ConnectReason.Initialized));
 
         // Act & Assert
         Assert.NotEqual(connected1, connected2);
