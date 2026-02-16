@@ -26,6 +26,8 @@
     </PropertyGroup>
     <PropertyGroup>
         <IsAotCompatible>true</IsAotCompatible>
+        <IsTrimmable>true</IsTrimmable>
+        <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
     </PropertyGroup>
     <ItemGroup>
         <InternalsVisibleTo Include="WebSocket.Rx.Tests"/>
