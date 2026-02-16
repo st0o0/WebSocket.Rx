@@ -9,7 +9,7 @@ env:
   GLOBAL_JSON_PATH: './src/global.json'
   PROJECT_PATH: './src/WebSocket.Rx.sln'
   PACKAGE_OUTPUT_DIRECTORY: './packages'
-  TEST_OUTPUT_DIRECTORY: './testresults'
+  TEST_OUTPUT_DIRECTORY: '${{ github.workspace }}/testresults'
   COVERAGE_REPORT_DIRECTORY: './coveragereport'
 
 permissions:
@@ -36,6 +36,8 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           global-json-file: ${{ env.GLOBAL_JSON_PATH }}
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
 
       - name: Restore tools
         run: dotnet tool restore
@@ -78,7 +80,11 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Restore dependencies
-        run: dotnet restore ${{ env.PROJECT_PATH }}
+        run: >
+          dotnet
+          restore
+          --locked-mode
+          ${{ env.PROJECT_PATH }}
 
       - name: Build
         run: >
@@ -90,15 +96,16 @@ jobs:
           /p:ContinuousIntegrationBuild=true
 
       - name: Run tests
+        working-directory: './src'
         run: >
           dotnet test 
-          --configuration Release 
-          --no-build 
-          --collect:"XPlat Code Coverage" 
-          --logger trx 
-          --results-directory ${{ env.TEST_OUTPUT_DIRECTORY }} 
-          --verbosity normal 
-          ${{ env.PROJECT_PATH }} 
+          --configuration Release
+          --no-ansi
+          --no-build
+          --coverage
+          --coverage-output-format cobertura
+          --results-directory ${{ env.TEST_OUTPUT_DIRECTORY }}
+          --solution *.sln
 
       - name: Create NuGet package
         run: >
@@ -113,7 +120,7 @@ jobs:
       - name: Report Code Coverage
         uses: danielpalme/ReportGenerator-GitHub-Action@5
         with:
-          reports: '${{ env.TEST_OUTPUT_DIRECTORY }}/*/coverage.cobertura.xml'
+          reports: '${{ env.TEST_OUTPUT_DIRECTORY }}/*cobertura.xml'
           targetdir: '${{ env.COVERAGE_REPORT_DIRECTORY }}'
           reporttypes: 'MarkdownSummaryGithub'
           tag: '${{ steps.gitversion.outputs.fullSemVer }}'
