@@ -173,7 +173,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
         try
         {
-            using (await ConnectionLock.LockAsync())
+            using (await ConnectionLock.LockAsync(cancellationToken))
             {
                 await ReconnectInternalAsync(false, cancellationToken);
             }
@@ -272,12 +272,12 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
             NativeClient.Dispose();
             MainCts?.Cancel();
 
+            ErrorOccurredSource.OnNext(new ErrorOccurred(ErrorSource.Connection, ex));
+
             if (throwOnError)
             {
                 throw;
             }
-
-            ErrorOccurredSource.OnNext(new ErrorOccurred(ErrorSource.Connection, ex));
 
             if (IsReconnectionEnabled)
             {
@@ -359,7 +359,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
             type,
             endOfMessage,
             cancellationToken
-        );
+        ).ConfigureAwait(false);
         return true;
     }
 
@@ -399,12 +399,16 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
                 }
 
                 var messageBytes = ms.GetBuffer().AsMemory(0, (int)ms.Length);
-                var message = ReceivedMessage.BinaryMessage(messageBytes.ToArray());
+                ReceivedMessage message;
 
                 if (IsTextMessageConversionEnabled && result.MessageType == WebSocketMessageType.Text)
                 {
                     var text = MessageEncoding.GetString(messageBytes.Span);
                     message = ReceivedMessage.TextMessage(text);
+                }
+                else
+                {
+                    message = ReceivedMessage.BinaryMessage(messageBytes.ToArray());
                 }
 
                 MessageReceivedSource.OnNext(message);

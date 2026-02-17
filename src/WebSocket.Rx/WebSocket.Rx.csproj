@@ -3,7 +3,7 @@
     <PropertyGroup>
         <Authors>st0o0</Authors>
         <Title>WebSocket.Rx</Title>
-        <PackageTags>WebSocket;Reactive;</PackageTags>
+        <PackageTags>WebSocket;Reactive;rx;</PackageTags>
         <PackageIcon>logo.png</PackageIcon>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -29,7 +29,8 @@
         <IsAotCompatible>true</IsAotCompatible>
     </PropertyGroup>
     <ItemGroup>
-        <InternalsVisibleTo Include="WebSocket.Rx.Tests"/>
+        <InternalsVisibleTo Include="WebSocket.Rx.UnitTests"/>
+        <InternalsVisibleTo Include="WebSocket.Rx.IntegrationTests"/>
     </ItemGroup>
     <ItemGroup>
         <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" Version="[3.0.1,)"/>
