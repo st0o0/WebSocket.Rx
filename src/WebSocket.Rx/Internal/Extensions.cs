@@ -47,7 +47,7 @@ internal static class Extensions
     {
         var tasks = new List<Task<TResult>>();
         tasks.AddRange(values.Select(x => func(x, cancellationToken)));
-        var results = await Task.WhenAll(tasks);
+        var results = await Task.WhenAll(tasks).ConfigureAwait(false);
         return results.All(condition);
     }
 }

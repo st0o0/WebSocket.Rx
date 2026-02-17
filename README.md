@@ -6,11 +6,10 @@
 
 **A powerful .NET library for reactive WebSocket communication using R3 (Reactive Extensions)**
 
-[![NuGet](https://img.shields.io/nuget/v/WebSocket.Rx.svg)](https://www.nuget.org/packages/WebSocket.Rx/)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/st0o0/WebSocket.Rx/build-and-release.yml?branch=main)](https://github.com/st0o0/WebSocket.Rx/actions)
-[![License](https://img.shields.io/github/license/st0o0/WebSocket.Rx)](LICENSE)
-[![Downloads](https://img.shields.io/nuget/dt/WebSocket.Rx.svg)](https://www.nuget.org/packages/WebSocket.Rx/)
-
+[![NuGet](https://img.shields.io/nuget/v/WebSocket.Rx.svg?style=flat-square)](https://www.nuget.org/packages/WebSocket.Rx/)
+[![License](https://img.shields.io/github/license/st0o0/WebSocket.Rx?style=flat-square)](LICENSE)
+[![Downloads](https://img.shields.io/nuget/dt/WebSocket.Rx.svg?style=flat-square)](https://www.nuget.org/packages/WebSocket.Rx/)
+[![Dotnet](https://img.shields.io/badge/dotnet-10.0-5027d5?style=flat-square)](https://dotnet.microsoft.com)
 </div>
 
 ---
