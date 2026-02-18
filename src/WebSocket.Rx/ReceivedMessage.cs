@@ -11,6 +11,10 @@ public class ReceivedMessage
         MessageType = messageType;
     }
 
+    public bool IsBinary => Binary?.Length > 0 && MessageType is WebSocketMessageType.Binary;
+
+    public bool IsText => Text?.Length > 0 && MessageType is WebSocketMessageType.Text;
+
     public string? Text { get; }
 
     public byte[]? Binary { get; }
