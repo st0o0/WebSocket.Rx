@@ -26,33 +26,31 @@ public interface IReactiveWebSocketClient : IDisposable, IAsyncDisposable
 
     Task StartOrFailAsync(CancellationToken cancellationToken = default);
 
-    Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription, CancellationToken cancellationToken = default);
+    Task<bool> StopAsync(WebSocketCloseStatus status, string statusDescription,
+        CancellationToken cancellationToken = default);
 
-    Task<bool> StopOrFailAsync(WebSocketCloseStatus status, string statusDescription, CancellationToken cancellationToken = default);
+    Task<bool> StopOrFailAsync(WebSocketCloseStatus status, string statusDescription,
+        CancellationToken cancellationToken = default);
 
     Task ReconnectAsync(CancellationToken cancellationToken = default);
 
     Task ReconnectOrFailAsync(CancellationToken cancellationToken = default);
 
-    Task<bool> SendInstantAsync(byte[] message, CancellationToken cancellationToken = default);
+    Task<bool> SendInstantAsync(ReadOnlyMemory<char> message, WebSocketMessageType type,
+        CancellationToken cancellationToken = default);
 
-    Task<bool> SendInstantAsync(string message, CancellationToken cancellationToken = default);
+    Task<bool> SendInstantAsync(ReadOnlyMemory<byte> message, WebSocketMessageType type,
+        CancellationToken cancellationToken = default);
 
-    Task<bool> SendAsBinaryAsync(byte[] message, CancellationToken cancellationToken = default);
+    Task<bool> SendAsync(ReadOnlyMemory<byte> message, WebSocketMessageType type,
+        CancellationToken cancellationToken = default);
 
-    Task<bool> SendAsBinaryAsync(string message, CancellationToken cancellationToken = default);
+    Task<bool> SendAsync(ReadOnlyMemory<char> message, WebSocketMessageType type,
+        CancellationToken cancellationToken = default);
 
-    Task<bool> SendAsTextAsync(byte[] message, CancellationToken cancellationToken = default);
+    bool TrySend(ReadOnlyMemory<byte> message, WebSocketMessageType type);
 
-    Task<bool> SendAsTextAsync(string message, CancellationToken cancellationToken = default);
-
-    bool TrySendAsBinary(string message);
-
-    bool TrySendAsBinary(byte[] message);
-
-    bool TrySendAsText(byte[] message);
-
-    bool TrySendAsText(string message);
+    bool TrySend(ReadOnlyMemory<char> message, WebSocketMessageType type);
 
     void StreamFakeMessage(ReceivedMessage message);
 }

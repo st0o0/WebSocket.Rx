@@ -327,7 +327,10 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
                     break;
                 }
 
-                await SendAsync(payload.Data, payload.Type, true, ct);
+                using (payload)
+                {
+                    await SendAsync(payload.Data, payload.Type, true, ct);
+                }
             }
         }
         catch (ChannelClosedException)
@@ -349,7 +352,8 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
         }
     }
 
-    protected virtual async Task<bool> SendAsync(byte[] data, WebSocketMessageType type, bool endOfMessage,
+    protected virtual async Task<bool> SendAsync(ReadOnlyMemory<byte> data, WebSocketMessageType type,
+        bool endOfMessage,
         CancellationToken cancellationToken = default)
     {
         if (NativeClient.State is not WebSocketState.Open) return false;
@@ -461,21 +465,46 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
     #region Send Methods
 
-    public async Task<bool> SendInstantAsync(string message, CancellationToken cancellationToken = default)
+    public async Task<bool> SendInstantAsync(ReadOnlyMemory<char> message, WebSocketMessageType type,
+        CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrEmpty(message))
+        if (message.IsEmpty)
+        {
+            return false;
+        }
+
+        var maxByteCount = MessageEncoding.GetMaxByteCount(message.Length);
+        var rent = ArrayPool<byte>.Shared.Rent(maxByteCount);
+
+        try
+        {
+            var actualBytes = MessageEncoding.GetBytes(message.Span, rent);
+
+            return await SendAsync(rent.AsMemory(0, actualBytes), type, true, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            ErrorOccurredSource.OnNext(new ErrorOccurred(ErrorSource.Send, ex));
+            return false;
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(rent);
+        }
+    }
+
+    public async Task<bool> SendInstantAsync(ReadOnlyMemory<byte> message, WebSocketMessageType type,
+        CancellationToken cancellationToken = default)
+    {
+        if (message.IsEmpty)
         {
             return false;
         }
 
         try
         {
-            using var connectedCts =
-                CancellationTokenSource.CreateLinkedTokenSource(cancellationToken,
-                    MainCts?.Token ?? CancellationToken.None);
-            return await SendAsync(MessageEncoding.GetBytes(message), WebSocketMessageType.Binary, true,
-                    cancellationToken)
-                .ConfigureAwait(false);
+            return await SendAsync(message, type, true, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -484,98 +513,29 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
         }
     }
 
-    public async Task<bool> SendInstantAsync(byte[] message, CancellationToken cancellationToken = default)
+    public async Task<bool> SendAsync(ReadOnlyMemory<char> message, WebSocketMessageType type,
+        CancellationToken cancellationToken = default)
+        => !message.IsEmpty && await WriteAsync(message.ToPayload(MessageEncoding, type), cancellationToken);
+
+    public async Task<bool> SendAsync(ReadOnlyMemory<byte> message, WebSocketMessageType type,
+        CancellationToken cancellationToken = default)
+        => !message.IsEmpty && await WriteAsync(new Payload(message, type), cancellationToken);
+
+    public bool TrySend(ReadOnlyMemory<char> message, WebSocketMessageType type)
+        => !message.IsEmpty && TryWrite(message.ToPayload(MessageEncoding, type));
+
+    public bool TrySend(ReadOnlyMemory<byte> message, WebSocketMessageType type)
+        => !message.IsEmpty && TryWrite(new Payload(message, type));
+
+    private async Task<bool> WriteAsync(Payload payload, CancellationToken cancellationToken = default)
     {
-        if (message.Length == 0)
-        {
-            return false;
-        }
-
-        try
-        {
-            using var connectedCts =
-                CancellationTokenSource.CreateLinkedTokenSource(cancellationToken,
-                    MainCts?.Token ?? CancellationToken.None);
-            return await SendAsync(message, WebSocketMessageType.Binary, true, connectedCts.Token)
-                .ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            ErrorOccurredSource.OnNext(new ErrorOccurred(ErrorSource.Send, ex));
-            return false;
-        }
-    }
-
-    public async Task<bool> SendAsBinaryAsync(string message, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrEmpty(message))
-        {
-            return false;
-        }
-
-        return await SendAsBinaryAsync(MessageEncoding.GetBytes(message), cancellationToken);
-    }
-
-    public async Task<bool> SendAsBinaryAsync(byte[] message, CancellationToken cancellationToken = default)
-    {
-        if (!IsRunning || message.Length == 0)
-        {
-            return false;
-        }
-
-        await SendWriter.WriteAsync(new Payload(message, WebSocketMessageType.Binary), cancellationToken);
+        await SendWriter.WriteAsync(payload, cancellationToken);
         return true;
     }
 
-    public async Task<bool> SendAsTextAsync(string message, CancellationToken cancellationToken = default)
+    private bool TryWrite(Payload payload)
     {
-        if (string.IsNullOrEmpty(message))
-        {
-            return false;
-        }
-
-        return await SendAsTextAsync(MessageEncoding.GetBytes(message), cancellationToken);
-    }
-
-    public async Task<bool> SendAsTextAsync(byte[] message, CancellationToken cancellationToken = default)
-    {
-        if (!IsRunning || message.Length == 0)
-        {
-            return false;
-        }
-
-        await SendWriter.WriteAsync(new Payload(message, WebSocketMessageType.Text), cancellationToken);
-        return true;
-    }
-
-    public bool TrySendAsBinary(string message)
-    {
-        return !string.IsNullOrEmpty(message) && TrySendAsBinary(MessageEncoding.GetBytes(message));
-    }
-
-    public bool TrySendAsBinary(byte[] message)
-    {
-        if (!IsRunning || message.Length == 0)
-        {
-            return false;
-        }
-
-        return SendWriter.TryWrite(new Payload(message, WebSocketMessageType.Binary));
-    }
-
-    public bool TrySendAsText(string message)
-    {
-        return !string.IsNullOrEmpty(message) && TrySendAsText(MessageEncoding.GetBytes(message));
-    }
-
-    public bool TrySendAsText(byte[] message)
-    {
-        if (!IsRunning || message.Length == 0)
-        {
-            return false;
-        }
-
-        return SendWriter.TryWrite(new Payload(message, WebSocketMessageType.Text));
+        return IsRunning && SendWriter.TryWrite(payload);
     }
 
     public void StreamFakeMessage(ReceivedMessage message)

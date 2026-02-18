@@ -616,7 +616,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
             ReceiveLoopTask = Task.Run(() => ReceiveLoopAdapterAsync(_adapterCts.Token), CancellationToken.None);
         }
 
-        protected override async Task<bool> SendAsync(byte[] data, WebSocketMessageType type, bool endOfMessage,
+        protected override async Task<bool> SendAsync(ReadOnlyMemory<byte> data, WebSocketMessageType type, bool endOfMessage,
             CancellationToken cancellationToken = default)
         {
             if (NativeServerSocket.State is not WebSocketState.Open) return false;
