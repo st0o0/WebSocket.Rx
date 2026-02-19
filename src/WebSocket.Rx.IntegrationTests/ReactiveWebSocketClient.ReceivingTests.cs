@@ -13,7 +13,7 @@ public class ReactiveWebSocketClientReceivingTests(ITestOutputHelper output) : R
         Client.IsTextMessageConversionEnabled = true;
 
         var receivedMessage = "";
-        Client.MessageReceived.Subscribe(msg => receivedMessage = msg.Text ?? "");
+        Client.MessageReceived.Subscribe(msg => receivedMessage = msg.Text.ToString());
 
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
         await Task.Delay(50, TestContext.Current.CancellationToken);
@@ -34,7 +34,7 @@ public class ReactiveWebSocketClientReceivingTests(ITestOutputHelper output) : R
         Client.IsTextMessageConversionEnabled = false;
 
         byte[]? receivedBytes = null;
-        Client.MessageReceived.Subscribe(msg => receivedBytes = msg.Binary);
+        Client.MessageReceived.Subscribe(msg => receivedBytes = msg.Binary.ToArray());
 
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
         await Task.Delay(50, TestContext.Current.CancellationToken);
@@ -58,7 +58,7 @@ public class ReactiveWebSocketClientReceivingTests(ITestOutputHelper output) : R
         var received = false;
         Client.MessageReceived.Subscribe(_ => received = true);
 
-        var fakeMessage = ReceivedMessage.TextMessage("Fake");
+        var fakeMessage = Message.Create("Fake".AsMemory());
 
         // Act
         Client.StreamFakeMessage(fakeMessage);

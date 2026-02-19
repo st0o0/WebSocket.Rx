@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System;
+using System.Net;
 using System.Net.WebSockets;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
@@ -50,7 +51,7 @@ public class ServerBroadcastBenchmarks
     [Benchmark(Baseline = true, Description = "BroadcastAsTextAsync (0 clients)")]
     public async Task<bool> BroadcastAsTextAsync_Empty()
     {
-        return await _server.BroadcastAsTextAsync(_textPayload);
+        return await _server.BroadcastAsync(_textPayload.AsMemory(), WebSocketMessageType.Text);
     }
 
     // -----------------------------------------------------------------------
@@ -59,7 +60,7 @@ public class ServerBroadcastBenchmarks
     [Benchmark(Description = "BroadcastAsBinaryAsync(byte[]) (0 clients)")]
     public async Task<bool> BroadcastAsBinaryAsync_Bytes_Empty()
     {
-        return await _server.BroadcastAsBinaryAsync(_binaryPayload);
+        return await _server.BroadcastAsync(_binaryPayload, WebSocketMessageType.Binary);
     }
 
     // -----------------------------------------------------------------------
@@ -68,7 +69,7 @@ public class ServerBroadcastBenchmarks
     [Benchmark(Description = "TryBroadcastAsText(string) (0 clients)")]
     public bool TryBroadcastAsText_Empty()
     {
-        return _server.TryBroadcastAsText(_textPayload);
+        return _server.TryBroadcast(_textPayload.AsMemory(), WebSocketMessageType.Binary);
     }
 
     // -----------------------------------------------------------------------
@@ -77,7 +78,7 @@ public class ServerBroadcastBenchmarks
     [Benchmark(Description = "TryBroadcastAsBinary(byte[]) (0 clients)")]
     public bool TryBroadcastAsBinary_Empty()
     {
-        return _server.TryBroadcastAsBinary(_binaryPayload);
+        return _server.TryBroadcast(_binaryPayload, WebSocketMessageType.Binary);
     }
 
     // -----------------------------------------------------------------------

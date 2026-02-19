@@ -20,7 +20,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
     protected bool IsReconnecting;
 
-    protected readonly Subject<ReceivedMessage> MessageReceivedSource = new();
+    protected readonly Subject<Message> MessageReceivedSource = new();
     protected readonly Subject<Connected> ConnectionHappenedSource = new();
     protected readonly Subject<Disconnected> DisconnectionHappenedSource = new();
     protected readonly Subject<ErrorOccurred> ErrorOccurredSource = new();
@@ -53,7 +53,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
     public Encoding MessageEncoding { get; set; } = Encoding.UTF8;
     public ClientWebSocket NativeClient { get; private set; } = new();
 
-    public Observable<ReceivedMessage> MessageReceived => MessageReceivedSource.AsObservable();
+    public Observable<Message> MessageReceived => MessageReceivedSource.AsObservable();
     public Observable<Connected> ConnectionHappened => ConnectionHappenedSource.AsObservable();
     public Observable<Disconnected> DisconnectionHappened => DisconnectionHappenedSource.AsObservable();
     public Observable<ErrorOccurred> ErrorOccurred => ErrorOccurredSource.AsObservable();
@@ -403,16 +403,15 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
                 }
 
                 var messageBytes = ms.GetBuffer().AsMemory(0, (int)ms.Length);
-                ReceivedMessage message;
+                Message message;
 
                 if (IsTextMessageConversionEnabled && result.MessageType == WebSocketMessageType.Text)
                 {
-                    var text = MessageEncoding.GetString(messageBytes.Span);
-                    message = ReceivedMessage.TextMessage(text);
+                    message = Message.Create(MessageEncoding.GetString(messageBytes.Span).AsMemory());
                 }
                 else
                 {
-                    message = ReceivedMessage.BinaryMessage(messageBytes.ToArray());
+                    message = Message.Create(messageBytes);
                 }
 
                 MessageReceivedSource.OnNext(message);
@@ -529,6 +528,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
     private async Task<bool> WriteAsync(Payload payload, CancellationToken cancellationToken = default)
     {
+        if (!IsRunning) return false;
         await SendWriter.WriteAsync(payload, cancellationToken);
         return true;
     }
@@ -538,7 +538,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
         return IsRunning && SendWriter.TryWrite(payload);
     }
 
-    public void StreamFakeMessage(ReceivedMessage message)
+    public void StreamFakeMessage(Message message)
     {
         MessageReceivedSource.OnNext(message);
     }

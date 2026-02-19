@@ -7,7 +7,7 @@ namespace WebSocket.Rx;
 public interface IReactiveWebSocketClient : IDisposable, IAsyncDisposable
 {
     Uri Url { get; set; }
-    Observable<ReceivedMessage> MessageReceived { get; }
+    Observable<Message> MessageReceived { get; }
     Observable<Connected> ConnectionHappened { get; }
     Observable<Disconnected> DisconnectionHappened { get; }
     Observable<ErrorOccurred> ErrorOccurred { get; }
@@ -52,5 +52,5 @@ public interface IReactiveWebSocketClient : IDisposable, IAsyncDisposable
 
     bool TrySend(ReadOnlyMemory<char> message, WebSocketMessageType type);
 
-    void StreamFakeMessage(ReceivedMessage message);
+    void StreamFakeMessage(Message message);
 }

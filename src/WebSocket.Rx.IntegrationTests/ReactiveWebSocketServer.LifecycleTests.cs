@@ -37,7 +37,8 @@ public class ReactiveWebSocketServerLifecycleTests(ITestOutputHelper output) : R
         await server.StartAsync(TestContext.Current.CancellationToken);
 
         // Act
-        await server.SendInstantAsync(Guid.Empty, "test", TestContext.Current.CancellationToken);
+        await server.SendInstantAsync(Guid.Empty, "test".AsMemory(), WebSocketMessageType.Binary,
+            TestContext.Current.CancellationToken);
         await server.StopAsync(WebSocketCloseStatus.NormalClosure, "test", TestContext.Current.CancellationToken);
         server.Dispose();
 

@@ -1,4 +1,5 @@
-﻿using WebSocket.Rx.IntegrationTests.Internal;
+﻿using System.Net.WebSockets;
+using WebSocket.Rx.IntegrationTests.Internal;
 
 namespace WebSocket.Rx.IntegrationTests;
 
@@ -14,7 +15,8 @@ public class ReactiveWebSocketServerSendingTests(ITestOutputHelper output) : Rea
         var clientId = Server.ConnectedClients.Keys.First();
 
         // Act
-        await Server.SendInstantAsync(clientId, "Hello Client", TestContext.Current.CancellationToken);
+        await Server.SendInstantAsync(clientId, "Hello Client".AsMemory(), WebSocketMessageType.Binary,
+            TestContext.Current.CancellationToken);
 
         // Assert
         var received = await ReceiveTextAsync(client, TestContext.Current.CancellationToken);
@@ -32,7 +34,8 @@ public class ReactiveWebSocketServerSendingTests(ITestOutputHelper output) : Rea
         var binaryData = new byte[] { 5, 4, 3, 2, 1 };
 
         // Act
-        await Server.SendInstantAsync(clientId, binaryData, TestContext.Current.CancellationToken);
+        await Server.SendInstantAsync(clientId, binaryData, WebSocketMessageType.Binary,
+            TestContext.Current.CancellationToken);
 
         // Assert
         var buffer = new byte[1024];
@@ -44,7 +47,8 @@ public class ReactiveWebSocketServerSendingTests(ITestOutputHelper output) : Rea
     public async Task Should_Return_False_When_Sending_To_Non_Existent_Client()
     {
         // Act
-        var result = await Server.SendInstantAsync(Guid.NewGuid(), "test", TestContext.Current.CancellationToken);
+        var result = await Server.SendInstantAsync(Guid.NewGuid(), "test".AsMemory(), WebSocketMessageType.Binary,
+            TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -60,8 +64,10 @@ public class ReactiveWebSocketServerSendingTests(ITestOutputHelper output) : Rea
         var clientId = Server.ConnectedClients.Keys.First();
 
         // Act
-        await Server.SendInstantAsync(clientId, "Msg 1", TestContext.Current.CancellationToken);
-        await Server.SendInstantAsync(clientId, "Msg 2", TestContext.Current.CancellationToken);
+        await Server.SendInstantAsync(clientId, "Msg 1".AsMemory(), WebSocketMessageType.Binary,
+            TestContext.Current.CancellationToken);
+        await Server.SendInstantAsync(clientId, "Msg 2".AsMemory(), WebSocketMessageType.Binary,
+            TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("Msg 1", await ReceiveTextAsync(client, TestContext.Current.CancellationToken));
@@ -78,7 +84,7 @@ public class ReactiveWebSocketServerSendingTests(ITestOutputHelper output) : Rea
         var clientId = Server.ConnectedClients.Keys.First();
 
         // Act
-        var result = Server.TrySendAsText(clientId, "test");
+        var result = Server.TrySend(clientId, "test".AsMemory(), WebSocketMessageType.Text);
 
         // Assert
         Assert.True(result);
@@ -89,7 +95,7 @@ public class ReactiveWebSocketServerSendingTests(ITestOutputHelper output) : Rea
     public void TrySendAsText_Should_Return_False_For_Non_Existent_Client()
     {
         // Act
-        var result = Server.TrySendAsText(Guid.NewGuid(), "test");
+        var result = Server.TrySend(Guid.NewGuid(), "test".AsMemory(), WebSocketMessageType.Binary);
 
         // Assert
         Assert.False(result);
@@ -105,7 +111,7 @@ public class ReactiveWebSocketServerSendingTests(ITestOutputHelper output) : Rea
         var clientId = Server.ConnectedClients.Keys.First();
 
         // Act
-        var result = Server.TrySendAsBinary(clientId, "test");
+        var result = Server.TrySend(clientId, "test".AsMemory(), WebSocketMessageType.Binary);
 
         // Assert
         Assert.True(result);
@@ -122,7 +128,8 @@ public class ReactiveWebSocketServerSendingTests(ITestOutputHelper output) : Rea
         var clientId = Server.ConnectedClients.Keys.First();
 
         // Act
-        await Server.SendInstantAsync(clientId, "Instant message", TestContext.Current.CancellationToken);
+        await Server.SendInstantAsync(clientId, "Instant message".AsMemory(), WebSocketMessageType.Binary,
+            TestContext.Current.CancellationToken);
 
         // Assert
         var received = await ReceiveTextAsync(client, TestContext.Current.CancellationToken);
@@ -141,7 +148,8 @@ public class ReactiveWebSocketServerSendingTests(ITestOutputHelper output) : Rea
         await WaitUntilAsync(Server.ClientDisconnected, () => Server.ClientCount == 0);
 
         // Act
-        var result = await Server.SendInstantAsync(clientId, "test", TestContext.Current.CancellationToken);
+        var result = await Server.SendInstantAsync(clientId, "test".AsMemory(), WebSocketMessageType.Binary,
+            TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);

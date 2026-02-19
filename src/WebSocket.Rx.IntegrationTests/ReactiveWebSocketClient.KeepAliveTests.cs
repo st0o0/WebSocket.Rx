@@ -147,7 +147,7 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
     public async Task KeepAlive_ConnectionShouldStayAliveWithinInterval()
     {
         // Arrange
-        var receivedMessages = new List<ReceivedMessage>();
+        var receivedMessages = new List<Message>();
         Client = new ReactiveWebSocketClient(new Uri(Server.WebSocketUrl))
         {
             KeepAliveInterval = TimeSpan.FromMilliseconds(500),
@@ -158,7 +158,7 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
 
         // Act
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
-        var messageTask = WaitForEventAsync(Client.MessageReceived, m => m.Text == "test");
+        var messageTask = WaitForEventAsync(Client.MessageReceived, m => m.Text.ToString() == "test");
         await Server.SendToAllAsync("test");
         await messageTask;
 
@@ -166,7 +166,7 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         Assert.True(Client.IsRunning);
         Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
         Assert.Single(receivedMessages);
-        Assert.Equal("test", receivedMessages[0].Text);
+        Assert.Equal("test", receivedMessages[0].Text.ToString());
     }
 
     [Fact(Timeout = DefaultTimeoutMs)]
@@ -266,7 +266,8 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         // Act
         for (var i = 0; i < 5; i++)
         {
-            await Client.SendInstantAsync($"Message {i}", TestContext.Current.CancellationToken);
+            await Client.SendInstantAsync($"Message {i}".AsMemory(), WebSocketMessageType.Binary,
+                TestContext.Current.CancellationToken);
             await Task.Delay(50, TestContext.Current.CancellationToken);
         }
 
@@ -485,7 +486,8 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
 
         for (var i = 0; i < 5; i++)
         {
-            await Client.SendInstantAsync($"msg{i}", TestContext.Current.CancellationToken);
+            await Client.SendInstantAsync($"msg{i}".AsMemory(), WebSocketMessageType.Binary,
+                TestContext.Current.CancellationToken);
             await Task.Delay(100, TestContext.Current.CancellationToken);
         }
 
