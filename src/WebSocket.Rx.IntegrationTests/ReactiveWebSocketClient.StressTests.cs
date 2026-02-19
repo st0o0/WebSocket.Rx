@@ -14,7 +14,7 @@ public class ReactiveWebSocketClientStressTests(ITestOutputHelper output) : Reac
         Client.IsTextMessageConversionEnabled = true;
 
         var largeMessage = new string('A', 1024 * 1024);
-        var messageReceivedTask = WaitForEventAsync(Client.MessageReceived, msg => msg.Text == largeMessage);
+        var messageReceivedTask = WaitForEventAsync(Client.MessageReceived, msg => msg.Text.ToString() == largeMessage);
 
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
 
@@ -23,7 +23,7 @@ public class ReactiveWebSocketClientStressTests(ITestOutputHelper output) : Reac
         var received = await messageReceivedTask;
 
         // Assert
-        Assert.Equal(largeMessage, received.Text);
+        Assert.Equal(largeMessage, received.Text.ToString());
     }
 
     [Fact(Timeout = DefaultTimeoutMs)]
@@ -36,7 +36,8 @@ public class ReactiveWebSocketClientStressTests(ITestOutputHelper output) : Reac
         for (var i = 0; i < 5; i++)
         {
             await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
-            await Client.StopAsync(WebSocketCloseStatus.NormalClosure, "Rapid test", TestContext.Current.CancellationToken);
+            await Client.StopAsync(WebSocketCloseStatus.NormalClosure, "Rapid test",
+                TestContext.Current.CancellationToken);
             await WaitUntilAsync(Client.DisconnectionHappened, () => !Client.IsRunning);
         }
 

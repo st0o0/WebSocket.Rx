@@ -7,163 +7,133 @@ namespace WebSocket.Rx;
 
 public static class Extensions
 {
-    // new 
     extension(IReactiveWebSocketClient client)
     {
-        public Observable<bool> SendInstant(Observable<(byte[], WebSocketMessageType)> messages)
+        public Observable<bool> SendInstant(Observable<Message> messages)
         {
-            return Observable.Create<bool>(observer =>
+            return messages.SelectAwait(async (send, ct) =>
             {
-                var disposables = new CompositeDisposable();
-                disposables.Add(messages.SubscribeAwait(async (tuple, ct) =>
+                return send.Type switch
                 {
-                    var result = await client.SendInstantAsync(tuple.Item1, tuple.Item2, ct).ConfigureAwait(false);
-                    observer.OnNext(result);
-                }));
-
-                return disposables;
-            });
+                    _ when send.IsText => await client.SendAsync(send.Text, send.Type, ct),
+                    _ when send.IsBinary => await client.SendAsync(send.Binary, send.Type, ct),
+                    _ => false
+                };
+            }, maxConcurrent: 1);
         }
 
-        public Observable<bool> SendInstant(Observable<(string, WebSocketMessageType)> messages)
+        public Observable<bool> Send(Observable<Message> messages)
         {
-            return Observable.Create<bool>(observer =>
+            return messages.SelectAwait(async (send, ct) =>
             {
-                var disposables = new CompositeDisposable();
-                disposables.Add(messages.SubscribeAwait(async (tuple, ct) =>
+                return send.Type switch
                 {
-                    var result = await client.SendInstantAsync(tuple.Item1.AsMemory(), tuple.Item2, ct)
-                        .ConfigureAwait(false);
-                    observer.OnNext(result);
-                }));
-
-                return disposables;
-            });
+                    _ when send.IsText => await client.SendAsync(send.Text, send.Type, ct),
+                    _ when send.IsBinary => await client.SendAsync(send.Binary, send.Type, ct),
+                    _ => false
+                };
+            }, maxConcurrent: 1);
         }
 
-        public Observable<bool> Send(Observable<(byte[], WebSocketMessageType)> messages)
+        public Observable<bool> TrySend(Observable<Message> messages)
         {
-            return Observable.Create<bool>(observer =>
+            return messages.Select(send =>
             {
-                var disposables = new CompositeDisposable();
-                disposables.Add(messages.SubscribeAwait(async (tuple, ct) =>
+                return send.Type switch
                 {
-                    var result = await client.SendAsync(tuple.Item1, tuple.Item2, ct).ConfigureAwait(false);
-                    observer.OnNext(result);
-                }));
-
-                return disposables;
-            });
-        }
-
-        public Observable<bool> Send(Observable<(string, WebSocketMessageType)> messages)
-        {
-            return Observable.Create<bool>(observer =>
-            {
-                var disposables = new CompositeDisposable();
-                disposables.Add(messages.SubscribeAwait(async (tuple, ct) =>
-                {
-                    var result = await client.SendAsync(tuple.Item1.AsMemory(), tuple.Item2, ct).ConfigureAwait(false);
-                    observer.OnNext(result);
-                }));
-
-                return disposables;
-            });
-        }
-
-        public Observable<bool> TrySend(Observable<(string, WebSocketMessageType)> messages)
-        {
-            return Observable.Create<bool>(observer =>
-            {
-                var disposables = new CompositeDisposable();
-                disposables.Add(messages.Subscribe(tuple =>
-                {
-                    var result = client.TrySend(tuple.Item1.AsMemory(), tuple.Item2);
-                    observer.OnNext(result);
-                }));
-
-                return disposables;
-            });
-        }
-
-        public Observable<bool> TrySend(Observable<(byte[], WebSocketMessageType)> messages)
-        {
-            return Observable.Create<bool>(observer =>
-            {
-                var disposables = new CompositeDisposable();
-                disposables.Add(messages.Subscribe(tuple =>
-                {
-                    var result = client.TrySend(tuple.Item1, tuple.Item2);
-                    observer.OnNext(result);
-                }));
-
-                return disposables;
+                    _ when send.IsText => client.TrySend(send.Text, send.Type),
+                    _ when send.IsBinary => client.TrySend(send.Binary, send.Type),
+                    _ => false
+                };
             });
         }
     }
 
-    // old
-    extension(IReactiveWebSocketClient client)
+    extension(IReactiveWebSocketServer server)
     {
-        public Observable<bool> SendInstant(Observable<byte[]> message)
-            => client.SendInstant(message.Select(data => (data, WebSocketMessageType.Binary)));
+        public Observable<bool> SendInstant(Observable<ServerMessage> messages)
+        {
+            return messages.SelectAwait(async (send, ct) =>
+            {
+                var msg = send.Message;
+                return msg.Type switch
+                {
+                    _ when msg.IsText => await server.SendAsync(send.Metadata.Id, msg.Text, msg.Type, ct),
+                    _ when msg.IsBinary => await server.SendAsync(send.Metadata.Id, msg.Binary, msg.Type, ct),
+                    _ => false
+                };
+            }, maxConcurrent: 1);
+        }
 
-        public Observable<bool> SendInstant(Observable<string> message)
-            => client.SendInstant(message.Select(data => (data, WebSocketMessageType.Binary)));
+        public Observable<bool> Send(Observable<ServerMessage> messages)
+        {
+            return messages.SelectAwait(async (send, ct) =>
+            {
+                var msg = send.Message;
+                return msg.Type switch
+                {
+                    _ when msg.IsText => await server.SendAsync(send.Metadata.Id, msg.Text, msg.Type, ct),
+                    _ when msg.IsBinary => await server.SendAsync(send.Metadata.Id, msg.Binary, msg.Type, ct),
+                    _ => false
+                };
+            }, maxConcurrent: 1);
+        }
 
-        public Observable<bool> SendInstantAsBinary(Observable<byte[]> messages)
-            => client.SendInstant(messages.Select(data => (data, WebSocketMessageType.Binary)));
+        public Observable<bool> TrySend(Observable<ServerMessage> messages)
+        {
+            return messages.Select(send =>
+            {
+                var msg = send.Message;
+                return msg.Type switch
+                {
+                    _ when msg.IsText => server.TrySend(send.Metadata.Id, msg.Text, msg.Type),
+                    _ when msg.IsBinary => server.TrySend(send.Metadata.Id, msg.Binary, msg.Type),
+                    _ => false
+                };
+            });
+        }
 
-        public Observable<bool> SendInstantAsBinary(Observable<string> messages)
-            => client.SendInstant(messages.Select(data => (data, WebSocketMessageType.Binary)));
+        public Observable<bool> BroadcastInstant(Observable<ServerMessage> messages)
+        {
+            return messages.SelectAwait(async (send, ct) =>
+            {
+                var msg = send.Message;
+                return msg.Type switch
+                {
+                    _ when msg.IsText => await server.BroadcastInstantAsync(msg.Text, msg.Type, ct),
+                    _ when msg.IsBinary => await server.BroadcastInstantAsync(msg.Binary, msg.Type, ct),
+                    _ => false
+                };
+            });
+        }
 
-        public Observable<bool> SendInstantAsText(Observable<byte[]> messages)
-            => client.SendInstant(messages.Select(data => (data, WebSocketMessageType.Text)));
+        public Observable<bool> BroadcastAsync(Observable<ServerMessage> messages)
+        {
+            return messages.SelectAwait(async (send, ct) =>
+            {
+                var msg = send.Message;
+                return msg.Type switch
+                {
+                    _ when msg.IsText => await server.BroadcastAsync(msg.Text, msg.Type, ct),
+                    _ when msg.IsBinary => await server.BroadcastAsync(msg.Binary, msg.Type, ct),
+                    _ => false
+                };
+            });
+        }
 
-        public Observable<bool> SendInstantAsText(Observable<string> messages)
-            => client.SendInstant(messages.Select(data => (data, WebSocketMessageType.Text)));
-
-        public Observable<bool> TrySendAsBinary(Observable<byte[]> messages)
-            => client.TrySend(messages.Select(data => (data, WebSocketMessageType.Binary)));
-
-        public Observable<bool> TrySendAsBinary(Observable<string> messages)
-            => client.TrySend(messages.Select(data => (data, WebSocketMessageType.Binary)));
-
-        public Observable<bool> TrySendAsText(Observable<byte[]> messages)
-            => client.TrySend(messages.Select(data => (data, WebSocketMessageType.Text)));
-
-        public Observable<bool> TrySendAsText(Observable<string> messages)
-            => client.TrySend(messages.Select(data => (data, WebSocketMessageType.Text)));
-
-        public async Task<bool> SendInstantAsync(byte[] message, CancellationToken cancellationToken = default)
-            => await client.SendInstantAsync(message.AsMemory(), WebSocketMessageType.Binary, cancellationToken);
-
-        public async Task<bool> SendInstantAsync(string message, CancellationToken cancellationToken = default)
-            => await client.SendInstantAsync(message.AsMemory(), WebSocketMessageType.Binary, cancellationToken);
-
-        public async Task<bool> SendAsBinaryAsync(byte[] message, CancellationToken cancellationToken = default)
-            => await client.SendAsync(message.AsMemory(), WebSocketMessageType.Binary, cancellationToken);
-
-        public async Task<bool> SendAsBinaryAsync(string message, CancellationToken cancellationToken = default)
-            => await client.SendAsync(message.AsMemory(), WebSocketMessageType.Binary, cancellationToken);
-
-        public async Task<bool> SendAsTextAsync(byte[] message, CancellationToken cancellationToken = default)
-            => await client.SendAsync(message.AsMemory(), WebSocketMessageType.Text, cancellationToken);
-
-        public async Task<bool> SendAsTextAsync(string message, CancellationToken cancellationToken = default)
-            => await client.SendAsync(message.AsMemory(), WebSocketMessageType.Text, cancellationToken);
-
-        public bool TrySendAsBinary(byte[] message)
-            => client.TrySend(message.AsMemory(), WebSocketMessageType.Binary);
-
-        public bool TrySendAsBinary(string message)
-            => client.TrySend(message.AsMemory(), WebSocketMessageType.Binary);
-
-        public bool TrySendAsText(byte[] message)
-            => client.TrySend(message.AsMemory(), WebSocketMessageType.Text);
-
-        public bool TrySendAsText(string message)
-            => client.TrySend(message.AsMemory(), WebSocketMessageType.Text);
+        public Observable<bool> TryBroadcast(Observable<ServerMessage> messages)
+        {
+            return messages.Select(send =>
+            {
+                var msg = send.Message;
+                return msg.Type switch
+                {
+                    _ when msg.IsText => server.TryBroadcast(msg.Text, msg.Type),
+                    _ when msg.IsBinary => server.TryBroadcast(msg.Binary, msg.Type),
+                    _ => false
+                };
+            });
+        }
     }
 
     internal static Payload ToPayload(this ReadOnlyMemory<char> value, Encoding encoding, WebSocketMessageType type)

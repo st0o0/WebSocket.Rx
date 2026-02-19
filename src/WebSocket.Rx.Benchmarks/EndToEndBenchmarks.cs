@@ -46,7 +46,7 @@ public class EndToEndBenchmarks
         {
             if (msg.Message.IsText)
             {
-                await _server.SendAsTextAsync(msg.Metadata.Id, msg.Message.Text ?? "", ct);
+                await _server.SendAsync(msg.Metadata.Id, msg.Message.Text, WebSocketMessageType.Text, ct);
             }
         });
 
@@ -78,11 +78,12 @@ public class EndToEndBenchmarks
     public async Task<string?> SingleRoundTrip()
     {
         var echoTask = _client.MessageReceived
-            .Where(m => m is { IsText: true, Text: "ping" })
+            .Where(m => m is { IsText: true })
+            .Where(m => m.Text.ToString() is "ping")
             .FirstAsync();
 
-        await _client.SendAsTextAsync("ping");
-        return (await echoTask).Text;
+        await _client.SendAsync("ping".AsMemory(), WebSocketMessageType.Text);
+        return (await echoTask).Text.ToString();
     }
 
     // -----------------------------------------------------------------------
@@ -102,7 +103,7 @@ public class EndToEndBenchmarks
 
         for (var i = 0; i < RoundTrips; i++)
         {
-            await _client.SendAsTextAsync($"msg-{i}", cts.Token);
+            await _client.SendAsync($"msg-{i}".AsMemory(), WebSocketMessageType.Text, cts.Token);
         }
 
         while (received < RoundTrips && !cts.IsCancellationRequested)
@@ -123,7 +124,7 @@ public class EndToEndBenchmarks
         var sent = 0;
         for (var i = 0; i < 1_000; i++)
         {
-            if (_client.TrySendAsText($"msg-{i}"))
+            if (_client.TrySend($"msg-{i}".AsMemory(), WebSocketMessageType.Text))
             {
                 sent++;
             }

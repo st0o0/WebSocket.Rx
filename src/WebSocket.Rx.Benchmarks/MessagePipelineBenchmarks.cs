@@ -25,15 +25,15 @@ public class MessagePipelineBenchmarks
     [Params(64, 512, 4_096)] public int PayloadSize { get; set; }
 
     private ReactiveWebSocketClient _client = null!;
-    private ReceivedMessage _textMessage = null!;
-    private ReceivedMessage _binaryMessage = null!;
+    private Message _textMessage = null!;
+    private Message _binaryMessage = null!;
 
     [GlobalSetup]
     public void Setup()
     {
         _client = new ReactiveWebSocketClient(new Uri("ws://localhost:9999"));
-        _textMessage = ReceivedMessage.TextMessage(new string('x', PayloadSize));
-        _binaryMessage = ReceivedMessage.BinaryMessage(new byte[PayloadSize]);
+        _textMessage = Message.Create(new string('x', PayloadSize));
+        _binaryMessage = Message.Create(new byte[PayloadSize]);
     }
 
     [GlobalCleanup]

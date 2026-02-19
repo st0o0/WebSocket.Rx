@@ -1,4 +1,5 @@
-﻿using WebSocket.Rx.IntegrationTests.Internal;
+﻿using System.Net.WebSockets;
+using WebSocket.Rx.IntegrationTests.Internal;
 
 namespace WebSocket.Rx.IntegrationTests;
 
@@ -17,7 +18,8 @@ public class ReactiveWebSocketServerBroadcastTests(ITestOutputHelper output) : R
         var receiveTask2 = ReceiveTextAsync(client2, TestContext.Current.CancellationToken);
 
         // Act
-        await Server.BroadcastInstantAsync("Broadcast Message", TestContext.Current.CancellationToken);
+        await Server.BroadcastInstantAsync("Broadcast Message".AsMemory(), WebSocketMessageType.Binary,
+            TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("Broadcast Message", await receiveTask1);
@@ -28,7 +30,8 @@ public class ReactiveWebSocketServerBroadcastTests(ITestOutputHelper output) : R
     public async Task BroadcastInstantAsync_WithNoClients_ShouldReturnTrue()
     {
         // Act
-        var result = await Server.BroadcastInstantAsync("test", TestContext.Current.CancellationToken);
+        var result = await Server.BroadcastInstantAsync("test".AsMemory(), WebSocketMessageType.Binary,
+            TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -43,7 +46,8 @@ public class ReactiveWebSocketServerBroadcastTests(ITestOutputHelper output) : R
         await connectionTask;
 
         // Act
-        await Server.BroadcastInstantAsync("Single Broadcast", TestContext.Current.CancellationToken);
+        await Server.BroadcastInstantAsync("Single Broadcast".AsMemory(), WebSocketMessageType.Binary,
+            TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("Single Broadcast", await ReceiveTextAsync(client, TestContext.Current.CancellationToken));
@@ -61,7 +65,8 @@ public class ReactiveWebSocketServerBroadcastTests(ITestOutputHelper output) : R
         var binaryData = new byte[] { 10, 20, 30 };
 
         // Act
-        await Server.BroadcastInstantAsync(binaryData, TestContext.Current.CancellationToken);
+        await Server.BroadcastInstantAsync(binaryData, WebSocketMessageType.Binary,
+            TestContext.Current.CancellationToken);
 
         // Assert
         var buffer1 = new byte[1024];
@@ -83,7 +88,8 @@ public class ReactiveWebSocketServerBroadcastTests(ITestOutputHelper output) : R
         await connectionTask;
 
         // Act
-        await Server.BroadcastAsBinaryAsync("Binary Broadcast", TestContext.Current.CancellationToken);
+        await Server.BroadcastAsync("Binary Broadcast".AsMemory(), WebSocketMessageType.Binary,
+            TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("Binary Broadcast", await ReceiveTextAsync(client1, TestContext.Current.CancellationToken));
@@ -100,11 +106,11 @@ public class ReactiveWebSocketServerBroadcastTests(ITestOutputHelper output) : R
         await connectionTask;
 
         // Act
-        await Server.BroadcastAsTextAsync("Text Broadcast", TestContext.Current.CancellationToken);
+        await Server.BroadcastAsync("Text Broadcast".AsMemory(), WebSocketMessageType.Text,
+            TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("Text Broadcast", await ReceiveTextAsync(client1, TestContext.Current.CancellationToken));
         Assert.Equal("Text Broadcast", await ReceiveTextAsync(client2, TestContext.Current.CancellationToken));
     }
-
 }

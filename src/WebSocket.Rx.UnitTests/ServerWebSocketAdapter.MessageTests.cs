@@ -16,7 +16,7 @@ public class ServerWebSocketAdapterMessageTests(ITestOutputHelper output) : Serv
         var testData = new byte[] { 1, 2, 3, 4 };
 
         // Act
-        var result = Adapter.TrySendAsBinary(testData);
+        var result = Adapter.TrySend(testData.AsMemory(), WebSocketMessageType.Binary);
 
         // Assert
         Assert.True(result);
@@ -31,7 +31,7 @@ public class ServerWebSocketAdapterMessageTests(ITestOutputHelper output) : Serv
         const string testMessage = "Test message";
 
         // Act
-        var result = Adapter.TrySendAsBinary(testMessage);
+        var result = Adapter.TrySend(testMessage.AsMemory(), WebSocketMessageType.Binary);
 
         // Assert
         Assert.True(result);
@@ -45,7 +45,7 @@ public class ServerWebSocketAdapterMessageTests(ITestOutputHelper output) : Serv
             new Metadata(Guid.Empty, IPAddress.Any, 0));
 
         // Act
-        var result = Adapter.TrySendAsBinary([]);
+        var result = Adapter.TrySend(new ReadOnlyMemory<char>([]), WebSocketMessageType.Binary);
 
         // Assert
         Assert.False(result);
@@ -60,7 +60,7 @@ public class ServerWebSocketAdapterMessageTests(ITestOutputHelper output) : Serv
         const string testMessage = "Text message";
 
         // Act
-        var result = Adapter.TrySendAsText(testMessage);
+        var result = Adapter.TrySend(testMessage.AsMemory(), WebSocketMessageType.Text);
 
         // Assert
         Assert.True(result);
@@ -71,22 +71,23 @@ public class ServerWebSocketAdapterMessageTests(ITestOutputHelper output) : Serv
     {
         // Arrange
         MockWebSocket.SendAsync(
-                Arg.Any<ArraySegment<byte>>(),
+                Arg.Any<ReadOnlyMemory<byte>>(),
                 Arg.Any<WebSocketMessageType>(),
                 Arg.Any<bool>(),
                 Arg.Any<CancellationToken>())
-            .Returns(Task.CompletedTask);
+            .Returns(ValueTask.CompletedTask);
 
         Adapter = new ReactiveWebSocketServer.ServerWebSocketAdapter(MockWebSocket,
             new Metadata(Guid.Empty, IPAddress.Any, 0));
         var testData = new byte[] { 1, 2, 3 };
 
         // Act
-        await Adapter.SendInstantAsync(testData, TestContext.Current.CancellationToken);
+        await Adapter.SendInstantAsync(testData.AsMemory(), WebSocketMessageType.Binary,
+            TestContext.Current.CancellationToken);
 
         // Assert
         await MockWebSocket.Received(1).SendAsync(
-            Arg.Any<ArraySegment<byte>>(),
+            Arg.Any<ReadOnlyMemory<byte>>(),
             WebSocketMessageType.Binary,
             true,
             Arg.Any<CancellationToken>());
@@ -97,22 +98,23 @@ public class ServerWebSocketAdapterMessageTests(ITestOutputHelper output) : Serv
     {
         // Arrange
         MockWebSocket.SendAsync(
-                Arg.Any<ArraySegment<byte>>(),
+                Arg.Any<ReadOnlyMemory<byte>>(),
                 Arg.Any<WebSocketMessageType>(),
                 Arg.Any<bool>(),
                 Arg.Any<CancellationToken>())
-            .Returns(Task.CompletedTask);
+            .Returns(ValueTask.CompletedTask);
 
         Adapter = new ReactiveWebSocketServer.ServerWebSocketAdapter(MockWebSocket,
             new Metadata(Guid.Empty, IPAddress.Any, 0));
         const string testMessage = "Instant message";
 
         // Act
-        await Adapter.SendInstantAsync(testMessage, TestContext.Current.CancellationToken);
+        await Adapter.SendInstantAsync(testMessage.AsMemory(), WebSocketMessageType.Binary,
+            TestContext.Current.CancellationToken);
 
         // Assert
         await MockWebSocket.Received(1).SendAsync(
-            Arg.Any<ArraySegment<byte>>(),
+            Arg.Any<ReadOnlyMemory<byte>>(),
             WebSocketMessageType.Binary,
             true,
             Arg.Any<CancellationToken>());
@@ -128,11 +130,11 @@ public class ServerWebSocketAdapterMessageTests(ITestOutputHelper output) : Serv
         var testData = new byte[] { 1, 2, 3 };
 
         // Act
-        await Adapter.SendInstantAsync(testData, TestContext.Current.CancellationToken);
+        await Adapter.SendInstantAsync(testData, WebSocketMessageType.Binary, TestContext.Current.CancellationToken);
 
         // Assert
         await MockWebSocket.DidNotReceive().SendAsync(
-            Arg.Any<ArraySegment<byte>>(),
+            Arg.Any<ReadOnlyMemory<byte>>(),
             Arg.Any<WebSocketMessageType>(),
             Arg.Any<bool>(),
             Arg.Any<CancellationToken>());

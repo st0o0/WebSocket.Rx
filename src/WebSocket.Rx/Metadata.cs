@@ -2,4 +2,4 @@
 
 namespace WebSocket.Rx;
 
-public record Metadata(Guid Id, IPAddress Address, int Port);
+public record Metadata(Guid Id, IPAddress? Address = null, int? Port = null);

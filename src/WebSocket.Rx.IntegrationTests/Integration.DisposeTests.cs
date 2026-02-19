@@ -1,4 +1,5 @@
-﻿using WebSocket.Rx.IntegrationTests.Internal;
+﻿using System.Net.WebSockets;
+using WebSocket.Rx.IntegrationTests.Internal;
 
 namespace WebSocket.Rx.IntegrationTests;
 
@@ -71,7 +72,7 @@ public class IntegrationDisposeTests(ITestOutputHelper output) : ReactiveWebSock
             {
                 try
                 {
-                    await client.SendAsTextAsync($"Message {i}");
+                    await client.SendAsync($"Message {i}".AsMemory(), WebSocketMessageType.Text);
                     await Task.Delay(10, TestContext.Current.CancellationToken);
                 }
                 catch (ObjectDisposedException)

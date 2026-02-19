@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Net.WebSockets;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 
@@ -68,8 +69,9 @@ public class SendChannelBenchmarks
         var result = false;
         for (var i = 0; i < MessageCount; i++)
         {
-            result = _client.TrySendAsBinary(_textPayload);
+            result = _client.TrySend(_textPayload.AsMemory(), WebSocketMessageType.Binary);
         }
+
         return result;
     }
 
@@ -82,8 +84,9 @@ public class SendChannelBenchmarks
         var result = false;
         for (var i = 0; i < MessageCount; i++)
         {
-            result = _client.TrySendAsBinary(_binaryPayload);
+            result = _client.TrySend(_binaryPayload, WebSocketMessageType.Binary);
         }
+
         return result;
     }
 
@@ -96,8 +99,9 @@ public class SendChannelBenchmarks
         var result = false;
         for (var i = 0; i < MessageCount; i++)
         {
-            result = _client.TrySendAsText(_textPayload);
+            result = _client.TrySend(_textPayload.AsMemory(), WebSocketMessageType.Text);
         }
+
         return result;
     }
 
@@ -110,8 +114,9 @@ public class SendChannelBenchmarks
         var result = false;
         for (var i = 0; i < MessageCount; i++)
         {
-            result = _client.TrySendAsText(_binaryPayload);
+            result = _client.TrySend(_binaryPayload, WebSocketMessageType.Text);
         }
+
         return result;
     }
 
@@ -124,8 +129,9 @@ public class SendChannelBenchmarks
         var result = false;
         for (var i = 0; i < MessageCount; i++)
         {
-            result = await _client.SendAsBinaryAsync(_textPayload);
+            result = await _client.SendAsync(_textPayload.AsMemory(), WebSocketMessageType.Binary);
         }
+
         return result;
     }
 
@@ -138,8 +144,9 @@ public class SendChannelBenchmarks
         var result = false;
         for (var i = 0; i < MessageCount; i++)
         {
-            result = await _client.SendAsTextAsync(_textPayload);
+            result = await _client.SendAsync(_textPayload.AsMemory(), WebSocketMessageType.Text);
         }
+
         return result;
     }
 
@@ -155,6 +162,7 @@ public class SendChannelBenchmarks
         {
             result = System.Text.Encoding.UTF8.GetBytes(_textPayload);
         }
+
         return result;
     }
 }

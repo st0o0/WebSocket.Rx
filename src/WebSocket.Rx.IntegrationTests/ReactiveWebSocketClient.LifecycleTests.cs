@@ -220,7 +220,7 @@ public class ReactiveWebSocketClientLifecycleTests(ITestOutputHelper output) : R
             await exceptionSource.Task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
         Assert.IsType<ObjectDisposedException>(taskResult.Exception);
 
-        var result = Client.TrySendAsText("test");
+        var result = Client.TrySend("test".AsMemory(), WebSocketMessageType.Text);
         Assert.False(result);
     }
 

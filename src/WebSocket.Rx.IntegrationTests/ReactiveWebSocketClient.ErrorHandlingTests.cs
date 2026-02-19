@@ -1,4 +1,5 @@
-﻿using R3;
+﻿using System.Net.WebSockets;
+using R3;
 using WebSocket.Rx.IntegrationTests.Internal;
 
 namespace WebSocket.Rx.IntegrationTests;
@@ -16,7 +17,7 @@ public class ReactiveWebSocketClientErrorHandlingTests(ITestOutputHelper output)
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = Client.TrySendAsBinary([]);
+        var result = Client.TrySend(new ReadOnlyMemory<byte>([]), WebSocketMessageType.Binary);
 
         // Assert
         Assert.False(result);
@@ -30,7 +31,7 @@ public class ReactiveWebSocketClientErrorHandlingTests(ITestOutputHelper output)
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = Client.TrySendAsText([]);
+        var result = Client.TrySend(new ReadOnlyMemory<char>([]), WebSocketMessageType.Text);
 
         // Assert
         Assert.False(result);
@@ -43,8 +44,11 @@ public class ReactiveWebSocketClientErrorHandlingTests(ITestOutputHelper output)
         Client = new ReactiveWebSocketClient(new Uri(InvalidUrl));
 
         // Act & Assert
-        await Client.SendInstantAsync("test", TestContext.Current.CancellationToken);
-        await Client.SendInstantAsync([1, 2, 3], TestContext.Current.CancellationToken);
+        await Client.SendInstantAsync("test".AsMemory(), WebSocketMessageType.Binary,
+            TestContext.Current.CancellationToken);
+        await Client.SendInstantAsync(new byte[] { 1, 2, 3 }, WebSocketMessageType.Binary,
+            TestContext.Current.CancellationToken);
+
         Assert.True(true);
     }
 
@@ -97,7 +101,7 @@ public class ReactiveWebSocketClientErrorHandlingTests(ITestOutputHelper output)
         Client = new ReactiveWebSocketClient(new Uri(InvalidUrl));
 
         // Act
-        var result = Client.TrySendAsText((string)null!);
+        var result = Client.TrySend((ReadOnlyMemory<char>)null!, WebSocketMessageType.Text);
 
         // Assert
         Assert.False(result);
@@ -111,7 +115,8 @@ public class ReactiveWebSocketClientErrorHandlingTests(ITestOutputHelper output)
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
 
         // Act & Assert
-        await Client.SendInstantAsync((string)null!, TestContext.Current.CancellationToken);
+        await Client.SendInstantAsync((ReadOnlyMemory<char>)null!, WebSocketMessageType.Binary,
+            TestContext.Current.CancellationToken);
         Assert.True(true);
     }
 }

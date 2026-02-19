@@ -19,7 +19,7 @@ public class ReactiveWebSocketServerReceivingTests(ITestOutputHelper output) : R
         // Assert
         var receivedMessage = await messageTask;
         Assert.NotNull(receivedMessage);
-        Assert.Equal("Hello Server", receivedMessage.Message.Text);
+        Assert.Equal("Hello Server", receivedMessage.Message.Text.ToString());
         Assert.NotNull(receivedMessage.Metadata);
     }
 
@@ -41,7 +41,6 @@ public class ReactiveWebSocketServerReceivingTests(ITestOutputHelper output) : R
         // Assert
         var receivedMessage = await messageTask;
         Assert.NotNull(receivedMessage);
-        Assert.NotNull(receivedMessage.Message.Binary);
         Assert.Equal(binaryData, receivedMessage.Message.Binary);
     }
 
@@ -49,7 +48,7 @@ public class ReactiveWebSocketServerReceivingTests(ITestOutputHelper output) : R
     public async Task Should_Receive_Multiple_Messages_From_Same_Client()
     {
         // Arrange
-        var messages = new List<ServerReceivedMessage>();
+        var messages = new List<ServerMessage>();
         using var subscription = Server.Messages.Subscribe(messages.Add);
         using var client = await ConnectClientAsync(TestContext.Current.CancellationToken);
 
@@ -62,8 +61,8 @@ public class ReactiveWebSocketServerReceivingTests(ITestOutputHelper output) : R
 
         // Assert
         Assert.Equal(2, messages.Count);
-        Assert.Equal("Message 1", messages[0].Message.Text);
-        Assert.Equal("Message 2", messages[1].Message.Text);
+        Assert.Equal("Message 1", messages[0].Message.Text.ToString());
+        Assert.Equal("Message 2", messages[1].Message.Text.ToString());
     }
 
     [Fact(Timeout = DefaultTimeoutMs)]
@@ -103,7 +102,7 @@ public class ReactiveWebSocketServerReceivingTests(ITestOutputHelper output) : R
 
         // Assert
         var receivedMessage = await messageTask;
-        Assert.Empty(receivedMessage.Message.Binary!);
+        Assert.Empty(receivedMessage.Message.Binary.ToArray());
     }
 
     [Fact(Timeout = DefaultTimeoutMs)]
@@ -114,7 +113,10 @@ public class ReactiveWebSocketServerReceivingTests(ITestOutputHelper output) : R
         var receivedTexts = new List<string>();
         using var subscription = Server.Messages.Subscribe(msg =>
         {
-            if (msg.Message.Text != null) receivedTexts.Add(msg.Message.Text);
+            if (!msg.Message.Text.IsEmpty)
+            {
+                receivedTexts.Add(msg.Message.Text.ToString());
+            }
         });
 
         // Act

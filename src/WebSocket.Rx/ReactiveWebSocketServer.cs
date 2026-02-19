@@ -31,7 +31,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
     private readonly Subject<ClientConnected> _clientConnectedSource = new();
     private readonly Subject<ClientDisconnected> _clientDisconnectedSource = new();
-    private readonly Subject<ServerReceivedMessage> _messageReceivedSource = new();
+    private readonly Subject<ServerMessage> _messageReceivedSource = new();
     private readonly Subject<ServerErrorOccurred> _errorOccurredSource = new();
 
     private CancellationTokenSource? _mainCts;
@@ -58,7 +58,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
     public Observable<ClientConnected> ClientConnected => _clientConnectedSource.AsObservable();
     public Observable<ClientDisconnected> ClientDisconnected => _clientDisconnectedSource.AsObservable();
-    public Observable<ServerReceivedMessage> Messages => _messageReceivedSource.AsObservable();
+    public Observable<ServerMessage> Messages => _messageReceivedSource.AsObservable();
     public Observable<ServerErrorOccurred> ErrorOccurred => _errorOccurredSource.AsObservable();
 
     #endregion
@@ -203,7 +203,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
             var disposables = new CompositeDisposable
             {
                 socket.MessageReceived
-                    .Select(x => new ServerReceivedMessage(metadata, x))
+                    .Select(x => new ServerMessage(metadata, x))
                     .Subscribe(msg =>
                     {
                         lock (_messageReceivedSource)
@@ -254,214 +254,96 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
     #region Send Client Methods
 
-    public async Task<bool> SendInstantAsync(Guid clientId, string message,
+    public async Task<bool> SendInstantAsync(Guid clientId, ReadOnlyMemory<char> message, WebSocketMessageType type,
         CancellationToken cancellationToken = default)
     {
         if (!_clients.TryGetValue(clientId, out var client)) return false;
-        await client.Socket.SendInstantAsync(message, cancellationToken);
+        await client.Socket.SendInstantAsync(message, type, cancellationToken);
         return true;
     }
 
-    public async Task<bool> SendInstantAsync(Guid clientId, byte[] message,
+    public async Task<bool> SendInstantAsync(Guid clientId, ReadOnlyMemory<byte> message, WebSocketMessageType type,
         CancellationToken cancellationToken = default)
     {
         if (!_clients.TryGetValue(clientId, out var client)) return false;
-        await client.Socket.SendInstantAsync(message, cancellationToken);
+        await client.Socket.SendInstantAsync(message, type, cancellationToken);
         return true;
     }
 
-    public async Task<bool> SendAsBinaryAsync(Guid clientId, byte[] message,
+    public async Task<bool> SendAsync(Guid clientId, ReadOnlyMemory<char> message, WebSocketMessageType type,
         CancellationToken cancellationToken = default)
     {
         if (!_clients.TryGetValue(clientId, out var client)) return false;
-        await client.Socket.SendAsBinaryAsync(message, cancellationToken);
+        await client.Socket.SendAsync(message, type, cancellationToken);
         return true;
     }
 
-    public async Task<bool> SendAsBinaryAsync(Guid clientId, string message,
+    public async Task<bool> SendAsync(Guid clientId, ReadOnlyMemory<byte> message, WebSocketMessageType type,
         CancellationToken cancellationToken = default)
     {
         if (!_clients.TryGetValue(clientId, out var client)) return false;
-        await client.Socket.SendAsBinaryAsync(message, cancellationToken);
+        await client.Socket.SendAsync(message, type, cancellationToken);
         return true;
     }
 
-    public async Task<bool> SendAsTextAsync(Guid clientId, byte[] message,
-        CancellationToken cancellationToken = default)
+    public bool TrySend(Guid clientId, ReadOnlyMemory<char> message, WebSocketMessageType type)
     {
         if (!_clients.TryGetValue(clientId, out var client)) return false;
-        await client.Socket.SendAsTextAsync(message, cancellationToken);
+        client.Socket.TrySend(message, type);
         return true;
     }
 
-    public async Task<bool> SendAsTextAsync(Guid clientId, string message,
-        CancellationToken cancellationToken = default)
+    public bool TrySend(Guid clientId, ReadOnlyMemory<byte> data, WebSocketMessageType type)
     {
         if (!_clients.TryGetValue(clientId, out var client)) return false;
-        await client.Socket.SendAsTextAsync(message, cancellationToken);
+        client.Socket.TrySend(data, type);
         return true;
-    }
-
-    public bool TrySendAsBinary(Guid clientId, string message)
-    {
-        if (!_clients.TryGetValue(clientId, out var client)) return false;
-        client.Socket.TrySendAsBinary(message);
-        return true;
-    }
-
-    public bool TrySendAsBinary(Guid clientId, byte[] data)
-    {
-        if (!_clients.TryGetValue(clientId, out var client)) return false;
-        client.Socket.TrySendAsBinary(data);
-        return true;
-    }
-
-    public bool TrySendAsText(Guid clientId, string message)
-    {
-        if (!_clients.TryGetValue(clientId, out var client)) return false;
-        client.Socket.TrySendAsText(message);
-        return true;
-    }
-
-    public bool TrySendAsText(Guid clientId, byte[] data)
-    {
-        if (!_clients.TryGetValue(clientId, out var client)) return false;
-        client.Socket.TrySendAsText(data);
-        return true;
-    }
-
-    public Observable<bool> SendInstant(Guid clientId, Observable<byte[]> messages)
-    {
-        return !_clients.TryGetValue(clientId, out var client)
-            ? Observable.Empty<bool>()
-            : client.Socket.SendInstant(messages);
-    }
-
-    public Observable<bool> SendInstant(Guid clientId, Observable<string> messages)
-    {
-        return !_clients.TryGetValue(clientId, out var client)
-            ? Observable.Empty<bool>()
-            : client.Socket.SendInstant(messages);
-    }
-
-    public Observable<bool> SendAsBinary(Guid clientId, Observable<byte[]> messages)
-    {
-        return !_clients.TryGetValue(clientId, out var client)
-            ? Observable.Empty<bool>()
-            : client.Socket.SendAsBinary(messages);
-    }
-
-    public Observable<bool> SendAsBinary(Guid clientId, Observable<string> messages)
-    {
-        return !_clients.TryGetValue(clientId, out var client)
-            ? Observable.Empty<bool>()
-            : client.Socket.SendAsBinary(messages);
-    }
-
-    public Observable<bool> SendAsText(Guid clientId, Observable<byte[]> messages)
-    {
-        return !_clients.TryGetValue(clientId, out var client)
-            ? Observable.Empty<bool>()
-            : client.Socket.SendAsText(messages);
-    }
-
-    public Observable<bool> SendAsText(Guid clientId, Observable<string> messages)
-    {
-        return !_clients.TryGetValue(clientId, out var client)
-            ? Observable.Empty<bool>()
-            : client.Socket.SendAsText(messages);
-    }
-
-    public Observable<bool> TrySendAsBinary(Guid clientId, Observable<byte[]> messages)
-    {
-        return !_clients.TryGetValue(clientId, out var client)
-            ? Observable.Empty<bool>()
-            : client.Socket.TrySendAsBinary(messages);
-    }
-
-    public Observable<bool> TrySendAsBinary(Guid clientId, Observable<string> messages)
-    {
-        return !_clients.TryGetValue(clientId, out var client)
-            ? Observable.Empty<bool>()
-            : client.Socket.TrySendAsBinary(messages);
-    }
-
-    public Observable<bool> TrySendAsText(Guid clientId, Observable<byte[]> messages)
-    {
-        return !_clients.TryGetValue(clientId, out var client)
-            ? Observable.Empty<bool>()
-            : client.Socket.TrySendAsText(messages);
-    }
-
-    public Observable<bool> TrySendAsText(Guid clientId, Observable<string> messages)
-    {
-        return !_clients.TryGetValue(clientId, out var client)
-            ? Observable.Empty<bool>()
-            : client.Socket.TrySendAsText(messages);
     }
 
     #endregion
 
     #region Broadcast Methods
 
-    public async Task<bool> BroadcastInstantAsync(byte[] message, CancellationToken cancellationToken = default)
+    public async Task<bool> BroadcastInstantAsync(ReadOnlyMemory<char> message, WebSocketMessageType type,
+        CancellationToken cancellationToken = default)
     {
         var sockets = _clients.Values.Select(x => x.Socket).ToArray();
-        return await sockets.Async((client, ct) => client.SendInstantAsync(message, ct), x => x, cancellationToken);
+        return await sockets.Async((client, ct) => client.SendInstantAsync(message, type, ct), x => x,
+            cancellationToken);
     }
 
-    public async Task<bool> BroadcastInstantAsync(string message, CancellationToken cancellationToken = default)
+    public async Task<bool> BroadcastInstantAsync(ReadOnlyMemory<byte> message, WebSocketMessageType type,
+        CancellationToken cancellationToken = default)
     {
         var sockets = _clients.Values.Select(x => x.Socket).ToArray();
-        return await sockets.Async((client, ct) => client.SendInstantAsync(message, ct), x => x, cancellationToken);
+        return await sockets.Async((client, ct) => client.SendInstantAsync(message, type, ct), x => x,
+            cancellationToken);
     }
 
-    public async Task<bool> BroadcastAsBinaryAsync(byte[] message, CancellationToken cancellationToken = default)
+    public async Task<bool> BroadcastAsync(ReadOnlyMemory<char> message, WebSocketMessageType type,
+        CancellationToken cancellationToken = default)
     {
         var sockets = _clients.Values.Select(x => x.Socket).ToArray();
-        return await sockets.Async((client, ct) => client.SendAsBinaryAsync(message, ct), x => x, cancellationToken);
+        return await sockets.Async((client, ct) => client.SendAsync(message, type, ct), x => x, cancellationToken);
     }
 
-    public async Task<bool> BroadcastAsBinaryAsync(string message, CancellationToken cancellationToken = default)
+    public async Task<bool> BroadcastAsync(ReadOnlyMemory<byte> message, WebSocketMessageType type,
+        CancellationToken cancellationToken = default)
     {
         var sockets = _clients.Values.Select(x => x.Socket).ToArray();
-        return await sockets.Async((client, ct) => client.SendAsBinaryAsync(message, ct), x => x, cancellationToken);
+        return await sockets.Async((client, ct) => client.SendAsync(message, type, ct), x => x, cancellationToken);
     }
 
-    public async Task<bool> BroadcastAsTextAsync(byte[] message, CancellationToken cancellationToken = default)
+    public bool TryBroadcast(ReadOnlyMemory<char> message, WebSocketMessageType type)
     {
         var sockets = _clients.Values.Select(x => x.Socket).ToArray();
-        return await sockets.Async((client, ct) => client.SendAsTextAsync(message, ct), x => x, cancellationToken);
+        return sockets.Select(x => x.TrySend(message, type)).All(x => x);
     }
 
-    public async Task<bool> BroadcastAsTextAsync(string message, CancellationToken cancellationToken = default)
+    public bool TryBroadcast(ReadOnlyMemory<byte> message, WebSocketMessageType type)
     {
         var sockets = _clients.Values.Select(x => x.Socket).ToArray();
-        return await sockets.Async((client, ct) => client.SendAsTextAsync(message, ct), x => x, cancellationToken);
-    }
-
-    public bool TryBroadcastAsBinary(string message)
-    {
-        var sockets = _clients.Values.Select(x => x.Socket).ToArray();
-        return sockets.Select(x => x.TrySendAsBinary(message)).All(x => x);
-    }
-
-    public bool TryBroadcastAsBinary(byte[] message)
-    {
-        var sockets = _clients.Values.Select(x => x.Socket).ToArray();
-        return sockets.Select(x => x.TrySendAsBinary(message)).All(x => x);
-    }
-
-    public bool TryBroadcastAsText(byte[] message)
-    {
-        var sockets = _clients.Values.Select(x => x.Socket).ToArray();
-        return sockets.Select(x => x.TrySendAsText(message)).All(x => x);
-    }
-
-    public bool TryBroadcastAsText(string message)
-    {
-        var sockets = _clients.Values.Select(x => x.Socket).ToArray();
-        return sockets.Select(x => x.TrySendAsText(message)).All(x => x);
+        return sockets.Select(x => x.TrySend(message, type)).All(x => x);
     }
 
     #endregion
@@ -616,7 +498,8 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
             ReceiveLoopTask = Task.Run(() => ReceiveLoopAdapterAsync(_adapterCts.Token), CancellationToken.None);
         }
 
-        protected override async Task<bool> SendAsync(ReadOnlyMemory<byte> data, WebSocketMessageType type, bool endOfMessage,
+        protected override async Task<bool> SendAsync(ReadOnlyMemory<byte> data, WebSocketMessageType type,
+            bool endOfMessage,
             CancellationToken cancellationToken = default)
         {
             if (NativeServerSocket.State is not WebSocketState.Open) return false;
@@ -661,8 +544,8 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
                     var messageBytes = ms.GetBuffer().AsMemory(0, (int)ms.Length);
                     var message = IsTextMessageConversionEnabled && result.MessageType == WebSocketMessageType.Text
-                        ? ReceivedMessage.TextMessage(MessageEncoding.GetString(messageBytes.Span))
-                        : ReceivedMessage.BinaryMessage(messageBytes.ToArray());
+                        ? Message.Create(MessageEncoding.GetString(messageBytes.Span).AsMemory())
+                        : Message.Create(messageBytes);
 
                     MessageReceivedSource.OnNext(message);
                 }

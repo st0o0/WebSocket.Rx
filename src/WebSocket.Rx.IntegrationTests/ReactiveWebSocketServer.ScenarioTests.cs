@@ -12,7 +12,7 @@ public class ReactiveWebSocketServerScenarioTests(ITestOutputHelper output) : Re
         // Arrange
         using var subscription = Server.Messages.SubscribeAwait(async (msg, ct) =>
         {
-            await Server.SendInstantAsync(msg.Metadata.Id, msg.Message.Text!, ct);
+            await Server.SendInstantAsync(msg.Metadata.Id, msg.Message.Text, msg.Message.Type, ct);
         });
 
         using var client = await ConnectClientAsync(TestContext.Current.CancellationToken);
@@ -34,7 +34,8 @@ public class ReactiveWebSocketServerScenarioTests(ITestOutputHelper output) : Re
             var otherClients = Server.ConnectedClients.Keys.Where(id => id != msg.Metadata.Id);
             foreach (var clientId in otherClients)
             {
-                await Server.SendInstantAsync(clientId, $"{msg.Metadata.Id}: {msg.Message.Text}",
+                await Server.SendInstantAsync(clientId, $"{msg.Metadata.Id}: {msg.Message.Text}".AsMemory(),
+                    WebSocketMessageType.Binary,
                     ct);
             }
         });
@@ -42,7 +43,7 @@ public class ReactiveWebSocketServerScenarioTests(ITestOutputHelper output) : Re
         var connectionTask1 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount >= 1);
         using var client1 = await ConnectClientAsync(TestContext.Current.CancellationToken);
         await connectionTask1;
-        
+
         var connectionTask2 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount >= 2);
         using var client2 = await ConnectClientAsync(TestContext.Current.CancellationToken);
         await connectionTask2;
