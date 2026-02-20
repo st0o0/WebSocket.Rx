@@ -10,7 +10,7 @@ internal static class Extensions
         {
             try
             {
-                await func.Invoke(value);
+                await func.Invoke(value).ConfigureAwait(false);
             }
             catch (Exception)
             {

@@ -10,8 +10,9 @@ namespace WebSocket.Rx;
 
 public class ReactiveWebSocketClient : IReactiveWebSocketClient
 {
-    protected int DisposedValue;
+    private readonly SemaphoreSlim _sendLock = new(1, 1);
     private readonly SemaphoreSlim _disposeLock = new(1, 1);
+    protected int DisposedValue;
 
     protected readonly RecyclableMemoryStreamManager MemoryStreamManager;
     protected CancellationTokenSource? MainCts;
@@ -64,7 +65,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
     {
         try
         {
-            await StartOrFailAsync(cancellationToken);
+            await StartOrFailAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -76,14 +77,14 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
     {
         ThrowIfDisposed();
 
-        using (await ConnectionLock.LockAsync(cancellationToken))
+        using (await ConnectionLock.LockAsync(cancellationToken).ConfigureAwait(false))
         {
             if (IsStarted)
             {
                 return;
             }
 
-            await ConnectInternalAsync(ConnectReason.Initialized, true, cancellationToken);
+            await ConnectInternalAsync(ConnectReason.Initialized, true, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -92,7 +93,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
     {
         try
         {
-            return await StopOrFailAsync(status, statusDescription, cancellationToken);
+            return await StopOrFailAsync(status, statusDescription, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -121,7 +122,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
             {
                 try
                 {
-                    await NativeClient.CloseAsync(status, statusDescription, cancellationToken);
+                    await NativeClient.CloseAsync(status, statusDescription, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -132,7 +133,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
             DisconnectionHappenedSource.OnNext(new Disconnected(DisconnectReason.ClientInitiated));
 
-            await CleanupAsync();
+            await CleanupAsync().ConfigureAwait(false);
 
             return true;
         }
@@ -152,7 +153,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
         };
 
 
-        await Task.WhenAll(tasks).Try(async x => await x.WaitAsync(TimeSpan.FromSeconds(10)));
+        await Task.WhenAll(tasks).Try(async x => await x.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false)).ConfigureAwait(false);
 
         if (!IsDisposed)
         {
@@ -173,9 +174,9 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
         try
         {
-            using (await ConnectionLock.LockAsync(cancellationToken))
+            using (await ConnectionLock.LockAsync(cancellationToken).ConfigureAwait(false))
             {
-                await ReconnectInternalAsync(false, cancellationToken);
+                await ReconnectInternalAsync(false, cancellationToken).ConfigureAwait(false);
             }
         }
         catch (Exception ex)
@@ -191,9 +192,9 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
             throw new InvalidOperationException("Client not started");
         }
 
-        using (await ConnectionLock.LockAsync())
+        using (await ConnectionLock.LockAsync().ConfigureAwait(false))
         {
-            await ReconnectInternalAsync(true, cancellationToken);
+            await ReconnectInternalAsync(true, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -222,9 +223,9 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
             await Task.WhenAll(
                 SendLoopTask ?? Task.CompletedTask,
                 ReceiveLoopTask ?? Task.CompletedTask
-            );
+            ).ConfigureAwait(false);
 
-            await ConnectInternalAsync(ConnectReason.Reconnected, throwOnError, cancellationToken);
+            await ConnectInternalAsync(ConnectReason.Reconnected, throwOnError, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -257,7 +258,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
             using var linkedCts = CancellationTokenSource
                 .CreateLinkedTokenSource(MainCts.Token, timeoutCts.Token, cancellationToken);
 
-            await NativeClient.ConnectAsync(Url, linkedCts.Token);
+            await NativeClient.ConnectAsync(Url, linkedCts.Token).ConfigureAwait(false);
 
             IsStarted = true;
             IsRunning = true;
@@ -297,9 +298,9 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
         try
         {
-            using (await ConnectionLock.LockAsync())
+            using (await ConnectionLock.LockAsync().ConfigureAwait(false))
             {
-                await ReconnectInternalAsync(throwOnError: false);
+                await ReconnectInternalAsync(throwOnError: false).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)
@@ -320,7 +321,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
     {
         try
         {
-            await foreach (var payload in SendChannel.Reader.ReadAllAsync(ct))
+            await foreach (var payload in SendChannel.Reader.ReadAllAsync(ct).ConfigureAwait(false))
             {
                 if (IsDisposed)
                 {
@@ -329,7 +330,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
                 using (payload)
                 {
-                    await SendAsync(payload.Data, payload.Type, true, ct);
+                    await SendAsync(payload.Data, payload.Type, true, ct).ConfigureAwait(false);
                 }
             }
         }
@@ -356,15 +357,23 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
         bool endOfMessage,
         CancellationToken cancellationToken = default)
     {
-        if (NativeClient.State is not WebSocketState.Open) return false;
+        await _sendLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (NativeClient.State is not WebSocketState.Open)
+            {
+                return false;
+            }
 
-        await NativeClient.SendAsync(
-            data,
-            type,
-            endOfMessage,
-            cancellationToken
-        ).ConfigureAwait(false);
-        return true;
+            await NativeClient
+                .SendAsync(data, type, endOfMessage, cancellationToken)
+                .ConfigureAwait(false);
+            return true;
+        }
+        finally
+        {
+            _sendLock.Release();
+        }
     }
 
     private async Task ReceiveLoopAsync(CancellationToken cancellationToken)
@@ -391,8 +400,10 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
                     await NativeClient
-                        .CloseAsync(result.CloseStatus ?? WebSocketCloseStatus.NormalClosure,
-                            result.CloseStatusDescription ?? "", CancellationToken.None);
+                        .CloseAsync(
+                            result.CloseStatus ?? WebSocketCloseStatus.NormalClosure,
+                            result.CloseStatusDescription ?? "", CancellationToken.None)
+                        .ConfigureAwait(false);
 
                     var @event = new Disconnected(DisconnectReason.ServerInitiated, NativeClient.CloseStatus,
                         NativeClient.CloseStatusDescription, NativeClient.SubProtocol);
@@ -514,11 +525,12 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
     public async Task<bool> SendAsync(ReadOnlyMemory<char> message, WebSocketMessageType type,
         CancellationToken cancellationToken = default)
-        => !message.IsEmpty && await WriteAsync(message.ToPayload(MessageEncoding, type), cancellationToken);
+        => !message.IsEmpty && await WriteAsync(message.ToPayload(MessageEncoding, type), cancellationToken)
+            .ConfigureAwait(false);
 
     public async Task<bool> SendAsync(ReadOnlyMemory<byte> message, WebSocketMessageType type,
         CancellationToken cancellationToken = default)
-        => !message.IsEmpty && await WriteAsync(new Payload(message, type), cancellationToken);
+        => !message.IsEmpty && await WriteAsync(new Payload(message, type), cancellationToken).ConfigureAwait(false);
 
     public bool TrySend(ReadOnlyMemory<char> message, WebSocketMessageType type)
         => !message.IsEmpty && TryWrite(message.ToPayload(MessageEncoding, type));
@@ -529,7 +541,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
     private async Task<bool> WriteAsync(Payload payload, CancellationToken cancellationToken = default)
     {
         if (!IsRunning) return false;
-        await SendWriter.WriteAsync(payload, cancellationToken);
+        await SendWriter.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
         return true;
     }
 

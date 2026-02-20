@@ -156,7 +156,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
         {
             try
             {
-                var ctx = await _listener.GetContextAsync();
+                var ctx = await _listener.GetContextAsync().ConfigureAwait(false);
                 if (ctx.Request.IsWebSocketRequest)
                 {
                     var metadata = ctx.GetMetadata();
@@ -258,7 +258,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
         CancellationToken cancellationToken = default)
     {
         if (!_clients.TryGetValue(clientId, out var client)) return false;
-        await client.Socket.SendInstantAsync(message, type, cancellationToken);
+        await client.Socket.SendInstantAsync(message, type, cancellationToken).ConfigureAwait(false);
         return true;
     }
 
@@ -266,7 +266,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
         CancellationToken cancellationToken = default)
     {
         if (!_clients.TryGetValue(clientId, out var client)) return false;
-        await client.Socket.SendInstantAsync(message, type, cancellationToken);
+        await client.Socket.SendInstantAsync(message, type, cancellationToken).ConfigureAwait(false);
         return true;
     }
 
@@ -274,7 +274,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
         CancellationToken cancellationToken = default)
     {
         if (!_clients.TryGetValue(clientId, out var client)) return false;
-        await client.Socket.SendAsync(message, type, cancellationToken);
+        await client.Socket.SendAsync(message, type, cancellationToken).ConfigureAwait(false);
         return true;
     }
 
@@ -282,7 +282,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
         CancellationToken cancellationToken = default)
     {
         if (!_clients.TryGetValue(clientId, out var client)) return false;
-        await client.Socket.SendAsync(message, type, cancellationToken);
+        await client.Socket.SendAsync(message, type, cancellationToken).ConfigureAwait(false);
         return true;
     }
 
@@ -309,7 +309,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
     {
         var sockets = _clients.Values.Select(x => x.Socket).ToArray();
         return await sockets.Async((client, ct) => client.SendInstantAsync(message, type, ct), x => x,
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<bool> BroadcastInstantAsync(ReadOnlyMemory<byte> message, WebSocketMessageType type,
@@ -317,21 +317,21 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
     {
         var sockets = _clients.Values.Select(x => x.Socket).ToArray();
         return await sockets.Async((client, ct) => client.SendInstantAsync(message, type, ct), x => x,
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<bool> BroadcastAsync(ReadOnlyMemory<char> message, WebSocketMessageType type,
         CancellationToken cancellationToken = default)
     {
         var sockets = _clients.Values.Select(x => x.Socket).ToArray();
-        return await sockets.Async((client, ct) => client.SendAsync(message, type, ct), x => x, cancellationToken);
+        return await sockets.Async((client, ct) => client.SendAsync(message, type, ct), x => x, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<bool> BroadcastAsync(ReadOnlyMemory<byte> message, WebSocketMessageType type,
         CancellationToken cancellationToken = default)
     {
         var sockets = _clients.Values.Select(x => x.Socket).ToArray();
-        return await sockets.Async((client, ct) => client.SendAsync(message, type, ct), x => x, cancellationToken);
+        return await sockets.Async((client, ct) => client.SendAsync(message, type, ct), x => x, cancellationToken).ConfigureAwait(false);
     }
 
     public bool TryBroadcast(ReadOnlyMemory<char> message, WebSocketMessageType type)
@@ -599,7 +599,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
             {
                 try
                 {
-                    await NativeServerSocket.CloseAsync(status, statusDescription, cancellationToken);
+                    await NativeServerSocket.CloseAsync(status, statusDescription, cancellationToken).ConfigureAwait(false);
                 }
                 catch
                 {

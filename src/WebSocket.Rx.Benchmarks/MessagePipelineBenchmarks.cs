@@ -15,7 +15,6 @@ namespace WebSocket.Rx.Benchmarks;
 ///   - ReceivedMessage allocation (Text vs. Binary)
 ///   - Rx operator overhead per subscriber (Where, Select, …)
 /// </summary>
-[ShortRunJob]
 [MemoryDiagnoser]
 [HideColumns("Job", "RatioSD", "Error")]
 public class MessagePipelineBenchmarks

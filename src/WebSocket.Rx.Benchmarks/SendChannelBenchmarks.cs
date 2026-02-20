@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net.WebSockets;
+using System.Text;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 
@@ -20,7 +21,6 @@ namespace WebSocket.Rx.Benchmarks;
 /// NOTE: The Channel is <c>UnboundedChannel</c> (SingleReader) –
 ///       without a consumer it fills up, but writes never block.
 /// </summary>
-[ShortRunJob]
 [MemoryDiagnoser]
 [HideColumns("Job", "RatioSD", "Error")]
 public class SendChannelBenchmarks
@@ -61,24 +61,25 @@ public class SendChannelBenchmarks
     }
 
     // -----------------------------------------------------------------------
-    // 1) Baseline: TrySendAsBinary(string) – synchronous Channel.TryWrite
+    // 1) Baseline: TrySend(string) – synchronous Channel.TryWrite
     // -----------------------------------------------------------------------
-    [Benchmark(Baseline = true, Description = "TrySendAsBinary(string)")]
+    [Benchmark(Baseline = true, Description = "TrySend(string, WebSocketMessageType.Binary)")]
     public bool TrySendAsBinary_String()
     {
         var result = false;
+        var payload = _textPayload.AsMemory();
         for (var i = 0; i < MessageCount; i++)
         {
-            result = _client.TrySend(_textPayload.AsMemory(), WebSocketMessageType.Binary);
+            result = _client.TrySend(payload, WebSocketMessageType.Binary);
         }
 
         return result;
     }
 
     // -----------------------------------------------------------------------
-    // 2) TrySendAsBinary(byte[])
+    // 2) TrySend(byte[])
     // -----------------------------------------------------------------------
-    [Benchmark(Description = "TrySendAsBinary(byte[])")]
+    [Benchmark(Description = "TrySend(byte[], WebSocketMessageType.Binary)")]
     public bool TrySendAsBinary_Bytes()
     {
         var result = false;
@@ -91,24 +92,25 @@ public class SendChannelBenchmarks
     }
 
     // -----------------------------------------------------------------------
-    // 3) TrySendAsText(string)
+    // 3) TrySend(string)
     // -----------------------------------------------------------------------
-    [Benchmark(Description = "TrySendAsText(string)")]
+    [Benchmark(Description = "TrySend(string, WebSocketMessageType.Text)")]
     public bool TrySendAsText_String()
     {
         var result = false;
+        var payload = _textPayload.AsMemory();
         for (var i = 0; i < MessageCount; i++)
         {
-            result = _client.TrySend(_textPayload.AsMemory(), WebSocketMessageType.Text);
+            result = _client.TrySend(payload, WebSocketMessageType.Text);
         }
 
         return result;
     }
 
     // -----------------------------------------------------------------------
-    // 4) TrySendAsText(byte[])
+    // 4) TrySend(byte[])
     // -----------------------------------------------------------------------
-    [Benchmark(Description = "TrySendAsText(byte[])")]
+    [Benchmark(Description = "TrySendAsText(byte[], WebSocketMessageType.Text)")]
     public bool TrySendAsText_Bytes()
     {
         var result = false;
@@ -121,46 +123,49 @@ public class SendChannelBenchmarks
     }
 
     // -----------------------------------------------------------------------
-    // 5) SendAsBinaryAsync(string) – Channel.WriteAsync (ValueTask)
+    // 5) SendAsync(string) – Channel.WriteAsync (ValueTask)
     // -----------------------------------------------------------------------
-    [Benchmark(Description = "SendAsBinaryAsync(string)")]
+    [Benchmark(Description = "SendAsync(string, WebSocketMessageType.Binary)")]
     public async Task<bool> SendAsBinaryAsync_String()
     {
         var result = false;
+        var payload = _textPayload.AsMemory();
         for (var i = 0; i < MessageCount; i++)
         {
-            result = await _client.SendAsync(_textPayload.AsMemory(), WebSocketMessageType.Binary);
+            result = await _client.SendAsync(payload, WebSocketMessageType.Binary);
         }
 
         return result;
     }
 
     // -----------------------------------------------------------------------
-    // 6) SendAsTextAsync(string) – Channel.WriteAsync (ValueTask)
+    // 6) SendAsync(string) – Channel.WriteAsync (ValueTask)
     // -----------------------------------------------------------------------
-    [Benchmark(Description = "SendAsTextAsync(string)")]
+    [Benchmark(Description = "SendAsync(string, WebSocketMessageType.Text)")]
     public async Task<bool> SendAsTextAsync_String()
     {
         var result = false;
+        var payload = _textPayload.AsMemory();
         for (var i = 0; i < MessageCount; i++)
         {
-            result = await _client.SendAsync(_textPayload.AsMemory(), WebSocketMessageType.Text);
+            result = await _client.SendAsync(payload, WebSocketMessageType.Text);
         }
 
         return result;
     }
 
     // -----------------------------------------------------------------------
-    // 7) String → byte[] encoding overhead (Encoding.UTF8.GetBytes)
+    // 7) String → ReadOnlyMemory<byte> encoding overhead (Encoding.UTF8.GetBytes)
     //    – isolates the encoding cost hidden inside TrySend/SendAsync
     // -----------------------------------------------------------------------
     [Benchmark(Description = "Encoding.UTF8.GetBytes (overhead only)")]
-    public byte[] EncodingOverhead()
+    public ReadOnlyMemory<byte> EncodingOverhead()
     {
-        byte[] result = [];
+        var result = new ReadOnlyMemory<byte>([]);
+        var payload = _textPayload.AsMemory();
         for (var i = 0; i < MessageCount; i++)
         {
-            result = System.Text.Encoding.UTF8.GetBytes(_textPayload);
+            result = payload.ToPayload(Encoding.UTF8, WebSocketMessageType.Text).Data;
         }
 
         return result;
