@@ -9,9 +9,9 @@ public record Disconnected(
     string? SubProtocol = null,
     WebSocketException? Exception = null)
 {
+    internal bool IsClosingCanceled { get; private set; }
+    internal bool IsReconnectionCanceled { get; private set; }
+
     public void CancelClosing() => IsClosingCanceled = true;
     public void CancelReconnection() => IsReconnectionCanceled = true;
-
-    public bool IsClosingCanceled { get; private set; }
-    public bool IsReconnectionCanceled { get; private set; }
 }
