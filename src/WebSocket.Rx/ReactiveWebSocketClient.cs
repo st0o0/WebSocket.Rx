@@ -25,9 +25,9 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
     protected readonly Subject<Disconnected> DisconnectionHappenedSource = new();
     protected readonly Subject<ErrorOccurred> ErrorOccurredSource = new();
 
-    protected ChannelWriter<Payload> SendWriter => SendChannel.Writer;
+    internal ChannelWriter<Payload> SendWriter => SendChannel.Writer;
 
-    protected Channel<Payload> SendChannel =
+    internal Channel<Payload> SendChannel =
         Channel.CreateUnbounded<Payload>(new UnboundedChannelOptions { SingleReader = true });
 
     protected Task? SendLoopTask;

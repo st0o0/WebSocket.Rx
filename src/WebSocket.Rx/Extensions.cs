@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Net.WebSockets;
 using System.Text;
 using R3;
+using WebSocket.Rx.Internal;
 
 namespace WebSocket.Rx;
 

@@ -3,8 +3,7 @@ using System.Net.WebSockets;
 
 namespace WebSocket.Rx;
 
-
-public struct Payload : IDisposable
+public readonly struct Payload : IDisposable
 {
     private readonly byte[]? _rentedBuffer;
     
