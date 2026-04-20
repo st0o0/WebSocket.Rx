@@ -4,9 +4,9 @@
     "net10.0": {
       "Microsoft.DotNet.ILCompiler": {
         "type": "Direct",
-        "requested": "[10.0.5, )",
-        "resolved": "10.0.5",
-        "contentHash": "yadTZIkStCVsG8nGwvfroSfBApPsgjQbodQyaIfp53dgayE0qhZpywixiCB6lx57JYQ+KVg1m1AFLrj54pxpZg=="
+        "requested": "[10.0.6, )",
+        "resolved": "10.0.6",
+        "contentHash": "nBOzxOys8OeyJ+Nsi/uYlI/5TSsvwjaM/p5m4dTL6khCLx9UuP3b2ec3HeuBw/+F7hHCAZG1yFx8VBeoRAX+EQ=="
       },
       "Microsoft.IO.RecyclableMemoryStream": {
         "type": "Direct",
