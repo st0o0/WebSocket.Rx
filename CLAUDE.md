@@ -42,7 +42,7 @@ dotnet tool run slopwatch analyze --fail-on error
 - **`ReactiveWebSocketClient`** — wraps `ClientWebSocket`. A dedicated receive loop reads frames and pushes them into R3 subjects; a dedicated send loop drains a `Channel<Payload>`. Exposes `Observable<Message>`, `Observable<Connected>`, `Observable<Disconnected>`, `Observable<ErrorOccurred>`.
 - **`ReactiveWebSocketServer`** — wraps `HttpListener`. Each accepted WebSocket connection becomes a `ServerWebSocketAdapter` (extends `ReactiveWebSocketClient`). Tracks clients in a `ConcurrentDictionary<Guid, Client>`. Exposes server-level observables for client connect/disconnect, messages, and errors.
 - **`Message`** (record) — either text (`ReadOnlyMemory<char>`) or binary (`ReadOnlyMemory<byte>`). Factory methods `Message.Create(...)`.
-- **`Payload`** (readonly struct) — internal send-queue item, rents from `ArrayPool<byte>` and returns on disposal.
+- **`Payload`** (public readonly struct) — send-queue item, rents from `ArrayPool<byte>` and returns on disposal.
 - **`Extensions`** — Rx operator extensions: `.Send()`, `.SendInstant()`, `.TrySend()`, `.BroadcastAsync()` etc.
 
 ### Concurrency Model
@@ -68,7 +68,7 @@ Critical sections use a custom `AsyncLock` (internal, SemaphoreSlim-based with f
 
 Versioning uses **Release Please** with conventional commits. Workflows are split:
 
-- **`ci.yml`** — runs on PR and push to main: restore → slopwatch → build → test with coverage report
+- **`ci.yml`** — runs on PR and push to main: slopwatch → restore → build → test with coverage report
 - **`release.yml`** — runs on push to main: Release Please creates/updates a release PR; on merge, builds, packs, publishes to NuGet, and creates a GitHub Release
 - **`commitlint.yml`** — validates PR titles and commit messages against conventional commit format
 - **`codeql.yml`** — CodeQL static analysis (weekly + on push/PR)

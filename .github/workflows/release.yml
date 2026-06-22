@@ -72,6 +72,7 @@ jobs:
           --no-build
           --output ${{ env.PACKAGE_OUTPUT }}
           /p:PackageVersion=${{ needs.release-please.outputs.version }}
+          /p:PackageReleaseNotes="https://github.com/st0o0/WebSocket.Rx/releases/tag/${{ needs.release-please.outputs.tag_name }}"
 
       - name: Upload NuGet artifact
         uses: actions/upload-artifact@v6

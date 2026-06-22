@@ -16,8 +16,8 @@ public static class Extensions
             {
                 return send.Type switch
                 {
-                    _ when send.IsText => await client.SendAsync(send.Text, send.Type, ct).ConfigureAwait(false),
-                    _ when send.IsBinary => await client.SendAsync(send.Binary, send.Type, ct).ConfigureAwait(false),
+                    _ when send.IsText => await client.SendInstantAsync(send.Text, send.Type, ct).ConfigureAwait(false),
+                    _ when send.IsBinary => await client.SendInstantAsync(send.Binary, send.Type, ct).ConfigureAwait(false),
                     _ => false
                 };
             }, maxConcurrent: 1);
@@ -59,8 +59,8 @@ public static class Extensions
                 var msg = send.Message;
                 return msg.Type switch
                 {
-                    _ when msg.IsText => await server.SendAsync(send.Metadata.Id, msg.Text, msg.Type, ct).ConfigureAwait(false),
-                    _ when msg.IsBinary => await server.SendAsync(send.Metadata.Id, msg.Binary, msg.Type, ct).ConfigureAwait(false),
+                    _ when msg.IsText => await server.SendInstantAsync(send.Metadata.Id, msg.Text, msg.Type, ct).ConfigureAwait(false),
+                    _ when msg.IsBinary => await server.SendInstantAsync(send.Metadata.Id, msg.Binary, msg.Type, ct).ConfigureAwait(false),
                     _ => false
                 };
             }, maxConcurrent: 1);
