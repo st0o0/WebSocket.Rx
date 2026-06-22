@@ -1,0 +1,108 @@
+name: Release & Publish
+
+on:
+  push:
+    branches: [main]
+
+env:
+  GLOBAL_JSON_PATH: "./src/global.json"
+  SOLUTION_PATH: "./src/WebSocket.Rx.sln"
+  PACKAGE_OUTPUT: "./packages"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
+
+    steps:
+      - name: Run release-please
+        id: release
+        uses: googleapis/release-please-action@v5
+        with:
+          target-branch: ${{ github.ref_name }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  build-and-pack:
+    runs-on: ubuntu-latest
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: ${{ env.GLOBAL_JSON_PATH }}
+          cache: true
+          cache-dependency-path: "**/packages.lock.json"
+
+      - name: Restore
+        run: dotnet restore --locked-mode ${{ env.SOLUTION_PATH }}
+
+      - name: Build
+        run: >
+          dotnet build ${{ env.SOLUTION_PATH }}
+          --configuration Release
+          --no-restore
+          /p:Version=${{ needs.release-please.outputs.version }}
+          /p:ContinuousIntegrationBuild=true
+
+      - name: Test
+        working-directory: ./src
+        run: >
+          dotnet test
+          --configuration Release
+          --no-build
+          --solution *.sln
+
+      - name: Pack
+        run: >
+          dotnet pack src/WebSocket.Rx/WebSocket.Rx.csproj
+          --configuration Release
+          --no-build
+          --output ${{ env.PACKAGE_OUTPUT }}
+          /p:PackageVersion=${{ needs.release-please.outputs.version }}
+
+      - name: Upload NuGet artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: nuget-packages
+          path: ${{ env.PACKAGE_OUTPUT }}/*.nupkg
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: [release-please, build-and-pack]
+    environment: nuget
+
+    steps:
+      - name: Download NuGet artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: nuget-packages
+          path: ./packages
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+
+      - name: Push to NuGet.org
+        run: >
+          dotnet nuget push ./packages/*.nupkg
+          --source https://api.nuget.org/v3/index.json
+          --api-key ${{ secrets.NUGET_API_KEY }}
+          --skip-duplicate
+
+      - name: Attach packages to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.release-please.outputs.tag_name }}
+          files: ./packages/*.nupkg
