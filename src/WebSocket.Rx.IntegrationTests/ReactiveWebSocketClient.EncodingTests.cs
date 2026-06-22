@@ -44,11 +44,12 @@ public class ReactiveWebSocketClientEncodingTests(ITestOutputHelper output) : Re
         string? receivedText = null;
         Client.MessageReceived.Subscribe(msg => receivedText = msg.Text.ToString());
 
-        var messageTask = WaitForEventAsync(Client.MessageReceived, msg => msg.Text.ToString() == "Converted Text");
-
+        var connectTask = WaitForEventAsync(Client.ConnectionHappened);
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
+        await connectTask;
 
         // Act
+        var messageTask = WaitForEventAsync(Client.MessageReceived, msg => msg.Text.ToString() == "Converted Text");
         await Server.SendToAllAsync("Converted Text");
         var received = await messageTask;
 
