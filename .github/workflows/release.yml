@@ -75,7 +75,7 @@ jobs:
           /p:PackageReleaseNotes="https://github.com/st0o0/WebSocket.Rx/releases/tag/${{ needs.release-please.outputs.tag_name }}"
 
       - name: Upload NuGet artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: nuget-packages
           path: ${{ env.PACKAGE_OUTPUT }}/*.nupkg
