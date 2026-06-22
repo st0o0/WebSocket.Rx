@@ -86,6 +86,7 @@ jobs:
     environment: nuget
     permissions:
       id-token: write
+      contents: write
 
     steps:
       - name: Download NuGet artifact
