@@ -3,7 +3,8 @@
   "packages": {
     ".": {
       "release-type": "simple",
-      "include-component-in-tag": false,
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true,
       "changelog-sections": [
         { "type": "feat", "section": "Features" },
         { "type": "fix", "section": "Bug Fixes" },
@@ -11,6 +12,7 @@
         { "type": "docs", "section": "Documentation" },
         { "type": "chore", "hidden": true },
         { "type": "refactor", "section": "Refactoring" },
+        { "type": "style", "hidden": true },
         { "type": "test", "hidden": true },
         { "type": "ci", "hidden": true },
         { "type": "build", "hidden": true },
