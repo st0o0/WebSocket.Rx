@@ -131,18 +131,18 @@ public class WebSocketTestServer(int? port = null) : IAsyncDisposable
                 switch (result.MessageType)
                 {
                     case WebSocketMessageType.Text:
-                    {
-                        var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                        OnMessageReceived?.Invoke(message);
-                        break;
-                    }
+                        {
+                            var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                            OnMessageReceived?.Invoke(message);
+                            break;
+                        }
                     case WebSocketMessageType.Binary:
-                    {
-                        var bytes = new byte[result.Count];
-                        Array.Copy(buffer, bytes, result.Count);
-                        OnBytesReceived?.Invoke(bytes);
-                        break;
-                    }
+                        {
+                            var bytes = new byte[result.Count];
+                            Array.Copy(buffer, bytes, result.Count);
+                            OnBytesReceived?.Invoke(bytes);
+                            break;
+                        }
                 }
             }
         }

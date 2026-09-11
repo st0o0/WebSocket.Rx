@@ -87,10 +87,10 @@ public class AsyncLockTests
             await tcs.Task;
         }, TestContext.Current.CancellationToken);
         await Task.Delay(50, TestContext.Current.CancellationToken);
-        
+
         var lockTask = asyncLock.LockAsync(TestContext.Current.CancellationToken);
         Assert.False(lockTask.IsCompleted);
-        
+
         tcs.SetResult(true);
         using var releaser = await lockTask;
         Assert.True(asyncLock.IsLocked);

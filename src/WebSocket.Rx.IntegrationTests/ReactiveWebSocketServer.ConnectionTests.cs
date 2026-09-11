@@ -24,7 +24,7 @@ public class ReactiveWebSocketServerConnectionTests(ITestOutputHelper output) : 
         var connectionTask1 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount >= 1);
         using var client1 = await ConnectClientAsync(TestContext.Current.CancellationToken);
         await connectionTask1;
-        
+
         var connectionTask2 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount >= 2);
         using var client2 = await ConnectClientAsync(TestContext.Current.CancellationToken);
         await connectionTask2;
@@ -88,7 +88,7 @@ public class ReactiveWebSocketServerConnectionTests(ITestOutputHelper output) : 
         var connectionTask1 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount >= 1);
         using var client1 = await ConnectClientAsync(TestContext.Current.CancellationToken);
         await connectionTask1;
-        
+
         var connectionTask2 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount >= 2);
         using var client2 = await ConnectClientAsync(TestContext.Current.CancellationToken);
         await connectionTask2;
@@ -167,4 +167,3 @@ public class ReactiveWebSocketServerConnectionTests(ITestOutputHelper output) : 
         }
     }
 }
-        

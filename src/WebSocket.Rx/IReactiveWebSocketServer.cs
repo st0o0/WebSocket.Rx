@@ -33,7 +33,7 @@ public interface IReactiveWebSocketServer : IDisposable, IAsyncDisposable
 
     Task<bool> SendAsync(Guid clientId, ReadOnlyMemory<byte> message, WebSocketMessageType type,
         CancellationToken cancellationToken = default);
-    
+
     bool TrySend(Guid clientId, ReadOnlyMemory<char> message, WebSocketMessageType type);
 
     bool TrySend(Guid clientId, ReadOnlyMemory<byte> message, WebSocketMessageType type);

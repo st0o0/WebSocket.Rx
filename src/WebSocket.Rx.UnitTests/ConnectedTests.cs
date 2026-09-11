@@ -11,7 +11,7 @@ public class ConnectedTests
         const ConnectReason @enum = ConnectReason.Initialized;
         var connected1 = new Connected(@enum);
         var connected2 = new Connected(@enum);
-        
+
         // Act & Assert
         Assert.Equal(connected1, connected2);
     }

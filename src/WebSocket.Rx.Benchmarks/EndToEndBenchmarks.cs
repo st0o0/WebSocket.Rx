@@ -175,7 +175,7 @@ public class ThroughputBenchmarks : EndToEndBase
         await tcs.Task.WaitAsync(cts.Token).ConfigureAwait(false);
         return received;
     }
-    
+
     // NOTE: Since SendAsync enqueues into a single Channel<T>, concurrent sends
     // do not parallelize actual I/O – they only pipeline the enqueue step.
     // For large payloads the SendLoop becomes the bottleneck and concurrent

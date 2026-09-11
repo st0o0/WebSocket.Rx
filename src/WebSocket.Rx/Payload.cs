@@ -6,10 +6,10 @@ namespace WebSocket.Rx;
 public readonly struct Payload : IDisposable
 {
     private readonly byte[]? _rentedBuffer;
-    
+
     public ReadOnlyMemory<byte> Data { get; }
     public WebSocketMessageType Type { get; }
-    
+
     public Payload(ReadOnlyMemory<byte> data, WebSocketMessageType messageType)
     {
         Data = data;
