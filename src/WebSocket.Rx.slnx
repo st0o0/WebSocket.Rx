@@ -1,0 +1,16 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/Solution Items/">
+    <File Path="../.slopwatch/baseline.json" />
+    <File Path="../README.md" />
+    <File Path="global.json" />
+  </Folder>
+  <Project Path="WebSocket.Rx.Benchmarks/WebSocket.Rx.Benchmarks.csproj" />
+  <Project Path="WebSocket.Rx.IntegrationTests/WebSocket.Rx.IntegrationTests.csproj" />
+  <Project Path="WebSocket.Rx.UnitTests/WebSocket.Rx.UnitTests.csproj" />
+  <Project Path="WebSocket.Rx/WebSocket.Rx.csproj" />
+</Solution>
