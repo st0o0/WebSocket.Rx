@@ -59,21 +59,14 @@ public class ReactiveWebSocketClientErrorHandlingTests(ITestOutputHelper output)
         Client = new ReactiveWebSocketClient(new Uri(InvalidUrl));
         Client.ConnectTimeout = TimeSpan.FromMilliseconds(50);
 
-        var disconnected = false;
-        Client.ErrorOccurred.Subscribe(d =>
-        {
-            if (d.Source == ErrorSource.Connection)
-            {
-                disconnected = true;
-            }
-        });
+        var errorTask = WaitForEventAsync(Client.ErrorOccurred, e => e.Source == ErrorSource.Connection);
 
         // Act
         await Client.StartAsync(TestContext.Current.CancellationToken);
-        await Task.Delay(50, TestContext.Current.CancellationToken);
+        var error = await errorTask;
 
         // Assert
-        Assert.True(disconnected);
+        Assert.Equal(ErrorSource.Connection, error.Source);
     }
 
     [Fact(Timeout = DefaultTimeoutMs)]
@@ -83,15 +76,14 @@ public class ReactiveWebSocketClientErrorHandlingTests(ITestOutputHelper output)
         Client = new ReactiveWebSocketClient(new Uri(InvalidUrl));
         Client.ConnectTimeout = TimeSpan.FromMilliseconds(50);
 
-        Exception? capturedException = null;
-        Client.ErrorOccurred.Subscribe(d => capturedException = d.Exception);
+        var errorTask = WaitForEventAsync(Client.ErrorOccurred);
 
         // Act
         await Client.StartAsync(TestContext.Current.CancellationToken);
-        await Task.Delay(50, TestContext.Current.CancellationToken);
+        var error = await errorTask;
 
         // Assert
-        Assert.NotNull(capturedException);
+        Assert.NotNull(error.Exception);
     }
 
     [Fact(Timeout = DefaultTimeoutMs)]
@@ -107,7 +99,7 @@ public class ReactiveWebSocketClientErrorHandlingTests(ITestOutputHelper output)
         Assert.False(result);
     }
 
-    [Fact(Timeout = 5000)]
+    [Fact(Timeout = DefaultTimeoutMs)]
     public async Task SendInstant_NullString_ShouldNotThrow()
     {
         // Arrange

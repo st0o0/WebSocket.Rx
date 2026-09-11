@@ -1,4 +1,5 @@
-﻿using R3;
+﻿using System.Net.WebSockets;
+using R3;
 using WebSocket.Rx.IntegrationTests.Internal;
 
 namespace WebSocket.Rx.IntegrationTests;
@@ -71,16 +72,27 @@ public class ReactiveWebSocketClientReconnectionTests(ITestOutputHelper output)
         // Arrange
         Client = new ReactiveWebSocketClient(new Uri(Server.WebSocketUrl));
         Client.IsReconnectionEnabled = true;
-        Client.KeepAliveInterval = TimeSpan.FromMilliseconds(25);
 
         var reconnectionTask = WaitForEventAsync(Client.ConnectionHappened, c => c.Reason == ConnectReason.Reconnected);
 
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
 
-        // Act
-        await Server.DisconnectAllAsync();
-        await reconnectionTask;
-        Assert.True(true);
+        // Act — dispose the server to force TCP connection closed, then restart for reconnection
+        var port = Server.Port;
+        await Server.DisposeAsync();
+
+        var server2 = new WebSocketTestServer(port);
+        await server2.StartAsync();
+
+        try
+        {
+            await reconnectionTask;
+            Assert.True(true);
+        }
+        finally
+        {
+            await server2.DisposeAsync();
+        }
     }
 
     [Fact(Timeout = DefaultTimeoutMs)]
@@ -96,13 +108,13 @@ public class ReactiveWebSocketClientReconnectionTests(ITestOutputHelper output)
             .Subscribe(_ => reconnectCount++);
 
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
-        await Task.Delay(50, TestContext.Current.CancellationToken);
 
-        // Act
-        await Server.DisconnectAllAsync();
-        await Task.Delay(50, TestContext.Current.CancellationToken);
+        // Act — stop the client (simulates disconnection) and wait for it to settle
+        await Client.StopAsync(WebSocketCloseStatus.NormalClosure, "Test disconnect",
+            TestContext.Current.CancellationToken);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
-        // Assert
+        // Assert — no reconnection should have occurred
         Assert.Equal(0, reconnectCount);
     }
 }

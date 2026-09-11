@@ -299,14 +299,26 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
         var initialInterval = Client.NativeClient.Options.KeepAliveInterval;
 
-        // Act
-        await Server.DisconnectAllAsync();
-        await Task.Delay(200, TestContext.Current.CancellationToken);
+        // Act — dispose the server to force TCP disconnect, then restart for reconnection
+        var port = Server.Port;
+        await Server.DisposeAsync();
 
-        // Assert
-        Assert.True(disconnections.Count > 0);
-        Assert.True(Client.IsStarted);
-        Assert.Equal(initialInterval, Client.NativeClient.Options.KeepAliveInterval);
+        var server2 = new WebSocketTestServer(port);
+        await server2.StartAsync();
+
+        try
+        {
+            await WaitForConditionAsync(() => disconnections.Count > 0);
+
+            // Assert
+            Assert.True(disconnections.Count > 0);
+            Assert.True(Client.IsStarted);
+            Assert.Equal(initialInterval, Client.NativeClient.Options.KeepAliveInterval);
+        }
+        finally
+        {
+            await server2.DisposeAsync();
+        }
     }
 
     [Theory(Timeout = DefaultTimeoutMs)]

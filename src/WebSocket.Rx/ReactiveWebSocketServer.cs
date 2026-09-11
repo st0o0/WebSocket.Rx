@@ -599,7 +599,9 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
             {
                 try
                 {
-                    await NativeServerSocket.CloseAsync(status, statusDescription, cancellationToken).ConfigureAwait(false);
+                    using var closeCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    closeCts.CancelAfter(TimeSpan.FromSeconds(5));
+                    await NativeServerSocket.CloseAsync(status, statusDescription, closeCts.Token).ConfigureAwait(false);
                 }
                 catch
                 {

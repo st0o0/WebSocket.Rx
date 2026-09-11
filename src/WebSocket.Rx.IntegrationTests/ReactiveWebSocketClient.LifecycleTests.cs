@@ -253,7 +253,7 @@ public class ReactiveWebSocketClientLifecycleTests(ITestOutputHelper output) : R
 
         // Act
         await Client.DisposeAsync();
-        await Task.Delay(50, TestContext.Current.CancellationToken);
+        await WaitForConditionAsync(() => messageCompleted && connectionCompleted && disconnectionCompleted);
 
         // Assert
         Assert.True(messageCompleted);
@@ -266,8 +266,7 @@ public class ReactiveWebSocketClientLifecycleTests(ITestOutputHelper output) : R
     {
         // Arrange
         Client = new ReactiveWebSocketClient(new Uri(Server.WebSocketUrl));
-        await Client.StartAsync(TestContext.Current.CancellationToken);
-        await Task.Delay(50, TestContext.Current.CancellationToken);
+        await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
 
         // Act
         await Client.DisposeAsync();

@@ -122,7 +122,9 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
             {
                 try
                 {
-                    await NativeClient.CloseAsync(status, statusDescription, cancellationToken).ConfigureAwait(false);
+                    using var closeCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    closeCts.CancelAfter(TimeSpan.FromSeconds(5));
+                    await NativeClient.CloseAsync(status, statusDescription, closeCts.Token).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {

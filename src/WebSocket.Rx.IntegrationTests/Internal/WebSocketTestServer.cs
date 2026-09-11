@@ -240,8 +240,15 @@ public class WebSocketTestServer(int? port = null) : IAsyncDisposable
         return port;
     }
 
+    private int _disposed;
+
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+        {
+            return;
+        }
+
         await _cts.CancelAsync();
 
         try

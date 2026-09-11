@@ -1,4 +1,4 @@
-﻿using R3;
+using R3;
 using WebSocket.Rx.IntegrationTests.Internal;
 
 namespace WebSocket.Rx.IntegrationTests;
@@ -12,18 +12,17 @@ public class ReactiveWebSocketClientReceivingTests(ITestOutputHelper output) : R
         Client = new ReactiveWebSocketClient(new Uri(Server.WebSocketUrl));
         Client.IsTextMessageConversionEnabled = true;
 
-        var receivedMessage = "";
-        Client.MessageReceived.Subscribe(msg => receivedMessage = msg.Text.ToString());
+        var messageTask = WaitForEventAsync(Client.MessageReceived);
 
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
-        await Task.Delay(50, TestContext.Current.CancellationToken);
+        await WaitForConditionAsync(() => Server.ClientCount > 0);
 
         // Act
         await Server.SendToAllAsync("Server Message");
-        await Task.Delay(50, TestContext.Current.CancellationToken);
+        var received = await messageTask;
 
         // Assert
-        Assert.Equal("Server Message", receivedMessage);
+        Assert.Equal("Server Message", received.Text.ToString());
     }
 
     [Fact(Timeout = DefaultTimeoutMs)]
@@ -33,21 +32,19 @@ public class ReactiveWebSocketClientReceivingTests(ITestOutputHelper output) : R
         Client = new ReactiveWebSocketClient(new Uri(Server.WebSocketUrl));
         Client.IsTextMessageConversionEnabled = false;
 
-        byte[]? receivedBytes = null;
-        Client.MessageReceived.Subscribe(msg => receivedBytes = msg.Binary.ToArray());
+        var messageTask = WaitForEventAsync(Client.MessageReceived);
 
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
-        await Task.Delay(50, TestContext.Current.CancellationToken);
+        await WaitForConditionAsync(() => Server.ClientCount > 0);
 
         var testData = new byte[] { 1, 2, 3 };
 
         // Act
         await Server.SendBinaryToAllAsync(testData);
-        await Task.Delay(50, TestContext.Current.CancellationToken);
+        var received = await messageTask;
 
         // Assert
-        Assert.NotNull(receivedBytes);
-        Assert.Equal(testData, receivedBytes);
+        Assert.Equal(testData, received.Binary.ToArray());
     }
 
     [Fact(Timeout = DefaultTimeoutMs)]
@@ -55,16 +52,15 @@ public class ReactiveWebSocketClientReceivingTests(ITestOutputHelper output) : R
     {
         // Arrange
         Client = new ReactiveWebSocketClient(new Uri(Server.WebSocketUrl));
-        var received = false;
-        Client.MessageReceived.Subscribe(_ => received = true);
 
+        var messageTask = WaitForEventAsync(Client.MessageReceived);
         var fakeMessage = Message.Create("Fake".AsMemory());
 
         // Act
         Client.StreamFakeMessage(fakeMessage);
-        await Task.Delay(50, TestContext.Current.CancellationToken);
+        var received = await messageTask;
 
         // Assert
-        Assert.True(received);
+        Assert.Equal("Fake", received.Text.ToString());
     }
 }
