@@ -12,11 +12,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  ci:
+  dotnet:
     uses: st0o0/github-workflows/.github/workflows/dotnet-ci.yml@main
     with:
       solution-file: WebSocket.Rx.sln
       has-dockerfile: false
 
-  commitlint:
+  commits:
     uses: st0o0/github-workflows/.github/workflows/commitlint.yml@main
