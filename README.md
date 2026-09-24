@@ -6,7 +6,6 @@
 
 **A powerful .NET library for reactive WebSocket communication using R3 (Reactive Extensions)**
 
-[![CI](https://img.shields.io/github/actions/workflow/status/st0o0/WebSocket.Rx/ci.yml?style=flat-square&label=CI)](https://github.com/st0o0/WebSocket.Rx/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/v/WebSocket.Rx.svg?style=flat-square)](https://www.nuget.org/packages/WebSocket.Rx/)
 [![Downloads](https://img.shields.io/nuget/dt/WebSocket.Rx.svg?style=flat-square)](https://www.nuget.org/packages/WebSocket.Rx/)
 [![License](https://img.shields.io/github/license/st0o0/WebSocket.Rx?style=flat-square)](LICENSE)
