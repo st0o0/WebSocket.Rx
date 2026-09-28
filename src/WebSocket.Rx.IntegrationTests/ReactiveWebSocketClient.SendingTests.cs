@@ -1,4 +1,5 @@
-﻿using System.Net.WebSockets;
+﻿using System.Collections.Concurrent;
+using System.Net.WebSockets;
 using System.Text;
 using R3;
 using WebSocket.Rx.IntegrationTests.Internal;
@@ -12,11 +13,9 @@ public class ReactiveWebSocketClientSendingTests(ITestOutputHelper output) : Rea
     {
         // Arrange
         Client = new ReactiveWebSocketClient(new Uri(Server.WebSocketUrl));
-        await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
-        await Task.Delay(50, TestContext.Current.CancellationToken);
-
         var tcs = new TaskCompletionSource<string>();
         Server.OnMessageReceived += msg => tcs.TrySetResult(msg);
+        await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
 
         // Act
         var result = Client.TrySend("Hello World".AsMemory(), WebSocketMessageType.Text);
@@ -35,11 +34,9 @@ public class ReactiveWebSocketClientSendingTests(ITestOutputHelper output) : Rea
     {
         // Arrange
         Client = new ReactiveWebSocketClient(new Uri(Server.WebSocketUrl));
-        await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
-        await Task.Delay(50, TestContext.Current.CancellationToken);
-
         var tcs = new TaskCompletionSource<byte[]>();
         Server.OnBytesReceived += bytes => tcs.TrySetResult(bytes);
+        await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
 
         var testData = new byte[] { 1, 2, 3, 4, 5 };
 
@@ -87,11 +84,9 @@ public class ReactiveWebSocketClientSendingTests(ITestOutputHelper output) : Rea
     {
         // Arrange
         Client = new ReactiveWebSocketClient(new Uri(Server.WebSocketUrl));
-        await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
-        await Task.Delay(50, TestContext.Current.CancellationToken);
-
         var tcs = new TaskCompletionSource<string>();
         Server.OnBytesReceived += msg => tcs.TrySetResult(Encoding.UTF8.GetString(msg));
+        await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
 
         // Act
         await Client.SendInstantAsync("Instant".AsMemory(), WebSocketMessageType.Binary,
@@ -178,15 +173,14 @@ public class ReactiveWebSocketClientSendingTests(ITestOutputHelper output) : Rea
     {
         // Arrange
         Client = new ReactiveWebSocketClient(new Uri(Server.WebSocketUrl));
-        await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
-
-        var receivedMessages = new List<string>();
+        var receivedMessages = new ConcurrentQueue<string>();
         var tcs = new TaskCompletionSource<bool>();
         Server.OnBytesReceived += bytes =>
         {
-            receivedMessages.Add(Encoding.UTF8.GetString(bytes));
-            if (receivedMessages.Count == 2) tcs.TrySetResult(true);
+            receivedMessages.Enqueue(Encoding.UTF8.GetString(bytes));
+            if (receivedMessages.Count >= 2) tcs.TrySetResult(true);
         };
+        await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
 
         var messages = Observable.Return(Message.Create("Msg1"u8.ToArray()))
             .Concat(Observable.Return(Message.Create("Msg2"u8.ToArray())));

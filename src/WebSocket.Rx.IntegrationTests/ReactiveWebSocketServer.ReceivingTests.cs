@@ -1,4 +1,5 @@
-﻿using System.Net.WebSockets;
+﻿using System.Collections.Concurrent;
+using System.Net.WebSockets;
 using R3;
 using WebSocket.Rx.IntegrationTests.Internal;
 
@@ -54,8 +55,8 @@ public class ReactiveWebSocketServerReceivingTests(ITestOutputHelper output) : R
     public async Task Should_Receive_Multiple_Messages_From_Same_Client()
     {
         // Arrange
-        var messages = new List<ServerMessage>();
-        using var subscription = Server.Messages.Subscribe(messages.Add);
+        var messages = new ConcurrentQueue<ServerMessage>();
+        using var subscription = Server.Messages.Subscribe(messages.Enqueue);
         using var client = await ConnectClientAsync(TestContext.Current.CancellationToken);
 
         // Act
@@ -66,11 +67,12 @@ public class ReactiveWebSocketServerReceivingTests(ITestOutputHelper output) : R
         await receiveTask;
 
         // Assert
+        var received = messages.ToArray();
         Assert.Multiple(() =>
         {
-            Assert.Equal(2, messages.Count);
-            Assert.Equal("Message 1", messages[0].Message.Text.ToString());
-            Assert.Equal("Message 2", messages[1].Message.Text.ToString());
+            Assert.Equal(2, received.Length);
+            Assert.Equal("Message 1", received[0].Message.Text.ToString());
+            Assert.Equal("Message 2", received[1].Message.Text.ToString());
         });
     }
 
@@ -119,12 +121,12 @@ public class ReactiveWebSocketServerReceivingTests(ITestOutputHelper output) : R
     {
         // Arrange
         using var client = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        var receivedTexts = new List<string>();
+        var receivedTexts = new ConcurrentQueue<string>();
         using var subscription = Server.Messages.Subscribe(msg =>
         {
             if (!msg.Message.Text.IsEmpty)
             {
-                receivedTexts.Add(msg.Message.Text.ToString());
+                receivedTexts.Enqueue(msg.Message.Text.ToString());
             }
         });
 
@@ -138,9 +140,10 @@ public class ReactiveWebSocketServerReceivingTests(ITestOutputHelper output) : R
         await receiveTask;
 
         // Assert
+        var received = receivedTexts.ToArray();
         for (var i = 0; i < 100; i++)
         {
-            Assert.Equal($"Message {i}", receivedTexts[i]);
+            Assert.Equal($"Message {i}", received[i]);
         }
     }
 

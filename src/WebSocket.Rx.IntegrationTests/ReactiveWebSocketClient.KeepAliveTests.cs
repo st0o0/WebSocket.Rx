@@ -1,4 +1,5 @@
-﻿using System.Net.WebSockets;
+﻿using System.Collections.Concurrent;
+using System.Net.WebSockets;
 using R3;
 using WebSocket.Rx.IntegrationTests.Internal;
 
@@ -165,14 +166,14 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
     public async Task KeepAlive_ConnectionShouldStayAliveWithinInterval()
     {
         // Arrange
-        var receivedMessages = new List<Message>();
+        var receivedMessages = new ConcurrentQueue<Message>();
         Client = new ReactiveWebSocketClient(new Uri(Server.WebSocketUrl))
         {
             KeepAliveInterval = TimeSpan.FromMilliseconds(500),
             IsTextMessageConversionEnabled = true
         };
 
-        Client.MessageReceived.Subscribe(msg => receivedMessages.Add(msg));
+        Client.MessageReceived.Subscribe(receivedMessages.Enqueue);
 
         // Act
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
@@ -282,8 +283,12 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
     public async Task KeepAlive_DuringMessageExchange_ShouldNotInterfere()
     {
         // Arrange
-        var receivedMessages = new List<byte[]>();
-        Server.OnBytesReceived += bytes => receivedMessages.Add(bytes);
+        var receivedCount = 0;
+        var tcs = new TaskCompletionSource<bool>();
+        Server.OnBytesReceived += _ =>
+        {
+            if (Interlocked.Increment(ref receivedCount) >= 5) tcs.TrySetResult(true);
+        };
 
         Client = new ReactiveWebSocketClient(new Uri(Server.WebSocketUrl))
         {
@@ -301,12 +306,12 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
             await Task.Delay(50, TestContext.Current.CancellationToken);
         }
 
-        await Task.Delay(100, TestContext.Current.CancellationToken);
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Multiple(() =>
         {
-            Assert.Equal(5, receivedMessages.Count);
+            Assert.Equal(5, receivedCount);
             Assert.True(Client.IsRunning);
             Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
         });
@@ -316,8 +321,8 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
     public async Task KeepAlive_AfterServerDisconnect_ShouldTriggerReconnectWithSameSettings()
     {
         // Arrange
-        var disconnections = new List<Disconnected>();
-        var reconnections = new List<Connected>();
+        var disconnections = new ConcurrentQueue<Disconnected>();
+        var reconnections = new ConcurrentQueue<Connected>();
 
         Client = new ReactiveWebSocketClient(new Uri(Server.WebSocketUrl))
         {
@@ -326,8 +331,8 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
             IsReconnectionEnabled = true
         };
 
-        Client.DisconnectionHappened.Subscribe(d => disconnections.Add(d));
-        Client.ConnectionHappened.Subscribe(c => reconnections.Add(c));
+        Client.DisconnectionHappened.Subscribe(disconnections.Enqueue);
+        Client.ConnectionHappened.Subscribe(reconnections.Enqueue);
 
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
         var initialInterval = Client.NativeClient.Options.KeepAliveInterval;
@@ -346,7 +351,7 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
             // Assert
             Assert.Multiple(() =>
             {
-                Assert.True(disconnections.Count > 0);
+                Assert.True(!disconnections.IsEmpty);
                 Assert.True(Client.IsStarted);
                 Assert.Equal(initialInterval, Client.NativeClient.Options.KeepAliveInterval);
             });
@@ -446,7 +451,7 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
     public async Task KeepAlive_ConnectionStaysAliveWithoutActivity()
     {
         // Arrange
-        var disconnections = new List<Disconnected>();
+        var disconnectionCount = 0;
 
         Client = new ReactiveWebSocketClient(new Uri(Server.WebSocketUrl))
         {
@@ -454,7 +459,7 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
             KeepAliveTimeout = TimeSpan.FromMilliseconds(100)
         };
 
-        Client.DisconnectionHappened.Subscribe(d => disconnections.Add(d));
+        Client.DisconnectionHappened.Subscribe(_ => Interlocked.Increment(ref disconnectionCount));
 
         // Act
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
@@ -463,7 +468,7 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         // Assert
         Assert.Multiple(() =>
         {
-            Assert.Empty(disconnections);
+            Assert.Equal(0, disconnectionCount);
             Assert.True(Client.IsRunning);
             Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
         });
@@ -474,7 +479,7 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
     public async Task KeepAlive_WithDisabledReconnection_ShouldStillMaintainConnection()
     {
         // Arrange
-        var disconnections = new List<Disconnected>();
+        var disconnectionCount = 0;
 
         Client = new ReactiveWebSocketClient(new Uri(Server.WebSocketUrl))
         {
@@ -483,7 +488,7 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
             IsReconnectionEnabled = false
         };
 
-        Client.DisconnectionHappened.Subscribe(d => disconnections.Add(d));
+        Client.DisconnectionHappened.Subscribe(_ => Interlocked.Increment(ref disconnectionCount));
 
         // Act
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
@@ -492,7 +497,7 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         // Assert
         Assert.Multiple(() =>
         {
-            Assert.Empty(disconnections);
+            Assert.Equal(0, disconnectionCount);
             Assert.True(Client.IsRunning);
             Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
         });
@@ -502,7 +507,7 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
     public async Task KeepAlive_LongIdlePeriod_ShouldKeepConnectionAlive()
     {
         // Arrange
-        var disconnections = new List<Disconnected>();
+        var disconnectionCount = 0;
 
         Client = new ReactiveWebSocketClient(new Uri(Server.WebSocketUrl))
         {
@@ -510,8 +515,7 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
             KeepAliveTimeout = TimeSpan.FromMilliseconds(100)
         };
 
-
-        Client.DisconnectionHappened.Subscribe(d => disconnections.Add(d));
+        Client.DisconnectionHappened.Subscribe(_ => Interlocked.Increment(ref disconnectionCount));
 
         var messageReceived = false;
         Client.MessageReceived.Subscribe(_ => messageReceived = true);
@@ -526,7 +530,7 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         // Assert
         Assert.Multiple(() =>
         {
-            Assert.Empty(disconnections);
+            Assert.Equal(0, disconnectionCount);
             Assert.True(messageReceived);
             Assert.True(Client.IsRunning);
             Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
@@ -537,7 +541,7 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
     public async Task KeepAlive_ServerRespondsToClientMessages_ShouldResetKeepAliveTimer()
     {
         // Arrange
-        var disconnections = new List<Disconnected>();
+        var disconnectionCount = 0;
 
         Client = new ReactiveWebSocketClient(new Uri(Server.WebSocketUrl))
         {
@@ -545,7 +549,7 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
             KeepAliveTimeout = TimeSpan.FromMilliseconds(150)
         };
 
-        Client.DisconnectionHappened.Subscribe(d => disconnections.Add(d));
+        Client.DisconnectionHappened.Subscribe(_ => Interlocked.Increment(ref disconnectionCount));
 
         // Act
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
@@ -560,7 +564,7 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         // Assert
         Assert.Multiple(() =>
         {
-            Assert.Empty(disconnections);
+            Assert.Equal(0, disconnectionCount);
             Assert.True(Client.IsRunning);
             Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
         });

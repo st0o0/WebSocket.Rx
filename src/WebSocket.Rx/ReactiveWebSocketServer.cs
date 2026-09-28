@@ -233,14 +233,15 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
                 socket.DisconnectionHappened
                     .Subscribe(_ => _clients.TryRemove(metadata.Id, out var _))
             };
-            socket.Start();
-
             _clients[metadata.Id] = new Client(socket, disposables);
 
             if (socket.NativeServerSocket.State != WebSocketState.Open)
             {
                 _clients.TryRemove(metadata.Id, out _);
+                return;
             }
+
+            socket.Start();
 
             lock (_clientConnectedSource)
             {
@@ -520,6 +521,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
             Metadata = metadata;
             NativeServerSocket = serverSocket ?? throw new ArgumentNullException(nameof(serverSocket));
 
+            IsReconnectionEnabled = false;
             IsStarted = true;
             IsRunning = true;
 
