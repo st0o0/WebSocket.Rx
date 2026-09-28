@@ -4,29 +4,32 @@ namespace WebSocket.Rx.IntegrationTests;
 
 public class ResourceLeakTests(ITestOutputHelper output) : ReactiveWebSocketServerTestBase(output)
 {
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task ResourceLeak_Client_ShouldNotLeakHandles()
     {
         // Arrange & Act
+        var ct = TestContext.Current.CancellationToken;
         for (var i = 0; i < 50; i++)
         {
             var client = new ReactiveWebSocketClient(new Uri(WebSocketUrl));
             await client.DisposeAsync();
         }
 
-        // Force garbage collection
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
-
         // Assert
-        Assert.True(true);
+        var exception = Record.Exception(() =>
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+        });
+        Assert.Null(exception);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task ResourceLeak_Server_ShouldNotLeakHandles()
     {
         // Arrange & Act
+        var ct = TestContext.Current.CancellationToken;
         for (var i = 0; i < 50; i++)
         {
             var port = GetAvailablePort();
@@ -34,12 +37,13 @@ public class ResourceLeakTests(ITestOutputHelper output) : ReactiveWebSocketServ
             await server.DisposeAsync();
         }
 
-        // Force garbage collection
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
-
         // Assert
-        Assert.True(true);
+        var exception = Record.Exception(() =>
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+        });
+        Assert.Null(exception);
     }
 }

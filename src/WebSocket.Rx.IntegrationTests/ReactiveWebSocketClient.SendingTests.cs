@@ -7,7 +7,7 @@ namespace WebSocket.Rx.IntegrationTests;
 
 public class ReactiveWebSocketClientSendingTests(ITestOutputHelper output) : ReactiveWebSocketClientTestBase(output)
 {
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Send_String_WhenConnected_ShouldSendMessage()
     {
         // Arrange
@@ -23,11 +23,14 @@ public class ReactiveWebSocketClientSendingTests(ITestOutputHelper output) : Rea
         var received = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.True(result);
-        Assert.Equal("Hello World", received);
+        Assert.Multiple(() =>
+        {
+            Assert.True(result);
+            Assert.Equal("Hello World", received);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Send_ByteArray_WhenConnected_ShouldSendMessage()
     {
         // Arrange
@@ -45,11 +48,14 @@ public class ReactiveWebSocketClientSendingTests(ITestOutputHelper output) : Rea
         var received = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.True(result);
-        Assert.Equal(testData, received);
+        Assert.Multiple(() =>
+        {
+            Assert.True(result);
+            Assert.Equal(testData, received);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void Send_WhenNotRunning_ShouldReturnFalse()
     {
         // Arrange
@@ -62,7 +68,7 @@ public class ReactiveWebSocketClientSendingTests(ITestOutputHelper output) : Rea
         Assert.False(result);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Send_EmptyString_ShouldReturnFalse()
     {
         // Arrange
@@ -76,7 +82,7 @@ public class ReactiveWebSocketClientSendingTests(ITestOutputHelper output) : Rea
         Assert.False(result);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task SendInstant_String_WhenConnected_ShouldSendImmediately()
     {
         // Arrange
@@ -96,7 +102,7 @@ public class ReactiveWebSocketClientSendingTests(ITestOutputHelper output) : Rea
         Assert.Equal("Instant", received);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task SendInstantAsync_ByteArray_WhenConnected_ShouldSendMessage()
     {
         // Arrange
@@ -114,11 +120,14 @@ public class ReactiveWebSocketClientSendingTests(ITestOutputHelper output) : Rea
         var receivedBytes = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.True(result);
-        Assert.Equal(testData, receivedBytes);
+        Assert.Multiple(() =>
+        {
+            Assert.True(result);
+            Assert.Equal(testData, receivedBytes);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task SendAsBinaryAsync_String_WhenConnected_ShouldSendMessageAsBinary()
     {
         // Arrange
@@ -134,11 +143,14 @@ public class ReactiveWebSocketClientSendingTests(ITestOutputHelper output) : Rea
         var receivedBytes = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.True(result);
-        Assert.Equal(Client.MessageEncoding.GetBytes("BinaryString"), receivedBytes);
+        Assert.Multiple(() =>
+        {
+            Assert.True(result);
+            Assert.Equal(Client.MessageEncoding.GetBytes("BinaryString"), receivedBytes);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task SendAsTextAsync_String_WhenConnected_ShouldSendMessageAsText()
     {
         // Arrange
@@ -154,11 +166,14 @@ public class ReactiveWebSocketClientSendingTests(ITestOutputHelper output) : Rea
         var receivedText = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.True(result);
-        Assert.Equal("Hello Text", receivedText);
+        Assert.Multiple(() =>
+        {
+            Assert.True(result);
+            Assert.Equal("Hello Text", receivedText);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task SendInstant_Observable_ShouldSendMessages()
     {
         // Arrange
@@ -181,7 +196,10 @@ public class ReactiveWebSocketClientSendingTests(ITestOutputHelper output) : Rea
         await tcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.Contains("Msg1", receivedMessages);
-        Assert.Contains("Msg2", receivedMessages);
+        Assert.Multiple(() =>
+        {
+            Assert.Contains("Msg1", receivedMessages);
+            Assert.Contains("Msg2", receivedMessages);
+        });
     }
 }

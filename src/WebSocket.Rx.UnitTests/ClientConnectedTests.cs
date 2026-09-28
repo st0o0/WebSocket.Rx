@@ -4,9 +4,7 @@ namespace WebSocket.Rx.UnitTests;
 
 public class ClientConnectedTests
 {
-    private const int DefaultTimeoutMs = 5000;
-
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void Constructor_ShouldSetName()
     {
         // Arrange
@@ -20,7 +18,7 @@ public class ClientConnectedTests
         Assert.Equal(id, connected.Metadata.Id);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void Equality_WithSameName_ShouldBeEqual()
     {
         // Arrange
@@ -33,7 +31,7 @@ public class ClientConnectedTests
         Assert.Equal(connected1, connected2);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void Equality_WithDifferentName_ShouldNotBeEqual()
     {
         // Arrange

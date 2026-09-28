@@ -6,7 +6,7 @@ namespace WebSocket.Rx.IntegrationTests;
 
 public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : ReactiveWebSocketClientTestBase(output)
 {
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task KeepAliveInterval_ShouldBeConfigurable()
     {
         // Arrange
@@ -20,11 +20,14 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.Equal(keepAliveInterval, Client.KeepAliveInterval);
-        Assert.Equal(keepAliveInterval, Client.NativeClient.Options.KeepAliveInterval);
+        Assert.Multiple(() =>
+        {
+            Assert.Equal(keepAliveInterval, Client.KeepAliveInterval);
+            Assert.Equal(keepAliveInterval, Client.NativeClient.Options.KeepAliveInterval);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task KeepAliveTimeout_ShouldBeConfigurable()
     {
         // Arrange
@@ -38,11 +41,14 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.Equal(keepAliveTimeout, Client.KeepAliveTimeout);
-        Assert.Equal(keepAliveTimeout, Client.NativeClient.Options.KeepAliveTimeout);
+        Assert.Multiple(() =>
+        {
+            Assert.Equal(keepAliveTimeout, Client.KeepAliveTimeout);
+            Assert.Equal(keepAliveTimeout, Client.NativeClient.Options.KeepAliveTimeout);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task KeepAlive_ShouldApplyDefaultValues()
     {
         // Arrange
@@ -52,13 +58,16 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.Equal(TimeSpan.FromSeconds(30), Client.KeepAliveInterval);
-        Assert.Equal(TimeSpan.FromSeconds(10), Client.KeepAliveTimeout);
-        Assert.Equal(TimeSpan.FromSeconds(30), Client.NativeClient.Options.KeepAliveInterval);
-        Assert.Equal(TimeSpan.FromSeconds(10), Client.NativeClient.Options.KeepAliveTimeout);
+        Assert.Multiple(() =>
+        {
+            Assert.Equal(TimeSpan.FromSeconds(30), Client.KeepAliveInterval);
+            Assert.Equal(TimeSpan.FromSeconds(10), Client.KeepAliveTimeout);
+            Assert.Equal(TimeSpan.FromSeconds(30), Client.NativeClient.Options.KeepAliveInterval);
+            Assert.Equal(TimeSpan.FromSeconds(10), Client.NativeClient.Options.KeepAliveTimeout);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task KeepAlive_ShouldBeAppliedBeforeConnection()
     {
         // Arrange
@@ -75,13 +84,16 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.True(Client.IsStarted);
-        Assert.True(Client.IsRunning);
-        Assert.Equal(keepAliveInterval, Client.NativeClient.Options.KeepAliveInterval);
-        Assert.Equal(keepAliveTimeout, Client.NativeClient.Options.KeepAliveTimeout);
+        Assert.Multiple(() =>
+        {
+            Assert.True(Client.IsStarted);
+            Assert.True(Client.IsRunning);
+            Assert.Equal(keepAliveInterval, Client.NativeClient.Options.KeepAliveInterval);
+            Assert.Equal(keepAliveTimeout, Client.NativeClient.Options.KeepAliveTimeout);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task KeepAlive_SettingsChangedAfterConnection_ShouldNotAffectCurrentConnection()
     {
         // Arrange
@@ -98,12 +110,15 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         Client.KeepAliveInterval = TimeSpan.FromSeconds(5);
 
         // Assert
-        Assert.Equal(initialInterval, connectedInterval);
-        Assert.Equal(TimeSpan.FromSeconds(5), Client.KeepAliveInterval);
-        Assert.Equal(initialInterval, Client.NativeClient.Options.KeepAliveInterval);
+        Assert.Multiple(() =>
+        {
+            Assert.Equal(initialInterval, connectedInterval);
+            Assert.Equal(TimeSpan.FromSeconds(5), Client.KeepAliveInterval);
+            Assert.Equal(initialInterval, Client.NativeClient.Options.KeepAliveInterval);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task KeepAlive_AfterReconnect_ShouldApplyNewSettings()
     {
         // Arrange
@@ -122,11 +137,14 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         await Client.ReconnectOrFailAsync(TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.Equal(TimeSpan.FromSeconds(5), Client.NativeClient.Options.KeepAliveInterval);
-        Assert.Equal(TimeSpan.FromSeconds(3), Client.NativeClient.Options.KeepAliveTimeout);
+        Assert.Multiple(() =>
+        {
+            Assert.Equal(TimeSpan.FromSeconds(5), Client.NativeClient.Options.KeepAliveInterval);
+            Assert.Equal(TimeSpan.FromSeconds(3), Client.NativeClient.Options.KeepAliveTimeout);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task KeepAlive_WithZeroInterval_ShouldDisableKeepAlive()
     {
         // Arrange
@@ -143,7 +161,7 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         Assert.Equal(TimeSpan.Zero, Client.NativeClient.Options.KeepAliveInterval);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task KeepAlive_ConnectionShouldStayAliveWithinInterval()
     {
         // Arrange
@@ -163,13 +181,16 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         await messageTask;
 
         // Assert
-        Assert.True(Client.IsRunning);
-        Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
-        Assert.Single(receivedMessages);
-        Assert.Equal("test", receivedMessages[0].Text.ToString());
+        Assert.Multiple(() =>
+        {
+            Assert.True(Client.IsRunning);
+            Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
+            Assert.Single(receivedMessages);
+            Assert.Equal("test", receivedMessages[0].Text.ToString());
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task KeepAlive_MultipleReconnects_ShouldMaintainSettings()
     {
         // Arrange
@@ -193,7 +214,7 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         }
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task KeepAlive_VeryShortInterval_ShouldStillWork()
     {
         // Arrange
@@ -208,11 +229,14 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         await Task.Delay(250, TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.True(Client.IsRunning);
-        Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
+        Assert.Multiple(() =>
+        {
+            Assert.True(Client.IsRunning);
+            Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task KeepAlive_VeryLongInterval_ShouldBeConfigurable()
     {
         // Arrange
@@ -226,11 +250,14 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.Equal(longInterval, Client.KeepAliveInterval);
-        Assert.Equal(longInterval, Client.NativeClient.Options.KeepAliveInterval);
+        Assert.Multiple(() =>
+        {
+            Assert.Equal(longInterval, Client.KeepAliveInterval);
+            Assert.Equal(longInterval, Client.NativeClient.Options.KeepAliveInterval);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task KeepAlive_TimeoutShorterThanInterval_ShouldBeAllowed()
     {
         // Arrange
@@ -244,11 +271,14 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.True(Client.KeepAliveTimeout < Client.KeepAliveInterval);
-        Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
+        Assert.Multiple(() =>
+        {
+            Assert.True(Client.KeepAliveTimeout < Client.KeepAliveInterval);
+            Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task KeepAlive_DuringMessageExchange_ShouldNotInterfere()
     {
         // Arrange
@@ -274,12 +304,15 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.Equal(5, receivedMessages.Count);
-        Assert.True(Client.IsRunning);
-        Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
+        Assert.Multiple(() =>
+        {
+            Assert.Equal(5, receivedMessages.Count);
+            Assert.True(Client.IsRunning);
+            Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task KeepAlive_AfterServerDisconnect_ShouldTriggerReconnectWithSameSettings()
     {
         // Arrange
@@ -311,9 +344,12 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
             await WaitForConditionAsync(() => disconnections.Count > 0);
 
             // Assert
-            Assert.True(disconnections.Count > 0);
-            Assert.True(Client.IsStarted);
-            Assert.Equal(initialInterval, Client.NativeClient.Options.KeepAliveInterval);
+            Assert.Multiple(() =>
+            {
+                Assert.True(disconnections.Count > 0);
+                Assert.True(Client.IsStarted);
+                Assert.Equal(initialInterval, Client.NativeClient.Options.KeepAliveInterval);
+            });
         }
         finally
         {
@@ -321,7 +357,7 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         }
     }
 
-    [Theory(Timeout = DefaultTimeoutMs)]
+    [Theory(Timeout = 30000)]
     [InlineData(1)]
     [InlineData(5)]
     [InlineData(30)]
@@ -339,12 +375,15 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.Equal(interval, Client.KeepAliveInterval);
-        Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
-        Assert.True(Client.IsRunning);
+        Assert.Multiple(() =>
+        {
+            Assert.Equal(interval, Client.KeepAliveInterval);
+            Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
+            Assert.True(Client.IsRunning);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task KeepAlive_SettingsBeforeStart_ShouldPersist()
     {
         // Arrange
@@ -361,10 +400,13 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.Equal(intervalBeforeStart, Client.KeepAliveInterval);
-        Assert.Equal(timeoutBeforeStart, Client.KeepAliveTimeout);
-        Assert.Equal(intervalBeforeStart, Client.NativeClient.Options.KeepAliveInterval);
-        Assert.Equal(timeoutBeforeStart, Client.NativeClient.Options.KeepAliveTimeout);
+        Assert.Multiple(() =>
+        {
+            Assert.Equal(intervalBeforeStart, Client.KeepAliveInterval);
+            Assert.Equal(timeoutBeforeStart, Client.KeepAliveTimeout);
+            Assert.Equal(intervalBeforeStart, Client.NativeClient.Options.KeepAliveInterval);
+            Assert.Equal(timeoutBeforeStart, Client.NativeClient.Options.KeepAliveTimeout);
+        });
     }
 
     [Fact]
@@ -380,7 +422,7 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         Assert.Equal(TimeSpan.FromSeconds(-1), Client.KeepAliveInterval);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task KeepAlive_InfiniteInterval_ShouldBeConfigurable()
     {
         // Arrange
@@ -393,11 +435,14 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.Equal(Timeout.InfiniteTimeSpan, Client.KeepAliveInterval);
-        Assert.True(Client.IsRunning);
+        Assert.Multiple(() =>
+        {
+            Assert.Equal(Timeout.InfiniteTimeSpan, Client.KeepAliveInterval);
+            Assert.True(Client.IsRunning);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task KeepAlive_ConnectionStaysAliveWithoutActivity()
     {
         // Arrange
@@ -416,13 +461,16 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         await Task.Delay(600, TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.Empty(disconnections);
-        Assert.True(Client.IsRunning);
-        Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
+        Assert.Multiple(() =>
+        {
+            Assert.Empty(disconnections);
+            Assert.True(Client.IsRunning);
+            Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
+        });
     }
 
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task KeepAlive_WithDisabledReconnection_ShouldStillMaintainConnection()
     {
         // Arrange
@@ -442,12 +490,15 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         await Task.Delay(1000, TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.Empty(disconnections);
-        Assert.True(Client.IsRunning);
-        Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
+        Assert.Multiple(() =>
+        {
+            Assert.Empty(disconnections);
+            Assert.True(Client.IsRunning);
+            Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task KeepAlive_LongIdlePeriod_ShouldKeepConnectionAlive()
     {
         // Arrange
@@ -473,13 +524,16 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         await receiveTask;
 
         // Assert
-        Assert.Empty(disconnections);
-        Assert.True(messageReceived);
-        Assert.True(Client.IsRunning);
-        Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
+        Assert.Multiple(() =>
+        {
+            Assert.Empty(disconnections);
+            Assert.True(messageReceived);
+            Assert.True(Client.IsRunning);
+            Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task KeepAlive_ServerRespondsToClientMessages_ShouldResetKeepAliveTimer()
     {
         // Arrange
@@ -504,12 +558,15 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         }
 
         // Assert
-        Assert.Empty(disconnections);
-        Assert.True(Client.IsRunning);
-        Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
+        Assert.Multiple(() =>
+        {
+            Assert.Empty(disconnections);
+            Assert.True(Client.IsRunning);
+            Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task KeepAlive_ZeroInterval_DisablesKeepAlive_ConnectionStillWorks()
     {
         // Arrange
@@ -531,12 +588,15 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         await receiveTask;
 
         // Assert
-        Assert.True(messageReceived);
-        Assert.True(Client.IsRunning);
-        Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
+        Assert.Multiple(() =>
+        {
+            Assert.True(messageReceived);
+            Assert.True(Client.IsRunning);
+            Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task KeepAlive_MultipleClientsWithDifferentIntervals_ShouldWorkIndependently()
     {
         // Arrange
@@ -560,10 +620,13 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
             await Task.Delay(200, TestContext.Current.CancellationToken);
 
             // Assert
-            Assert.True(Client.IsRunning);
-            Assert.True(client2.IsRunning);
-            Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
-            Assert.Equal(WebSocketState.Open, client2.NativeClient.State);
+            Assert.Multiple(() =>
+            {
+                Assert.True(Client.IsRunning);
+                Assert.True(client2.IsRunning);
+                Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
+                Assert.Equal(WebSocketState.Open, client2.NativeClient.State);
+            });
         }
         finally
         {

@@ -5,7 +5,7 @@ namespace WebSocket.Rx.IntegrationTests;
 
 public class ReactiveWebSocketServerBroadcastTests(ITestOutputHelper output) : ReactiveWebSocketServerTestBase(output)
 {
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task BroadcastInstantAsync_WithMultipleClients_ShouldSendToAll()
     {
         // Arrange
@@ -29,7 +29,7 @@ public class ReactiveWebSocketServerBroadcastTests(ITestOutputHelper output) : R
         Assert.Equal("Broadcast Message", await receiveTask2);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task BroadcastInstantAsync_WithNoClients_ShouldReturnTrue()
     {
         // Act
@@ -40,7 +40,7 @@ public class ReactiveWebSocketServerBroadcastTests(ITestOutputHelper output) : R
         Assert.True(result);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task BroadcastInstantAsync_WithSingleClient_ShouldSendCorrectly()
     {
         // Arrange
@@ -57,7 +57,7 @@ public class ReactiveWebSocketServerBroadcastTests(ITestOutputHelper output) : R
     }
 
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task BroadcastInstantAsync_ByteArray_ShouldSendToAll()
     {
         // Arrange
@@ -84,7 +84,7 @@ public class ReactiveWebSocketServerBroadcastTests(ITestOutputHelper output) : R
         Assert.Equal(binaryData, buffer2.Take(result2.Count));
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task BroadcastAsBinaryAsync_WithMultipleClients_ShouldSendToAll()
     {
         // Arrange
@@ -105,7 +105,7 @@ public class ReactiveWebSocketServerBroadcastTests(ITestOutputHelper output) : R
         Assert.Equal("Binary Broadcast", await ReceiveTextAsync(client2, TestContext.Current.CancellationToken));
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task BroadcastAsTextAsync_WithMultipleClients_ShouldSendToAll()
     {
         // Arrange

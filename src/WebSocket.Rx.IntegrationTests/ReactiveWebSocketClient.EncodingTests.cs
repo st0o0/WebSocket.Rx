@@ -7,7 +7,7 @@ namespace WebSocket.Rx.IntegrationTests;
 
 public class ReactiveWebSocketClientEncodingTests(ITestOutputHelper output) : ReactiveWebSocketClientTestBase(output)
 {
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task MessageEncoding_CustomEncoding_ShouldUseCustomEncoding()
     {
         // Arrange
@@ -34,7 +34,7 @@ public class ReactiveWebSocketClientEncodingTests(ITestOutputHelper output) : Re
         Assert.Equal("ASCII Text", receivedMessage);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task MessageReceived_WithTextConversion_ShouldConvertToText()
     {
         // Arrange
@@ -57,7 +57,7 @@ public class ReactiveWebSocketClientEncodingTests(ITestOutputHelper output) : Re
         Assert.Equal("Converted Text", received.Text.ToString());
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task MessageReceived_WithoutTextConversion_ShouldNotConvertToText()
     {
         // Arrange

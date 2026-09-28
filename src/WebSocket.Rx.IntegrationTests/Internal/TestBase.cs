@@ -5,14 +5,14 @@ namespace WebSocket.Rx.IntegrationTests.Internal;
 public abstract class TestBase(ITestOutputHelper output)
 {
     protected readonly ITestOutputHelper Output = output;
-    protected const int DefaultTimeoutMs = 30000;
+    protected const int DefaultHelperTimeoutMs = 30000;
 
     protected async Task<T> WaitForEventAsync<T>(
         Observable<T> observable,
         Func<T, bool>? predicate = null,
         int? timeoutMs = null)
     {
-        var timeout = timeoutMs ?? DefaultTimeoutMs;
+        var timeout = timeoutMs ?? DefaultHelperTimeoutMs;
         var tcs = new TaskCompletionSource<T>();
         using var cts = new CancellationTokenSource(timeout);
         await using var registration = cts.Token.Register(() =>
@@ -46,7 +46,7 @@ public abstract class TestBase(ITestOutputHelper output)
         Func<bool> condition,
         int? timeoutMs = null)
     {
-        var timeout = timeoutMs ?? DefaultTimeoutMs;
+        var timeout = timeoutMs ?? DefaultHelperTimeoutMs;
         var tcs = new TaskCompletionSource<bool>();
         using var cts = new CancellationTokenSource(timeout);
         await using var registration = cts.Token.Register(() =>
@@ -116,7 +116,7 @@ public abstract class TestBase(ITestOutputHelper output)
         TimeSpan? timeout = null,
         string? errorMessage = null)
     {
-        timeout ??= TimeSpan.FromMilliseconds(DefaultTimeoutMs);
+        timeout ??= TimeSpan.FromMilliseconds(DefaultHelperTimeoutMs);
         var endTime = DateTime.UtcNow.Add(timeout.Value);
         var count = 0;
 

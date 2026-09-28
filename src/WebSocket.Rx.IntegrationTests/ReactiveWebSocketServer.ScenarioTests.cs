@@ -6,7 +6,7 @@ namespace WebSocket.Rx.IntegrationTests;
 
 public class ReactiveWebSocketServerScenarioTests(ITestOutputHelper output) : ReactiveWebSocketServerTestBase(output)
 {
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task EchoServer_Should_Reply_To_All_Messages()
     {
         // Arrange
@@ -25,7 +25,7 @@ public class ReactiveWebSocketServerScenarioTests(ITestOutputHelper output) : Re
         Assert.Equal("Ping 2", await ReceiveTextAsync(client, TestContext.Current.CancellationToken));
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task ChatRoom_Should_Broadcast_Messages_To_Other_Clients()
     {
         // Arrange
@@ -56,7 +56,7 @@ public class ReactiveWebSocketServerScenarioTests(ITestOutputHelper output) : Re
         Assert.Contains("Hello everyone", received);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Should_Handle_Concurrent_Messages_From_Multiple_Clients()
     {
         // Arrange

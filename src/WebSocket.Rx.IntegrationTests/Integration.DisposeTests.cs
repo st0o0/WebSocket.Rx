@@ -5,7 +5,7 @@ namespace WebSocket.Rx.IntegrationTests;
 
 public class IntegrationDisposeTests(ITestOutputHelper output) : ReactiveWebSocketServerTestBase(output)
 {
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Integration_ServerAndClient_BothDispose_ShouldCleanupProperly()
     {
         // Arrange
@@ -19,11 +19,14 @@ public class IntegrationDisposeTests(ITestOutputHelper output) : ReactiveWebSock
         await Server.DisposeAsync();
 
         // Assert
-        Assert.True(client.IsDisposed);
-        Assert.True(Server.IsDisposed);
+        Assert.Multiple(() =>
+        {
+            Assert.True(client.IsDisposed);
+            Assert.True(Server.IsDisposed);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Integration_MultipleClientsAndServer_AllDispose_ShouldCleanupProperly()
     {
         // Arrange
@@ -48,16 +51,19 @@ public class IntegrationDisposeTests(ITestOutputHelper output) : ReactiveWebSock
         await Server.DisposeAsync();
 
         // Assert
-        foreach (var client in clients)
+        Assert.Multiple(() =>
         {
-            Assert.True(client.IsDisposed);
-        }
+            foreach (var client in clients)
+            {
+                Assert.True(client.IsDisposed);
+            }
 
-        Assert.True(Server.IsDisposed);
-        Assert.Equal(0, Server.ClientCount);
+            Assert.True(Server.IsDisposed);
+            Assert.Equal(0, Server.ClientCount);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Integration_DisposeUnderLoad_ShouldHandleGracefully()
     {
         // Arrange
@@ -93,18 +99,22 @@ public class IntegrationDisposeTests(ITestOutputHelper output) : ReactiveWebSock
         await Server.DisposeAsync();
 
         // Assert
-        Assert.True(client.IsDisposed);
-        Assert.True(Server.IsDisposed);
+        Assert.Multiple(() =>
+        {
+            Assert.True(client.IsDisposed);
+            Assert.True(Server.IsDisposed);
+        });
 
         await sendTask;
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Integration_ConcurrentDispose_ShouldBeThreadSafe()
     {
         // Act
+        var ct = TestContext.Current.CancellationToken;
         var disposeTasks = Enumerable.Range(0, 10)
-            .Select(_ => Task.Run(async () => await Server.DisposeAsync()))
+            .Select(_ => Task.Run(async () => await Server.DisposeAsync(), ct))
             .ToArray();
 
         await Task.WhenAll(disposeTasks);

@@ -5,9 +5,7 @@ namespace WebSocket.Rx.UnitTests;
 
 public class ClientDisconnectedTests
 {
-    private const int DefaultTimeoutMs = 5000;
-
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void Constructor_WithoutError_ShouldSetProperties()
     {
         // Arrange
@@ -18,13 +16,16 @@ public class ClientDisconnectedTests
         var disconnected = new ClientDisconnected(new Metadata(id, IPAddress.Any, 0), new Disconnected(reason));
 
         // Assert
-        Assert.Equal(id, disconnected.Metadata.Id);
-        Assert.Equal(reason, disconnected.Event.Reason);
-        Assert.Null(disconnected.Event.Exception);
+        Assert.Multiple(() =>
+        {
+            Assert.Equal(id, disconnected.Metadata.Id);
+            Assert.Equal(reason, disconnected.Event.Reason);
+            Assert.Null(disconnected.Event.Exception);
+        });
     }
 
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void Equality_WithSameValues_ShouldBeEqual()
     {
         // Arrange

@@ -5,7 +5,7 @@ namespace WebSocket.Rx.IntegrationTests;
 
 public class ReactiveWebSocketServerPropertyTests(ITestOutputHelper output) : ReactiveWebSocketServerTestBase(output)
 {
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void Should_Have_Default_Properties()
     {
         // Arrange & Act
@@ -14,11 +14,14 @@ public class ReactiveWebSocketServerPropertyTests(ITestOutputHelper output) : Re
         using var server = new ReactiveWebSocketServer(url);
 
         // Assert
-        Assert.Equal(TimeSpan.FromSeconds(30), server.IdleConnection);
-        Assert.Equal(TimeSpan.FromSeconds(10), server.ConnectTimeout);
-        Assert.Equal(Encoding.UTF8, server.MessageEncoding);
-        Assert.True(server.IsTextMessageConversionEnabled);
-        Assert.Equal(0, server.ClientCount);
-        Assert.Empty(server.ConnectedClients);
+        Assert.Multiple(() =>
+        {
+            Assert.Equal(TimeSpan.FromSeconds(30), server.IdleConnection);
+            Assert.Equal(TimeSpan.FromSeconds(10), server.ConnectTimeout);
+            Assert.Equal(Encoding.UTF8, server.MessageEncoding);
+            Assert.True(server.IsTextMessageConversionEnabled);
+            Assert.Equal(0, server.ClientCount);
+            Assert.Empty(server.ConnectedClients);
+        });
     }
 }

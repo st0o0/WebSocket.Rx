@@ -5,7 +5,7 @@ namespace WebSocket.Rx.IntegrationTests;
 
 public class ReactiveWebSocketServerSendingTests(ITestOutputHelper output) : ReactiveWebSocketServerTestBase(output)
 {
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Should_Send_Text_To_Specific_Client()
     {
         // Arrange
@@ -23,7 +23,7 @@ public class ReactiveWebSocketServerSendingTests(ITestOutputHelper output) : Rea
         Assert.Equal("Hello Client", received);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Should_Send_Binary_To_Specific_Client()
     {
         // Arrange
@@ -43,7 +43,7 @@ public class ReactiveWebSocketServerSendingTests(ITestOutputHelper output) : Rea
         Assert.Equal(binaryData, buffer.Take(result.Count));
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Should_Return_False_When_Sending_To_Non_Existent_Client()
     {
         // Act
@@ -54,7 +54,7 @@ public class ReactiveWebSocketServerSendingTests(ITestOutputHelper output) : Rea
         Assert.False(result);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Should_Send_Multiple_Messages_To_Same_Client()
     {
         // Arrange
@@ -74,7 +74,7 @@ public class ReactiveWebSocketServerSendingTests(ITestOutputHelper output) : Rea
         Assert.Equal("Msg 2", await ReceiveTextAsync(client, TestContext.Current.CancellationToken));
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task TrySendAsText_Should_Return_True_For_Existing_Client()
     {
         // Arrange
@@ -101,7 +101,7 @@ public class ReactiveWebSocketServerSendingTests(ITestOutputHelper output) : Rea
         Assert.False(result);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task TrySendAsBinary_Should_Return_True_For_Existing_Client()
     {
         // Arrange
@@ -118,7 +118,7 @@ public class ReactiveWebSocketServerSendingTests(ITestOutputHelper output) : Rea
         Assert.Equal("test", await ReceiveTextAsync(client, TestContext.Current.CancellationToken));
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task SendInstantAsync_Should_Send_Message_Immediately()
     {
         // Arrange
@@ -136,7 +136,7 @@ public class ReactiveWebSocketServerSendingTests(ITestOutputHelper output) : Rea
         Assert.Equal("Instant message", received);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Should_Handle_Client_Send_After_Disconnect()
     {
         // Arrange

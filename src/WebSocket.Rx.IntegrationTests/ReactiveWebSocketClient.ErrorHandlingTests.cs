@@ -9,7 +9,7 @@ public class ReactiveWebSocketClientErrorHandlingTests(ITestOutputHelper output)
 {
     private const string InvalidUrl = "ws://localhost:9999/invalid";
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Send_EmptyByteArray_ShouldReturnFalse()
     {
         // Arrange
@@ -23,7 +23,7 @@ public class ReactiveWebSocketClientErrorHandlingTests(ITestOutputHelper output)
         Assert.False(result);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task SendAsText_EmptyByteArray_ShouldReturnFalse()
     {
         // Arrange
@@ -37,22 +37,24 @@ public class ReactiveWebSocketClientErrorHandlingTests(ITestOutputHelper output)
         Assert.False(result);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task SendInstant_WhenNotConnected_ShouldNotThrow()
     {
         // Arrange
         Client = new ReactiveWebSocketClient(new Uri(InvalidUrl));
 
         // Act & Assert
-        await Client.SendInstantAsync("test".AsMemory(), WebSocketMessageType.Binary,
-            TestContext.Current.CancellationToken);
-        await Client.SendInstantAsync(new byte[] { 1, 2, 3 }, WebSocketMessageType.Binary,
-            TestContext.Current.CancellationToken);
-
-        Assert.True(true);
+        var exception = await Record.ExceptionAsync(async () =>
+        {
+            await Client.SendInstantAsync("test".AsMemory(), WebSocketMessageType.Binary,
+                TestContext.Current.CancellationToken);
+            await Client.SendInstantAsync(new byte[] { 1, 2, 3 }, WebSocketMessageType.Binary,
+                TestContext.Current.CancellationToken);
+        });
+        Assert.Null(exception);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task ConnectTimeout_WhenServerNotResponding_ShouldTimeout()
     {
         // Arrange
@@ -69,7 +71,7 @@ public class ReactiveWebSocketClientErrorHandlingTests(ITestOutputHelper output)
         Assert.Equal(ErrorSource.Connection, error.Source);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task DisconnectionHappened_WithException_ShouldIncludeException()
     {
         // Arrange
@@ -86,7 +88,7 @@ public class ReactiveWebSocketClientErrorHandlingTests(ITestOutputHelper output)
         Assert.NotNull(error.Exception);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void Send_NullString_ShouldReturnFalse()
     {
         // Arrange
@@ -99,7 +101,7 @@ public class ReactiveWebSocketClientErrorHandlingTests(ITestOutputHelper output)
         Assert.False(result);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task SendInstant_NullString_ShouldNotThrow()
     {
         // Arrange
@@ -107,8 +109,9 @@ public class ReactiveWebSocketClientErrorHandlingTests(ITestOutputHelper output)
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
 
         // Act & Assert
-        await Client.SendInstantAsync((ReadOnlyMemory<char>)null!, WebSocketMessageType.Binary,
-            TestContext.Current.CancellationToken);
-        Assert.True(true);
+        var exception = await Record.ExceptionAsync(() =>
+            Client.SendInstantAsync((ReadOnlyMemory<char>)null!, WebSocketMessageType.Binary,
+                TestContext.Current.CancellationToken));
+        Assert.Null(exception);
     }
 }

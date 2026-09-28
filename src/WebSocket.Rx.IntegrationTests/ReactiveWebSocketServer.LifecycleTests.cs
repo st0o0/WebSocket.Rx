@@ -7,7 +7,7 @@ namespace WebSocket.Rx.IntegrationTests;
 [Collection("WebSocket Tests")]
 public class ReactiveWebSocketServerLifecycleTests(ITestOutputHelper output) : ReactiveWebSocketServerTestBase(output)
 {
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Should_Start_And_Stop_Server()
     {
         // Arrange
@@ -22,12 +22,15 @@ public class ReactiveWebSocketServerLifecycleTests(ITestOutputHelper output) : R
             TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.True(isRunning);
-        Assert.True(stopped);
-        Assert.False(server.IsRunning);
+        Assert.Multiple(() =>
+        {
+            Assert.True(isRunning);
+            Assert.True(stopped);
+            Assert.False(server.IsRunning);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Should_Handle_Dispose_Without_Deadlock()
     {
         // Arrange
@@ -42,11 +45,11 @@ public class ReactiveWebSocketServerLifecycleTests(ITestOutputHelper output) : R
         await server.StopAsync(WebSocketCloseStatus.NormalClosure, "test", TestContext.Current.CancellationToken);
         server.Dispose();
 
-        // Assert - no deadlock occurred
-        Assert.True(true);
+        // Assert
+        Assert.True(server.IsDisposed);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Should_Complete_Observables_On_Dispose()
     {
         // Arrange
@@ -59,22 +62,22 @@ public class ReactiveWebSocketServerLifecycleTests(ITestOutputHelper output) : R
         await server.DisposeAsync();
 
         // Assert
-        Assert.True(true);
+        Assert.True(server.IsDisposed);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Should_Disconnect_All_Clients_On_Stop()
     {
         // Arrange
         var connectionTask1 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 1);
         using var client1 = new ReactiveWebSocketClient(new Uri(WebSocketUrl))
-            { IsReconnectionEnabled = false };
+        { IsReconnectionEnabled = false };
         await client1.StartOrFailAsync(TestContext.Current.CancellationToken);
         await connectionTask1;
 
         var connectionTask2 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 2);
         using var client2 = new ReactiveWebSocketClient(new Uri(WebSocketUrl))
-            { IsReconnectionEnabled = false };
+        { IsReconnectionEnabled = false };
         await client2.StartOrFailAsync(TestContext.Current.CancellationToken);
         await connectionTask2;
 
@@ -92,7 +95,7 @@ public class ReactiveWebSocketServerLifecycleTests(ITestOutputHelper output) : R
         Assert.Equal(0, Server.ClientCount);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Should_Not_Throw_On_Multiple_Dispose_Calls()
     {
         // Arrange
@@ -125,7 +128,7 @@ public class ReactiveWebSocketServerLifecycleTests(ITestOutputHelper output) : R
         Assert.True(server.IsDisposed);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task AfterDispose_OperationsShouldThrow()
     {
         // Arrange
@@ -140,10 +143,11 @@ public class ReactiveWebSocketServerLifecycleTests(ITestOutputHelper output) : R
             await server.StartAsync(TestContext.Current.CancellationToken));
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Server_Dispose_ShouldCompleteAllObservables()
     {
         // Arrange
+        _ = TestContext.Current.CancellationToken;
         var port = GetAvailablePort();
         var server = new ReactiveWebSocketServer($"http://127.0.0.1:{port}/");
         var clientConnectedCompleted = false;
@@ -174,12 +178,15 @@ public class ReactiveWebSocketServerLifecycleTests(ITestOutputHelper output) : R
             () => clientConnectedCompleted && clientDisconnectedCompleted && messagesCompleted);
 
         // Assert
-        Assert.True(clientConnectedCompleted);
-        Assert.True(clientDisconnectedCompleted);
-        Assert.True(messagesCompleted);
+        Assert.Multiple(() =>
+        {
+            Assert.True(clientConnectedCompleted);
+            Assert.True(clientDisconnectedCompleted);
+            Assert.True(messagesCompleted);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Server_Dispose_WhileRunning_ShouldStopGracefully()
     {
         // Arrange
@@ -191,11 +198,14 @@ public class ReactiveWebSocketServerLifecycleTests(ITestOutputHelper output) : R
         await server.DisposeAsync();
 
         // Assert
-        Assert.True(server.IsDisposed);
-        Assert.False(server.IsRunning);
+        Assert.Multiple(() =>
+        {
+            Assert.True(server.IsDisposed);
+            Assert.False(server.IsRunning);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Server_Dispose_WithConnectedClients_ShouldDisconnectAll()
     {
         // Arrange
@@ -204,9 +214,9 @@ public class ReactiveWebSocketServerLifecycleTests(ITestOutputHelper output) : R
         await server.StartAsync(TestContext.Current.CancellationToken);
 
         var client1 = new ReactiveWebSocketClient(new Uri($"ws://127.0.0.1:{port}/"))
-            { IsReconnectionEnabled = false };
+        { IsReconnectionEnabled = false };
         var client2 = new ReactiveWebSocketClient(new Uri($"ws://127.0.0.1:{port}/"))
-            { IsReconnectionEnabled = false };
+        { IsReconnectionEnabled = false };
 
         var connectionTask1 = WaitUntilAsync(server.ClientConnected, () => server.ClientCount == 1);
         await client1.StartOrFailAsync(TestContext.Current.CancellationToken);
@@ -228,19 +238,25 @@ public class ReactiveWebSocketServerLifecycleTests(ITestOutputHelper output) : R
         await server.DisposeAsync();
 
         // Assert
-        Assert.True(server.IsDisposed);
-        Assert.Equal(0, server.ClientCount);
+        Assert.Multiple(() =>
+        {
+            Assert.True(server.IsDisposed);
+            Assert.Equal(0, server.ClientCount);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void Finalizer_ShouldNotThrow()
     {
         CreateAndAbandonServer();
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
 
         // Assert
-        Assert.True(true);
+        var exception = Record.Exception(() =>
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+        });
+        Assert.Null(exception);
         return;
 
         // Arrange & Act

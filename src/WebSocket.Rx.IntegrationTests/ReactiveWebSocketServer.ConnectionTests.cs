@@ -5,7 +5,7 @@ namespace WebSocket.Rx.IntegrationTests;
 
 public class ReactiveWebSocketServerConnectionTests(ITestOutputHelper output) : ReactiveWebSocketServerTestBase(output)
 {
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Should_Accept_Client_Connection()
     {
         // Arrange & Act
@@ -17,7 +17,7 @@ public class ReactiveWebSocketServerConnectionTests(ITestOutputHelper output) : 
         Assert.Equal(1, Server.ClientCount);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Should_Handle_Multiple_Clients()
     {
         // Arrange & Act
@@ -33,7 +33,7 @@ public class ReactiveWebSocketServerConnectionTests(ITestOutputHelper output) : 
         Assert.Equal(2, Server.ClientCount);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Should_Detect_Client_Disconnect()
     {
         // Arrange
@@ -50,7 +50,7 @@ public class ReactiveWebSocketServerConnectionTests(ITestOutputHelper output) : 
         Assert.Equal(0, Server.ClientCount);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Should_Reject_Non_WebSocket_Requests()
     {
         // Arrange
@@ -65,7 +65,7 @@ public class ReactiveWebSocketServerConnectionTests(ITestOutputHelper output) : 
         Assert.Equal(0, Server.ClientCount);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Should_Handle_Unexpected_Client_Disconnect()
     {
         // Arrange
@@ -78,10 +78,10 @@ public class ReactiveWebSocketServerConnectionTests(ITestOutputHelper output) : 
 
         // Assert
         await WaitUntilAsync(Server.ClientDisconnected, () => Server.ClientCount == 0);
-        Assert.True(true);
+        Assert.Equal(0, Server.ClientCount);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Should_Track_Connected_Clients()
     {
         // Arrange & Act
@@ -99,7 +99,7 @@ public class ReactiveWebSocketServerConnectionTests(ITestOutputHelper output) : 
         Assert.All(connectedClients.Values, Assert.NotNull);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Should_Update_ClientCount_Correctly()
     {
         // Arrange
@@ -124,7 +124,7 @@ public class ReactiveWebSocketServerConnectionTests(ITestOutputHelper output) : 
         Assert.Equal(0, Server.ClientCount);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Should_Handle_Rapid_Connect_Disconnect()
     {
         // Act
@@ -140,7 +140,7 @@ public class ReactiveWebSocketServerConnectionTests(ITestOutputHelper output) : 
         Assert.Equal(0, Server.ClientCount);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Should_Handle_10_Concurrent_Clients()
     {
         // Arrange

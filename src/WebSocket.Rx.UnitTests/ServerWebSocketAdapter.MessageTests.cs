@@ -7,7 +7,7 @@ namespace WebSocket.Rx.UnitTests;
 
 public class ServerWebSocketAdapterMessageTests(ITestOutputHelper output) : ServerWebSocketAdapterTestBase(output)
 {
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void Send_WithByteArray_ShouldQueueMessage()
     {
         // Arrange
@@ -22,7 +22,7 @@ public class ServerWebSocketAdapterMessageTests(ITestOutputHelper output) : Serv
         Assert.True(result);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void Send_WithString_ShouldQueueEncodedMessage()
     {
         // Arrange
@@ -37,7 +37,7 @@ public class ServerWebSocketAdapterMessageTests(ITestOutputHelper output) : Serv
         Assert.True(result);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void Send_WithEmptyByteArray_ShouldReturnFalse()
     {
         // Arrange
@@ -51,7 +51,7 @@ public class ServerWebSocketAdapterMessageTests(ITestOutputHelper output) : Serv
         Assert.False(result);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void SendAsText_WithValidMessage_ShouldQueueTextMessage()
     {
         // Arrange
@@ -66,7 +66,7 @@ public class ServerWebSocketAdapterMessageTests(ITestOutputHelper output) : Serv
         Assert.True(result);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 5000)]
     public async Task SendInstant_WithByteArray_ShouldSendImmediately()
     {
         // Arrange
@@ -93,7 +93,7 @@ public class ServerWebSocketAdapterMessageTests(ITestOutputHelper output) : Serv
             Arg.Any<CancellationToken>());
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 5000)]
     public async Task SendInstant_WithString_ShouldSendEncodedMessage()
     {
         // Arrange
@@ -120,7 +120,7 @@ public class ServerWebSocketAdapterMessageTests(ITestOutputHelper output) : Serv
             Arg.Any<CancellationToken>());
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 5000)]
     public async Task SendInstant_WithClosedSocket_ShouldNotSend()
     {
         // Arrange
@@ -140,7 +140,7 @@ public class ServerWebSocketAdapterMessageTests(ITestOutputHelper output) : Serv
             Arg.Any<CancellationToken>());
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 5000)]
     public async Task StopAsync_ShouldCloseWebSocketGracefully()
     {
         // Arrange
@@ -167,7 +167,7 @@ public class ServerWebSocketAdapterMessageTests(ITestOutputHelper output) : Serv
             Arg.Any<CancellationToken>());
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 5000)]
     public async Task StopAsync_WhenCloseAsyncThrows_ShouldAbortConnection()
     {
         // Arrange

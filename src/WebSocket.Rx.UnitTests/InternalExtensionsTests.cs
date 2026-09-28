@@ -7,9 +7,7 @@ namespace WebSocket.Rx.UnitTests;
 
 public class InternalExtensionsTests
 {
-    private const int DefaultTimeoutMs = 10000;
-
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void Try_Action_ShouldExecuteAndSwallowExceptions()
     {
         var value = new object();
@@ -20,11 +18,14 @@ public class InternalExtensionsTests
         Action<object> action = _ => throw new InvalidOperationException("boom");
         var exception = Record.Exception(() => value.Try(action));
 
-        Assert.True(called);
-        Assert.Null(exception);
+        Assert.Multiple(() =>
+        {
+            Assert.True(called);
+            Assert.Null(exception);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public async Task Try_Async_ShouldExecuteAndSwallowExceptions()
     {
         var value = new object();
@@ -42,11 +43,14 @@ public class InternalExtensionsTests
             throw new InvalidOperationException("boom");
         }));
 
-        Assert.True(called);
-        Assert.Null(exception);
+        Assert.Multiple(() =>
+        {
+            Assert.True(called);
+            Assert.Null(exception);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 10000)]
     public async Task Async_AllResultsMeetCondition_ReturnsTrue()
     {
         var values = new[] { 1, 2, 3 };
@@ -60,11 +64,14 @@ public class InternalExtensionsTests
             return value * 2;
         }, output => output > 0, TestContext.Current.CancellationToken);
 
-        Assert.True(result);
-        Assert.Equal(values.Length, seen.Count);
+        Assert.Multiple(() =>
+        {
+            Assert.True(result);
+            Assert.Equal(values.Length, seen.Count);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 10000)]
     public async Task Async_ConditionFails_ReturnsFalse()
     {
         var values = new[] { 1, 2, 3 };
@@ -75,28 +82,34 @@ public class InternalExtensionsTests
         Assert.False(result);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 10000)]
     public async Task GetMetadata_WithHeader_UsesProvidedId()
     {
         var expectedId = Guid.NewGuid();
         var (metadata, remote) = await GetMetadataAsync(request =>
         {
             request.Headers.Add(Headers.IdHeader, expectedId.ToString());
-        });
+        }).WaitAsync(TestContext.Current.CancellationToken);
 
-        Assert.Equal(expectedId, metadata.Id);
-        Assert.Equal(remote.Address, metadata.Address);
-        Assert.Equal(remote.Port, metadata.Port);
+        Assert.Multiple(() =>
+        {
+            Assert.Equal(expectedId, metadata.Id);
+            Assert.Equal(remote.Address, metadata.Address);
+            Assert.Equal(remote.Port, metadata.Port);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 10000)]
     public async Task GetMetadata_WithoutHeader_GeneratesNewId()
     {
-        var (metadata, remote) = await GetMetadataAsync();
+        var (metadata, remote) = await GetMetadataAsync().WaitAsync(TestContext.Current.CancellationToken);
 
-        Assert.NotEqual(Guid.Empty, metadata.Id);
-        Assert.Equal(remote.Address, metadata.Address);
-        Assert.Equal(remote.Port, metadata.Port);
+        Assert.Multiple(() =>
+        {
+            Assert.NotEqual(Guid.Empty, metadata.Id);
+            Assert.Equal(remote.Address, metadata.Address);
+            Assert.Equal(remote.Port, metadata.Port);
+        });
     }
 
     private static async Task<(Metadata metadata, IPEndPoint remote)> GetMetadataAsync(

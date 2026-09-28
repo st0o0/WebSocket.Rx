@@ -6,7 +6,7 @@ namespace WebSocket.Rx.IntegrationTests;
 
 public class ReactiveWebSocketClientStressTests(ITestOutputHelper output) : ReactiveWebSocketClientTestBase(output)
 {
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task LargeMessage_ShouldSendAndReceiveCorrectly()
     {
         // Arrange
@@ -27,7 +27,7 @@ public class ReactiveWebSocketClientStressTests(ITestOutputHelper output) : Reac
         Assert.Equal(largeMessage, received.Text.ToString());
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task RapidConnectDisconnect_ShouldHandleGracefully()
     {
         // Arrange
@@ -46,7 +46,7 @@ public class ReactiveWebSocketClientStressTests(ITestOutputHelper output) : Reac
         Assert.False(Client.IsRunning);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task InactivityTimeout_OnConnectionLost_ShouldReconnectQuickly()
     {
         // Arrange
@@ -80,7 +80,7 @@ public class ReactiveWebSocketClientStressTests(ITestOutputHelper output) : Reac
         }
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task MultipleReconnects_InParallel_ShouldNotCauseConcurrencyIssues()
     {
         // Arrange
@@ -102,6 +102,10 @@ public class ReactiveWebSocketClientStressTests(ITestOutputHelper output) : Reac
 
         // Individual reconnects may fail under load; verify the client is still functional
         await Client.ReconnectOrFailAsync(TestContext.Current.CancellationToken);
-        Assert.True(Client.IsRunning);
+        Assert.Multiple(() =>
+        {
+            Assert.True(Client.IsStarted);
+            Assert.True(Client.IsRunning);
+        });
     }
 }

@@ -7,18 +7,44 @@ namespace WebSocket.Rx.UnitTests;
 
 public class ExtensionsTests
 {
-    private const int DefaultTimeoutMs = 10000;
-
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void ToPayload_ShouldEncodeText()
     {
         using var payload = "Hello".AsMemory().ToPayload(Encoding.UTF8, WebSocketMessageType.Text);
 
-        Assert.Equal(WebSocketMessageType.Text, payload.Type);
-        Assert.Equal(Encoding.UTF8.GetBytes("Hello"), payload.Data.ToArray());
+        Assert.Multiple(() =>
+        {
+            Assert.Equal(WebSocketMessageType.Text, payload.Type);
+            Assert.Equal(Encoding.UTF8.GetBytes("Hello"), payload.Data.ToArray());
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
+    public void ToPayload_EmptyString_ShouldHaveEmptyData()
+    {
+        using var payload = ReadOnlyMemory<char>.Empty.ToPayload(Encoding.UTF8, WebSocketMessageType.Text);
+
+        Assert.Multiple(() =>
+        {
+            Assert.Equal(WebSocketMessageType.Text, payload.Type);
+            Assert.Equal(0, payload.Data.Length);
+        });
+    }
+
+    [Fact]
+    public void ToPayload_BinaryData_ShouldCopyBytes()
+    {
+        var data = new byte[] { 0xDE, 0xAD, 0xBE, 0xEF };
+        using var payload = new Payload(data, WebSocketMessageType.Binary);
+
+        Assert.Multiple(() =>
+        {
+            Assert.Equal(WebSocketMessageType.Binary, payload.Type);
+            Assert.Equal(data, payload.Data.ToArray());
+        });
+    }
+
+    [Fact(Timeout = 10000)]
     public async Task ClientSendInstant_ShouldUseSendInstantAsync()
     {
         var client = new TestReactiveWebSocketClient
@@ -33,7 +59,7 @@ public class ExtensionsTests
         subject.OnNext(Message.Create("text"));
         subject.OnNext(Message.Create(new byte[] { 1, 2 }));
 
-        var results = await resultsTask;
+        var results = await resultsTask.WaitAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(new[] { true, false }, results);
         Assert.Single(client.TextSendInstantCalls);
@@ -43,7 +69,7 @@ public class ExtensionsTests
         Assert.Equal("text", client.TextSendInstantCalls[0].Message.ToString());
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 10000)]
     public async Task ClientSend_ShouldUseSendAsync()
     {
         var client = new TestReactiveWebSocketClient
@@ -58,14 +84,14 @@ public class ExtensionsTests
         subject.OnNext(Message.Create("text"));
         subject.OnNext(Message.Create(new byte[] { 9 }));
 
-        var results = await resultsTask;
+        var results = await resultsTask.WaitAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(new[] { false, true }, results);
         Assert.Single(client.TextSendCalls);
         Assert.Single(client.BinarySendCalls);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 10000)]
     public async Task ClientTrySend_ShouldUseTrySend()
     {
         var client = new TestReactiveWebSocketClient
@@ -80,14 +106,14 @@ public class ExtensionsTests
         subject.OnNext(Message.Create("text"));
         subject.OnNext(Message.Create(new byte[] { 7, 8 }));
 
-        var results = await resultsTask;
+        var results = await resultsTask.WaitAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(new[] { true, false }, results);
         Assert.Single(client.TextTrySendCalls);
         Assert.Single(client.BinaryTrySendCalls);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 10000)]
     public async Task ServerSendInstant_ShouldUseSendInstantAsync()
     {
         var server = new TestReactiveWebSocketServer
@@ -103,7 +129,7 @@ public class ExtensionsTests
         subject.OnNext(new ServerMessage(new Metadata(clientId), Message.Create("hi")));
         subject.OnNext(new ServerMessage(new Metadata(clientId), Message.Create(new byte[] { 1 })));
 
-        var results = await resultsTask;
+        var results = await resultsTask.WaitAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(new[] { true, false }, results);
         Assert.Single(server.TextSendInstantCalls);
@@ -113,7 +139,7 @@ public class ExtensionsTests
         Assert.Equal(clientId, server.TextSendInstantCalls[0].ClientId);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 10000)]
     public async Task ServerSend_ShouldUseSendAsync()
     {
         var server = new TestReactiveWebSocketServer
@@ -129,14 +155,14 @@ public class ExtensionsTests
         subject.OnNext(new ServerMessage(new Metadata(clientId), Message.Create("hi")));
         subject.OnNext(new ServerMessage(new Metadata(clientId), Message.Create(new byte[] { 2 })));
 
-        var results = await resultsTask;
+        var results = await resultsTask.WaitAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(new[] { false, true }, results);
         Assert.Single(server.TextSendCalls);
         Assert.Single(server.BinarySendCalls);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 10000)]
     public async Task ServerTrySend_ShouldUseTrySend()
     {
         var server = new TestReactiveWebSocketServer
@@ -152,14 +178,14 @@ public class ExtensionsTests
         subject.OnNext(new ServerMessage(new Metadata(clientId), Message.Create("hi")));
         subject.OnNext(new ServerMessage(new Metadata(clientId), Message.Create(new byte[] { 3 })));
 
-        var results = await resultsTask;
+        var results = await resultsTask.WaitAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(new[] { true, false }, results);
         Assert.Single(server.TextTrySendCalls);
         Assert.Single(server.BinaryTrySendCalls);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 10000)]
     public async Task ServerBroadcastInstant_ShouldUseBroadcastInstantAsync()
     {
         var server = new TestReactiveWebSocketServer
@@ -174,14 +200,14 @@ public class ExtensionsTests
         subject.OnNext(new ServerMessage(new Metadata(Guid.NewGuid()), Message.Create("hi")));
         subject.OnNext(new ServerMessage(new Metadata(Guid.NewGuid()), Message.Create(new byte[] { 4 })));
 
-        var results = await resultsTask;
+        var results = await resultsTask.WaitAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(new[] { true, false }, results);
         Assert.Single(server.TextBroadcastInstantCalls);
         Assert.Single(server.BinaryBroadcastInstantCalls);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 10000)]
     public async Task ServerBroadcastAsync_ShouldUseBroadcastAsync()
     {
         var server = new TestReactiveWebSocketServer
@@ -196,14 +222,14 @@ public class ExtensionsTests
         subject.OnNext(new ServerMessage(new Metadata(Guid.NewGuid()), Message.Create("hi")));
         subject.OnNext(new ServerMessage(new Metadata(Guid.NewGuid()), Message.Create(new byte[] { 5 })));
 
-        var results = await resultsTask;
+        var results = await resultsTask.WaitAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(new[] { false, true }, results);
         Assert.Single(server.TextBroadcastCalls);
         Assert.Single(server.BinaryBroadcastCalls);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 10000)]
     public async Task ServerTryBroadcast_ShouldUseTryBroadcast()
     {
         var server = new TestReactiveWebSocketServer
@@ -218,7 +244,7 @@ public class ExtensionsTests
         subject.OnNext(new ServerMessage(new Metadata(Guid.NewGuid()), Message.Create("hi")));
         subject.OnNext(new ServerMessage(new Metadata(Guid.NewGuid()), Message.Create(new byte[] { 6 })));
 
-        var results = await resultsTask;
+        var results = await resultsTask.WaitAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(new[] { true, false }, results);
         Assert.Single(server.TextTryBroadcastCalls);

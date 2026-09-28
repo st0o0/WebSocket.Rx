@@ -4,20 +4,21 @@ namespace WebSocket.Rx.UnitTests;
 
 public class AsyncLockTests
 {
-    private const int DefaultTimeoutMs = 10000;
-
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void Constructor_CreatesValidInstance()
     {
         // Act
         var asyncLock = new AsyncLock();
 
         // Assert
-        Assert.False(asyncLock.IsLocked);
-        Assert.NotNull(asyncLock);
+        Assert.Multiple(() =>
+        {
+            Assert.False(asyncLock.IsLocked);
+            Assert.NotNull(asyncLock);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void Lock_Synchronous_AcquiresAndTracksState()
     {
         // Arrange
@@ -30,7 +31,7 @@ public class AsyncLockTests
         Assert.True(asyncLock.IsLocked);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void Lock_Synchronous_ReleasesAfterDispose()
     {
         var asyncLock = new AsyncLock();
@@ -43,7 +44,7 @@ public class AsyncLockTests
         Assert.False(asyncLock.IsLocked);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void LockAsync_FastPath_ReturnsImmediately()
     {
         var asyncLock = new AsyncLock();
@@ -66,13 +67,13 @@ public class AsyncLockTests
         using var first = asyncLock.Lock();
         Assert.True(asyncLock.IsLocked);
 
-        var secondTask = Task.Run(() => asyncLock.Lock());
+        var secondTask = Task.Run(() => asyncLock.Lock(), TestContext.Current.CancellationToken);
 
         Assert.False(secondTask.IsCompleted);
 
         // ReSharper disable once DisposeOnUsingVariable
         first.Dispose();
-        _ = await Task.Run(() => secondTask.Result);
+        _ = await Task.Run(() => secondTask.Result, TestContext.Current.CancellationToken);
     }
 
     [Fact(Timeout = 10000)]
@@ -123,14 +124,17 @@ public class AsyncLockTests
         var tasks = Enumerable.Range(0, taskCount)
             .Select(i => Task.Run(async () =>
             {
-                using var _ = await asyncLock.LockAsync();
+                using var _ = await asyncLock.LockAsync(TestContext.Current.CancellationToken);
                 lock (order) order.Add(i);
             })).ToArray();
 
         await Task.WhenAll(tasks);
 
-        Assert.Equal(taskCount, order.Count);
-        Assert.Equal(taskCount, order.Distinct().Count());
+        Assert.Multiple(() =>
+        {
+            Assert.Equal(taskCount, order.Count);
+            Assert.Equal(taskCount, order.Distinct().Count());
+        });
     }
 
     [Fact(Timeout = 30000)]
@@ -142,9 +146,9 @@ public class AsyncLockTests
 
         var tasks = Enumerable.Range(0, 5).Select(_ => Task.Run(async () =>
         {
-            using var t = await asyncLock.LockAsync();
+            using var t = await asyncLock.LockAsync(TestContext.Current.CancellationToken);
             var start = DateTime.UtcNow;
-            await Task.Delay(1);
+            await Task.Delay(1, TestContext.Current.CancellationToken);
             var end = DateTime.UtcNow;
             lock (timingsLock)
             {
@@ -157,12 +161,13 @@ public class AsyncLockTests
         var sorted = timings.OrderBy(t => t.Start).ToList();
         for (var i = 0; i < sorted.Count - 1; i++)
         {
-            Assert.True(sorted[i].End < sorted[i + 1].Start);
+            Assert.True(sorted[i].End < sorted[i + 1].Start,
+                $"Overlap at index {i}: {sorted[i].End:O} >= {sorted[i + 1].Start:O}");
         }
     }
 
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void LockAndLockAsync_MixWorks()
     {
         var asyncLock = new AsyncLock();
@@ -191,7 +196,7 @@ public class AsyncLockTests
         Assert.False(asyncLock.IsLocked);
     }
 
-    [Fact(Timeout = 10000)]
+    [Fact]
     public async Task ExceptionInCriticalSection_ReleasesLock()
     {
         // Arrange
@@ -228,7 +233,7 @@ public class AsyncLockTests
         var asyncLock = new AsyncLock();
         var tasks = Enumerable.Range(0, 100).Select(_ => Task.Run(async () =>
         {
-            using var t = await asyncLock.LockAsync();
+            using var t = await asyncLock.LockAsync(TestContext.Current.CancellationToken);
         })).ToArray();
 
         // Act
@@ -236,6 +241,17 @@ public class AsyncLockTests
 
         // Assert
         Assert.False(asyncLock.IsLocked);
+    }
+
+    [Fact]
+    public async Task LockAsync_WithAlreadyCancelledToken_ShouldThrow()
+    {
+        var asyncLock = new AsyncLock();
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            async () => await asyncLock.LockAsync(cts.Token));
     }
 
     [Theory(Timeout = 10000)]

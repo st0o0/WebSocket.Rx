@@ -6,7 +6,7 @@ namespace WebSocket.Rx.IntegrationTests;
 
 public class ReactiveWebSocketServerReceivingTests(ITestOutputHelper output) : ReactiveWebSocketServerTestBase(output)
 {
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Should_Receive_Text_Message_From_Client()
     {
         // Arrange
@@ -18,12 +18,15 @@ public class ReactiveWebSocketServerReceivingTests(ITestOutputHelper output) : R
 
         // Assert
         var receivedMessage = await messageTask;
-        Assert.NotNull(receivedMessage);
-        Assert.Equal("Hello Server", receivedMessage.Message.Text.ToString());
-        Assert.NotNull(receivedMessage.Metadata);
+        Assert.Multiple(() =>
+        {
+            Assert.NotNull(receivedMessage);
+            Assert.Equal("Hello Server", receivedMessage.Message.Text.ToString());
+            Assert.NotNull(receivedMessage.Metadata);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Should_Receive_Binary_Message_From_Client()
     {
         // Arrange
@@ -40,11 +43,14 @@ public class ReactiveWebSocketServerReceivingTests(ITestOutputHelper output) : R
 
         // Assert
         var receivedMessage = await messageTask;
-        Assert.NotNull(receivedMessage);
-        Assert.Equal(binaryData, receivedMessage.Message.Binary);
+        Assert.Multiple(() =>
+        {
+            Assert.NotNull(receivedMessage);
+            Assert.Equal(binaryData, receivedMessage.Message.Binary);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Should_Receive_Multiple_Messages_From_Same_Client()
     {
         // Arrange
@@ -60,12 +66,15 @@ public class ReactiveWebSocketServerReceivingTests(ITestOutputHelper output) : R
         await receiveTask;
 
         // Assert
-        Assert.Equal(2, messages.Count);
-        Assert.Equal("Message 1", messages[0].Message.Text.ToString());
-        Assert.Equal("Message 2", messages[1].Message.Text.ToString());
+        Assert.Multiple(() =>
+        {
+            Assert.Equal(2, messages.Count);
+            Assert.Equal("Message 1", messages[0].Message.Text.ToString());
+            Assert.Equal("Message 2", messages[1].Message.Text.ToString());
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Should_Handle_Large_Messages()
     {
         // Arrange
@@ -86,7 +95,7 @@ public class ReactiveWebSocketServerReceivingTests(ITestOutputHelper output) : R
         Assert.Equal(largeData, receivedMessage.Message.Binary);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Should_Handle_Empty_Messages()
     {
         // Arrange
@@ -105,7 +114,7 @@ public class ReactiveWebSocketServerReceivingTests(ITestOutputHelper output) : R
         Assert.Empty(receivedMessage.Message.Binary.ToArray());
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Should_Maintain_Message_Order()
     {
         // Arrange
@@ -135,7 +144,7 @@ public class ReactiveWebSocketServerReceivingTests(ITestOutputHelper output) : R
         }
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Should_Handle_Many_Small_Messages()
     {
         // Arrange

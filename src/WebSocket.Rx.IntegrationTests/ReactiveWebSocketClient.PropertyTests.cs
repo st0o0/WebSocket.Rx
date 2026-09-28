@@ -6,20 +6,23 @@ namespace WebSocket.Rx.IntegrationTests;
 
 public class ReactiveWebSocketClientPropertyTests(ITestOutputHelper output) : ReactiveWebSocketClientTestBase(output)
 {
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void Properties_DefaultValues_ShouldBeCorrect()
     {
         // Arrange & Act
         Client = new ReactiveWebSocketClient(new Uri(Server.WebSocketUrl));
 
         // Assert
-        Assert.Equal(TimeSpan.FromSeconds(10), Client.ConnectTimeout);
-        Assert.True(Client.IsReconnectionEnabled);
-        Assert.True(Client.IsTextMessageConversionEnabled);
-        Assert.Equal(Encoding.UTF8, Client.MessageEncoding);
+        Assert.Multiple(() =>
+        {
+            Assert.Equal(TimeSpan.FromSeconds(10), Client.ConnectTimeout);
+            Assert.True(Client.IsReconnectionEnabled);
+            Assert.True(Client.IsTextMessageConversionEnabled);
+            Assert.Equal(Encoding.UTF8, Client.MessageEncoding);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task NativeClient_WhenConnected_ShouldNotBeNull()
     {
         // Arrange
@@ -29,11 +32,14 @@ public class ReactiveWebSocketClientPropertyTests(ITestOutputHelper output) : Re
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.NotNull(Client.NativeClient);
-        Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
+        Assert.Multiple(() =>
+        {
+            Assert.NotNull(Client.NativeClient);
+            Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task SenderRunning_WhenConnected_ShouldBeTrue()
     {
         // Arrange

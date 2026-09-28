@@ -7,7 +7,7 @@ namespace WebSocket.Rx.IntegrationTests;
 public class ReactiveWebSocketClientReconnectionTests(ITestOutputHelper output)
     : ReactiveWebSocketClientTestBase(output)
 {
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task Reconnect_WhenStarted_ShouldReconnect()
     {
         // Arrange
@@ -24,7 +24,7 @@ public class ReactiveWebSocketClientReconnectionTests(ITestOutputHelper output)
         Assert.True(Client.IsRunning);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task Reconnect_WhenNotStarted_ShouldDoNothing()
     {
         // Arrange
@@ -40,7 +40,7 @@ public class ReactiveWebSocketClientReconnectionTests(ITestOutputHelper output)
         Assert.Equal(0, connectionCount);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task ReconnectOrFail_WhenNotStarted_ShouldThrow()
     {
         // Arrange
@@ -51,7 +51,7 @@ public class ReactiveWebSocketClientReconnectionTests(ITestOutputHelper output)
             Client.ReconnectOrFailAsync(TestContext.Current.CancellationToken));
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task ReconnectOrFail_WhenStarted_ShouldReconnect()
     {
         // Arrange
@@ -63,10 +63,10 @@ public class ReactiveWebSocketClientReconnectionTests(ITestOutputHelper output)
         // Act
         await Client.ReconnectOrFailAsync(TestContext.Current.CancellationToken);
         await reconnectionTask;
-        Assert.True(true);
+        Assert.True(Client.IsRunning);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task AutoReconnect_OnConnectionLost_ShouldReconnect()
     {
         // Arrange
@@ -99,7 +99,7 @@ public class ReactiveWebSocketClientReconnectionTests(ITestOutputHelper output)
         }
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 30000)]
     public async Task AutoReconnect_WhenDisabled_ShouldNotReconnect()
     {
         // Arrange

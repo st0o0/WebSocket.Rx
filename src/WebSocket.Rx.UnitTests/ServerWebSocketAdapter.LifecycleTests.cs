@@ -5,7 +5,7 @@ namespace WebSocket.Rx.UnitTests;
 
 public class ServerWebSocketAdapterLifecycleTests(ITestOutputHelper output) : ServerWebSocketAdapterTestBase(output)
 {
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void Constructor_ShouldInitializeAdapter()
     {
         // Act
@@ -18,7 +18,7 @@ public class ServerWebSocketAdapterLifecycleTests(ITestOutputHelper output) : Se
         Assert.True(Adapter.IsRunning);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void Constructor_WithNullSocket_ShouldThrowArgumentNullException()
     {
         // Act & Assert
@@ -26,7 +26,7 @@ public class ServerWebSocketAdapterLifecycleTests(ITestOutputHelper output) : Se
             new ReactiveWebSocketServer.ServerWebSocketAdapter(null!, new Metadata(Guid.Empty, IPAddress.Any, 0)));
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void Dispose_CalledTwice_ShouldNotThrow()
     {
         // Arrange
@@ -41,7 +41,7 @@ public class ServerWebSocketAdapterLifecycleTests(ITestOutputHelper output) : Se
         Assert.Null(exception);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public async Task DisposeAsync_ShouldMarkAsDisposed()
     {
         // Arrange
@@ -55,7 +55,7 @@ public class ServerWebSocketAdapterLifecycleTests(ITestOutputHelper output) : Se
         Assert.True(Adapter.IsDisposed);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public async Task Dispose_MultipleTimes_ShouldBeIdempotent()
     {
         // Arrange

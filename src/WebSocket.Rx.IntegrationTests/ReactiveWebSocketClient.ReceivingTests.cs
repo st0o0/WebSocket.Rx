@@ -5,7 +5,7 @@ namespace WebSocket.Rx.IntegrationTests;
 
 public class ReactiveWebSocketClientReceivingTests(ITestOutputHelper output) : ReactiveWebSocketClientTestBase(output)
 {
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task MessageReceived_WhenServerSendsMessage_ShouldReceive()
     {
         // Arrange
@@ -25,7 +25,7 @@ public class ReactiveWebSocketClientReceivingTests(ITestOutputHelper output) : R
         Assert.Equal("Server Message", received.Text.ToString());
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task MessageReceived_BinaryMessage_ShouldReceiveBinary()
     {
         // Arrange
@@ -47,10 +47,11 @@ public class ReactiveWebSocketClientReceivingTests(ITestOutputHelper output) : R
         Assert.Equal(testData, received.Binary.ToArray());
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task StreamFakeMessage_ShouldTriggerObservable()
     {
         // Arrange
+        _ = TestContext.Current.CancellationToken;
         Client = new ReactiveWebSocketClient(new Uri(Server.WebSocketUrl));
 
         var messageTask = WaitForEventAsync(Client.MessageReceived);

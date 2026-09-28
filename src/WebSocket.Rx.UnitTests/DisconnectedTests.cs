@@ -4,9 +4,7 @@ namespace WebSocket.Rx.UnitTests;
 
 public class DisconnectedTests
 {
-    private const int DefaultTimeoutMs = 5000;
-
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void Equality_WithSameValues_ShouldBeEqual()
     {
         // Arrange
@@ -27,13 +25,16 @@ public class DisconnectedTests
         var disconnected = new Disconnected(DisconnectReason.ClientInitiated);
 
         // Assert
-        Assert.Equal(DisconnectReason.ClientInitiated, disconnected.Reason);
-        Assert.Null(disconnected.CloseStatus);
-        Assert.Null(disconnected.CloseStatusDescription);
-        Assert.Null(disconnected.SubProtocol);
-        Assert.Null(disconnected.Exception);
-        Assert.False(disconnected.IsClosingCanceled);
-        Assert.False(disconnected.IsReconnectionCanceled);
+        Assert.Multiple(() =>
+        {
+            Assert.Equal(DisconnectReason.ClientInitiated, disconnected.Reason);
+            Assert.Null(disconnected.CloseStatus);
+            Assert.Null(disconnected.CloseStatusDescription);
+            Assert.Null(disconnected.SubProtocol);
+            Assert.Null(disconnected.Exception);
+            Assert.False(disconnected.IsClosingCanceled);
+            Assert.False(disconnected.IsReconnectionCanceled);
+        });
     }
 
     [Fact]
@@ -51,11 +52,14 @@ public class DisconnectedTests
             exception);
 
         // Assert
-        Assert.Equal(DisconnectReason.ClientInitiated, disconnected.Reason);
-        Assert.Equal(WebSocketCloseStatus.InternalServerError, disconnected.CloseStatus);
-        Assert.Equal("Server down", disconnected.CloseStatusDescription);
-        Assert.Equal("my-protocol", disconnected.SubProtocol);
-        Assert.Equal(exception, disconnected.Exception);
+        Assert.Multiple(() =>
+        {
+            Assert.Equal(DisconnectReason.ClientInitiated, disconnected.Reason);
+            Assert.Equal(WebSocketCloseStatus.InternalServerError, disconnected.CloseStatus);
+            Assert.Equal("Server down", disconnected.CloseStatusDescription);
+            Assert.Equal("my-protocol", disconnected.SubProtocol);
+            Assert.Equal(exception, disconnected.Exception);
+        });
     }
 
     [Fact]
@@ -65,8 +69,11 @@ public class DisconnectedTests
 
         disconnected.CancelClosing();
 
-        Assert.True(disconnected.IsClosingCanceled);
-        Assert.False(disconnected.IsReconnectionCanceled);
+        Assert.Multiple(() =>
+        {
+            Assert.True(disconnected.IsClosingCanceled);
+            Assert.False(disconnected.IsReconnectionCanceled);
+        });
     }
 
     [Fact]
@@ -87,8 +94,11 @@ public class DisconnectedTests
 
         disconnected.CancelReconnection();
 
-        Assert.True(disconnected.IsReconnectionCanceled);
-        Assert.False(disconnected.IsClosingCanceled);
+        Assert.Multiple(() =>
+        {
+            Assert.True(disconnected.IsReconnectionCanceled);
+            Assert.False(disconnected.IsClosingCanceled);
+        });
     }
 
     [Fact]
@@ -110,8 +120,11 @@ public class DisconnectedTests
         disconnected.CancelClosing();
         disconnected.CancelReconnection();
 
-        Assert.True(disconnected.IsClosingCanceled);
-        Assert.True(disconnected.IsReconnectionCanceled);
+        Assert.Multiple(() =>
+        {
+            Assert.True(disconnected.IsClosingCanceled);
+            Assert.True(disconnected.IsReconnectionCanceled);
+        });
     }
 
     [Fact]
@@ -126,11 +139,14 @@ public class DisconnectedTests
         disconnected.CancelClosing();
         disconnected.CancelReconnection();
 
-        Assert.Equal(DisconnectReason.ClientInitiated, disconnected.Reason);
-        Assert.Equal(WebSocketCloseStatus.NormalClosure, disconnected.CloseStatus);
-        Assert.Equal("bye", disconnected.CloseStatusDescription);
-        Assert.Equal("proto", disconnected.SubProtocol);
-        Assert.Null(disconnected.Exception);
+        Assert.Multiple(() =>
+        {
+            Assert.Equal(DisconnectReason.ClientInitiated, disconnected.Reason);
+            Assert.Equal(WebSocketCloseStatus.NormalClosure, disconnected.CloseStatus);
+            Assert.Equal("bye", disconnected.CloseStatusDescription);
+            Assert.Equal("proto", disconnected.SubProtocol);
+            Assert.Null(disconnected.Exception);
+        });
     }
 
     [Fact]
@@ -148,8 +164,11 @@ public class DisconnectedTests
             "desc",
             "proto");
 
-        Assert.Equal(a, b);
-        Assert.True(a == b);
+        Assert.Multiple(() =>
+        {
+            Assert.Equal(a, b);
+            Assert.True(a == b);
+        });
     }
 
     [Fact]
@@ -161,10 +180,12 @@ public class DisconnectedTests
 
         var copy = original with { Reason = DisconnectReason.Undefined };
 
-        Assert.Equal(DisconnectReason.Undefined, copy.Reason);
-
-        Assert.True(copy.IsClosingCanceled);
-        Assert.True(copy.IsReconnectionCanceled);
+        Assert.Multiple(() =>
+        {
+            Assert.Equal(DisconnectReason.Undefined, copy.Reason);
+            Assert.True(copy.IsClosingCanceled);
+            Assert.True(copy.IsReconnectionCanceled);
+        });
     }
 
     [Fact]

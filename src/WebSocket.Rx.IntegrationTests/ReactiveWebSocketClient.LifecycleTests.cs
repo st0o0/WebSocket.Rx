@@ -6,7 +6,7 @@ namespace WebSocket.Rx.IntegrationTests;
 
 public class ReactiveWebSocketClientLifecycleTests(ITestOutputHelper output) : ReactiveWebSocketClientTestBase(output)
 {
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void Constructor_WithValidUri_ShouldSetProperties()
     {
         // Arrange & Act
@@ -14,22 +14,25 @@ public class ReactiveWebSocketClientLifecycleTests(ITestOutputHelper output) : R
         Client = new ReactiveWebSocketClient(uri);
 
         // Assert
-        Assert.Equal(uri, Client.Url);
-        Assert.False(Client.IsStarted);
-        Assert.False(Client.IsRunning);
-        Assert.NotNull(Client.MessageReceived);
-        Assert.NotNull(Client.ConnectionHappened);
-        Assert.NotNull(Client.DisconnectionHappened);
+        Assert.Multiple(() =>
+        {
+            Assert.Equal(uri, Client.Url);
+            Assert.False(Client.IsStarted);
+            Assert.False(Client.IsRunning);
+            Assert.NotNull(Client.MessageReceived);
+            Assert.NotNull(Client.ConnectionHappened);
+            Assert.NotNull(Client.DisconnectionHappened);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void Constructor_WithNullUri_ShouldThrowArgumentNullException()
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => new ReactiveWebSocketClient(null!));
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task StartOrFail_WhenNotStarted_ShouldConnect()
     {
         // Arrange
@@ -41,13 +44,16 @@ public class ReactiveWebSocketClientLifecycleTests(ITestOutputHelper output) : R
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.True(Client.IsStarted);
-        Assert.True(Client.IsRunning);
+        Assert.Multiple(() =>
+        {
+            Assert.True(Client.IsStarted);
+            Assert.True(Client.IsRunning);
+        });
         await WaitUntilAsync(Client.ConnectionHappened, () => Client.IsRunning);
         Assert.True(connected);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task StartOrFail_WhenAlreadyStarted_ShouldNotConnectAgain()
     {
         // Arrange
@@ -64,7 +70,7 @@ public class ReactiveWebSocketClientLifecycleTests(ITestOutputHelper output) : R
         Assert.Equal(0, connectionCount);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Start_WithConnectionError_ShouldNotThrow()
     {
         // Arrange
@@ -81,7 +87,7 @@ public class ReactiveWebSocketClientLifecycleTests(ITestOutputHelper output) : R
         Assert.True(error);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task StartOrFail_WithInvalidUri_ShouldThrow()
     {
         // Arrange
@@ -92,7 +98,7 @@ public class ReactiveWebSocketClientLifecycleTests(ITestOutputHelper output) : R
         await Assert.ThrowsAnyAsync<Exception>(() => Client.StartOrFailAsync(TestContext.Current.CancellationToken));
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Stop_WhenRunning_ShouldDisconnect()
     {
         // Arrange
@@ -110,14 +116,17 @@ public class ReactiveWebSocketClientLifecycleTests(ITestOutputHelper output) : R
             TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.True(result);
-        Assert.False(Client.IsStarted);
-        Assert.False(Client.IsRunning);
+        Assert.Multiple(() =>
+        {
+            Assert.True(result);
+            Assert.False(Client.IsStarted);
+            Assert.False(Client.IsRunning);
+        });
         Assert.True(await disconnectedTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
         Assert.True(disconnectedTask.IsCompletedSuccessfully);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Stop_WhenNotStarted_ShouldReturnFalse()
     {
         // Arrange
@@ -131,7 +140,7 @@ public class ReactiveWebSocketClientLifecycleTests(ITestOutputHelper output) : R
         Assert.False(result);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task StopOrFail_WhenRunning_ShouldStopSuccessfully()
     {
         // Arrange
@@ -143,11 +152,14 @@ public class ReactiveWebSocketClientLifecycleTests(ITestOutputHelper output) : R
             TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.True(result);
-        Assert.False(Client.IsStarted);
+        Assert.Multiple(() =>
+        {
+            Assert.True(result);
+            Assert.False(Client.IsStarted);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void Dispose_ShouldMarkAsDisposed()
     {
         // Arrange
@@ -160,10 +172,11 @@ public class ReactiveWebSocketClientLifecycleTests(ITestOutputHelper output) : R
         Assert.True(Client.IsDisposed);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task DisposeAsync_ShouldMarkAsDisposed()
     {
         // Arrange
+        _ = TestContext.Current.CancellationToken;
         Client = new ReactiveWebSocketClient(new Uri(Server.WebSocketUrl));
 
         // Act
@@ -173,7 +186,7 @@ public class ReactiveWebSocketClientLifecycleTests(ITestOutputHelper output) : R
         Assert.True(Client.IsDisposed);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void Dispose_MultipleTimes_ShouldBeIdempotent()
     {
         // Arrange
@@ -188,10 +201,11 @@ public class ReactiveWebSocketClientLifecycleTests(ITestOutputHelper output) : R
         Assert.True(Client.IsDisposed);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task DisposeAsync_MultipleTimes_ShouldBeIdempotent()
     {
         // Arrange
+        _ = TestContext.Current.CancellationToken;
         Client = new ReactiveWebSocketClient(new Uri(Server.WebSocketUrl));
 
         // Act
@@ -203,7 +217,7 @@ public class ReactiveWebSocketClientLifecycleTests(ITestOutputHelper output) : R
         Assert.True(Client.IsDisposed);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task AfterDispose_OperationsShouldThrowOrReturnFalse()
     {
         // Arrange
@@ -223,10 +237,11 @@ public class ReactiveWebSocketClientLifecycleTests(ITestOutputHelper output) : R
         Assert.False(result);
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Dispose_ShouldCompleteAllObservables()
     {
         // Arrange
+        _ = TestContext.Current.CancellationToken;
         Client = new ReactiveWebSocketClient(new Uri(Server.WebSocketUrl));
         var messageCompleted = false;
         var connectionCompleted = false;
@@ -255,12 +270,15 @@ public class ReactiveWebSocketClientLifecycleTests(ITestOutputHelper output) : R
         await WaitForConditionAsync(() => messageCompleted && connectionCompleted && disconnectionCompleted);
 
         // Assert
-        Assert.True(messageCompleted);
-        Assert.True(connectionCompleted);
-        Assert.True(disconnectionCompleted);
+        Assert.Multiple(() =>
+        {
+            Assert.True(messageCompleted);
+            Assert.True(connectionCompleted);
+            Assert.True(disconnectionCompleted);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact(Timeout = 15000)]
     public async Task Dispose_WhileRunning_ShouldStopGracefully()
     {
         // Arrange
@@ -271,20 +289,26 @@ public class ReactiveWebSocketClientLifecycleTests(ITestOutputHelper output) : R
         await Client.DisposeAsync();
 
         // Assert
-        Assert.True(Client.IsDisposed);
-        Assert.False(Client.IsRunning);
-        Assert.False(Client.IsStarted);
+        Assert.Multiple(() =>
+        {
+            Assert.True(Client.IsDisposed);
+            Assert.False(Client.IsRunning);
+            Assert.False(Client.IsStarted);
+        });
     }
 
-    [Fact(Timeout = DefaultTimeoutMs)]
+    [Fact]
     public void Finalizer_ShouldNotThrow()
     {
         CreateAndAbandonClient();
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
 
         // Assert
-        Assert.True(true);
+        var exception = Record.Exception(() =>
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+        });
+        Assert.Null(exception);
         return;
 
         // Arrange & Act
