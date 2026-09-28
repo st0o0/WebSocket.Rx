@@ -300,11 +300,6 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
             {
                 throw;
             }
-
-            if (IsReconnectionEnabled)
-            {
-                _ = ScheduleReconnectAsync().ConfigureAwait(false);
-            }
         }
     }
 
@@ -321,9 +316,19 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
         try
         {
-            using (await ConnectionLock.LockAsync(cts.Token).ConfigureAwait(false))
+            while (!IsDisposed && IsStarted && IsReconnectionEnabled && !cts.Token.IsCancellationRequested)
             {
-                await ReconnectInternalAsync(throwOnError: false, cts.Token).ConfigureAwait(false);
+                using (await ConnectionLock.LockAsync(cts.Token).ConfigureAwait(false))
+                {
+                    await ReconnectInternalAsync(throwOnError: false, cts.Token).ConfigureAwait(false);
+                }
+
+                if (IsRunning)
+                {
+                    return;
+                }
+
+                await Task.Delay(ConnectTimeout, cts.Token).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)
