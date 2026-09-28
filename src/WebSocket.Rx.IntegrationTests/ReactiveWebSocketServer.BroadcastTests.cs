@@ -9,10 +9,13 @@ public class ReactiveWebSocketServerBroadcastTests(ITestOutputHelper output) : R
     public async Task BroadcastInstantAsync_WithMultipleClients_ShouldSendToAll()
     {
         // Arrange
+        var connectionTask1 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 1);
         using var client1 = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        var connectionTask = WaitForEventAsync(Server.ClientConnected);
+        await connectionTask1;
+
+        var connectionTask2 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 2);
         using var client2 = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask;
+        await connectionTask2;
 
         var receiveTask1 = ReceiveTextAsync(client1, TestContext.Current.CancellationToken);
         var receiveTask2 = ReceiveTextAsync(client2, TestContext.Current.CancellationToken);
@@ -58,10 +61,13 @@ public class ReactiveWebSocketServerBroadcastTests(ITestOutputHelper output) : R
     public async Task BroadcastInstantAsync_ByteArray_ShouldSendToAll()
     {
         // Arrange
+        var connectionTask1 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 1);
         using var client1 = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        var connectionTask = WaitForEventAsync(Server.ClientConnected);
+        await connectionTask1;
+
+        var connectionTask2 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 2);
         using var client2 = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask;
+        await connectionTask2;
         var binaryData = new byte[] { 10, 20, 30 };
 
         // Act
@@ -82,10 +88,13 @@ public class ReactiveWebSocketServerBroadcastTests(ITestOutputHelper output) : R
     public async Task BroadcastAsBinaryAsync_WithMultipleClients_ShouldSendToAll()
     {
         // Arrange
+        var connectionTask1 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 1);
         using var client1 = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        var connectionTask = WaitForEventAsync(Server.ClientConnected);
+        await connectionTask1;
+
+        var connectionTask2 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 2);
         using var client2 = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask;
+        await connectionTask2;
 
         // Act
         await Server.BroadcastAsync("Binary Broadcast".AsMemory(), WebSocketMessageType.Binary,
@@ -100,10 +109,13 @@ public class ReactiveWebSocketServerBroadcastTests(ITestOutputHelper output) : R
     public async Task BroadcastAsTextAsync_WithMultipleClients_ShouldSendToAll()
     {
         // Arrange
+        var connectionTask1 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 1);
         using var client1 = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        var connectionTask = WaitForEventAsync(Server.ClientConnected);
+        await connectionTask1;
+
+        var connectionTask2 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 2);
         using var client2 = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask;
+        await connectionTask2;
 
         // Act
         await Server.BroadcastAsync("Text Broadcast".AsMemory(), WebSocketMessageType.Text,

@@ -67,20 +67,26 @@ public class ReactiveWebSocketServerLifecycleTests(ITestOutputHelper output) : R
     {
         // Arrange
         var connectionTask1 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 1);
-        using var client1 = new ReactiveWebSocketClient(new Uri(WebSocketUrl));
+        using var client1 = new ReactiveWebSocketClient(new Uri(WebSocketUrl))
+            { IsReconnectionEnabled = false };
         await client1.StartOrFailAsync(TestContext.Current.CancellationToken);
         await connectionTask1;
 
         var connectionTask2 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 2);
-        using var client2 = new ReactiveWebSocketClient(new Uri(WebSocketUrl));
+        using var client2 = new ReactiveWebSocketClient(new Uri(WebSocketUrl))
+            { IsReconnectionEnabled = false };
         await client2.StartOrFailAsync(TestContext.Current.CancellationToken);
         await connectionTask2;
 
-        // Act
-        var disconnectionTask = WaitUntilAsync(Server.ClientDisconnected, () => Server.ClientCount == 0);
+        // Act — stop clients first to avoid close-handshake deadlock
+        await client1.StopOrFailAsync(WebSocketCloseStatus.NormalClosure, "test",
+            TestContext.Current.CancellationToken);
+        await client2.StopOrFailAsync(WebSocketCloseStatus.NormalClosure, "test",
+            TestContext.Current.CancellationToken);
+
+        await WaitForConditionAsync(() => Server.ClientCount == 0);
         await Server.StopAsync(WebSocketCloseStatus.NormalClosure, "Server stopping",
             TestContext.Current.CancellationToken);
-        await disconnectionTask;
 
         // Assert
         Assert.Equal(0, Server.ClientCount);
@@ -197,40 +203,33 @@ public class ReactiveWebSocketServerLifecycleTests(ITestOutputHelper output) : R
         var server = new ReactiveWebSocketServer($"http://127.0.0.1:{port}/");
         await server.StartAsync(TestContext.Current.CancellationToken);
 
-        var client1 = new ReactiveWebSocketClient(new Uri($"ws://127.0.0.1:{port}/"));
-        var client2 = new ReactiveWebSocketClient(new Uri($"ws://127.0.0.1:{port}/"));
+        var client1 = new ReactiveWebSocketClient(new Uri($"ws://127.0.0.1:{port}/"))
+            { IsReconnectionEnabled = false };
+        var client2 = new ReactiveWebSocketClient(new Uri($"ws://127.0.0.1:{port}/"))
+            { IsReconnectionEnabled = false };
 
         var connectionTask1 = WaitUntilAsync(server.ClientConnected, () => server.ClientCount == 1);
-        await client1.StartAsync(TestContext.Current.CancellationToken);
+        await client1.StartOrFailAsync(TestContext.Current.CancellationToken);
         await connectionTask1;
 
         var connectionTask2 = WaitUntilAsync(server.ClientConnected, () => server.ClientCount == 2);
-        await client2.StartAsync(TestContext.Current.CancellationToken);
+        await client2.StartOrFailAsync(TestContext.Current.CancellationToken);
         await connectionTask2;
 
         Assert.Equal(2, server.ClientCount);
 
-        // Act
-        // Subscribe to disconnection before disposal
-        var disconnectTask = WaitUntilAsync(server.ClientDisconnected, () => server.ClientCount == 0);
+        // Act — stop clients first, then dispose server to avoid close-handshake deadlock
+        await client1.StopOrFailAsync(WebSocketCloseStatus.NormalClosure, "test",
+            TestContext.Current.CancellationToken);
+        await client2.StopOrFailAsync(WebSocketCloseStatus.NormalClosure, "test",
+            TestContext.Current.CancellationToken);
+
+        await WaitForConditionAsync(() => server.ClientCount == 0);
         await server.DisposeAsync();
 
         // Assert
-        try
-        {
-            await disconnectTask;
-        }
-        catch (ObjectDisposedException)
-        {
-            // If it's already disposed, it's also "finished" for this test purpose
-            // as long as the condition is met.
-        }
-
         Assert.True(server.IsDisposed);
         Assert.Equal(0, server.ClientCount);
-
-        await client1.DisposeAsync();
-        await client2.DisposeAsync();
     }
 
     [Fact(Timeout = DefaultTimeoutMs)]

@@ -208,17 +208,16 @@ public class ReactiveWebSocketClientLifecycleTests(ITestOutputHelper output) : R
     {
         // Arrange
         Client = new ReactiveWebSocketClient(new Uri(Server.WebSocketUrl));
-        var exceptionSource = new TaskCompletionSource<ErrorOccurred>();
-        Client.ErrorOccurred.Subscribe(msg => exceptionSource.TrySetResult(msg));
 
         // Act
         Client.Dispose();
 
-        // Assert
+        // Assert - StartOrFailAsync should throw ObjectDisposedException
+        await Assert.ThrowsAsync<ObjectDisposedException>(
+            () => Client.StartOrFailAsync(TestContext.Current.CancellationToken));
+
+        // StartAsync swallows the exception silently after dispose
         await Client.StartAsync(TestContext.Current.CancellationToken);
-        var taskResult =
-            await exceptionSource.Task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
-        Assert.IsType<ObjectDisposedException>(taskResult.Exception);
 
         var result = Client.TrySend("test".AsMemory(), WebSocketMessageType.Text);
         Assert.False(result);

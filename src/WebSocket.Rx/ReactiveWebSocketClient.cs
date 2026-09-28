@@ -19,7 +19,9 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
     protected CancellationTokenSource? ReconnectCts;
     internal readonly AsyncLock ConnectionLock = new();
 
-    protected bool IsReconnecting;
+    protected volatile bool IsReconnecting;
+    private volatile bool _isStarted;
+    private volatile bool _isRunning;
 
     protected readonly Subject<Message> MessageReceivedSource = new();
     protected readonly Subject<Connected> ConnectionHappenedSource = new();
@@ -45,8 +47,8 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
     public TimeSpan KeepAliveInterval { get; set; } = TimeSpan.FromSeconds(30);
     public TimeSpan KeepAliveTimeout { get; set; } = TimeSpan.FromSeconds(10);
     public bool IsReconnectionEnabled { get; set; } = true;
-    public bool IsStarted { get; internal set; }
-    public bool IsRunning { get; internal set; }
+    public bool IsStarted { get => _isStarted; internal set => _isStarted = value; }
+    public bool IsRunning { get => _isRunning; internal set => _isRunning = value; }
     public bool IsDisposed => DisposedValue != 0;
     public bool SenderRunning => SendLoopTask?.Status is TaskStatus.Running or TaskStatus.WaitingForActivation;
     public bool IsInsideLock => ConnectionLock.IsLocked;
@@ -69,7 +71,10 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
         }
         catch (Exception ex)
         {
-            ErrorOccurredSource.OnNext(new ErrorOccurred(ErrorSource.Connection, ex));
+            if (!IsDisposed)
+            {
+                ErrorOccurredSource.OnNext(new ErrorOccurred(ErrorSource.Connection, ex));
+            }
         }
     }
 
@@ -97,7 +102,10 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
         }
         catch (Exception ex)
         {
-            ErrorOccurredSource.OnNext(new ErrorOccurred(ErrorSource.Disconnection, ex));
+            if (!IsDisposed)
+            {
+                ErrorOccurredSource.OnNext(new ErrorOccurred(ErrorSource.Disconnection, ex));
+            }
             return false;
         }
     }
@@ -155,7 +163,18 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
         };
 
 
-        await Task.WhenAll(tasks).Try(async x => await x.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false)).ConfigureAwait(false);
+        try
+        {
+            await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            // noop
+        }
+        catch (Exception)
+        {
+            // noop
+        }
 
         if (!IsDisposed)
         {
@@ -291,18 +310,20 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
     private async Task ScheduleReconnectAsync()
     {
-        if (!IsReconnectionEnabled || IsDisposed || !IsStarted)
+        if (!IsReconnectionEnabled || IsDisposed || !IsStarted || IsReconnecting)
         {
             return;
         }
 
-        ReconnectCts = new CancellationTokenSource();
+        var cts = new CancellationTokenSource();
+        var oldCts = Interlocked.Exchange(ref ReconnectCts, cts);
+        oldCts?.Try(x => x.Cancel());
 
         try
         {
-            using (await ConnectionLock.LockAsync().ConfigureAwait(false))
+            using (await ConnectionLock.LockAsync(cts.Token).ConfigureAwait(false))
             {
-                await ReconnectInternalAsync(throwOnError: false).ConfigureAwait(false);
+                await ReconnectInternalAsync(throwOnError: false, cts.Token).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)
@@ -401,10 +422,11 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
+                    using var closeCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                     await NativeClient
                         .CloseAsync(
                             result.CloseStatus ?? WebSocketCloseStatus.NormalClosure,
-                            result.CloseStatusDescription ?? "", CancellationToken.None)
+                            result.CloseStatusDescription ?? "", closeCts.Token)
                         .ConfigureAwait(false);
 
                     var @event = new Disconnected(DisconnectReason.ServerInitiated, NativeClient.CloseStatus,
@@ -574,28 +596,33 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
     public async ValueTask DisposeAsync()
     {
-        await DisposeAsyncCore().ConfigureAwait(false);
-        Dispose(false);
-        GC.SuppressFinalize(this);
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
         if (Interlocked.CompareExchange(ref DisposedValue, 1, 0) != 0)
         {
             return;
         }
 
-        if (disposing)
-        {
-            // Synchronous cleanup - fire and forget async cleanup
-            _ = DisposeAsyncCore();
-        }
+        await DisposeAsyncCore(skipFlag: true).ConfigureAwait(false);
+        GC.SuppressFinalize(this);
     }
 
-    protected virtual async ValueTask DisposeAsyncCore()
+    protected virtual void Dispose(bool disposing)
     {
+        if (!disposing)
+        {
+            return;
+        }
+
         if (Interlocked.CompareExchange(ref DisposedValue, 1, 0) != 0)
+        {
+            return;
+        }
+
+        _ = DisposeAsyncCore(skipFlag: true);
+    }
+
+    protected virtual async ValueTask DisposeAsyncCore(bool skipFlag = false)
+    {
+        if (!skipFlag && Interlocked.CompareExchange(ref DisposedValue, 1, 0) != 0)
         {
             return;
         }
@@ -603,29 +630,28 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
         await _disposeLock.WaitAsync().ConfigureAwait(false);
         try
         {
-            await StopAsync(WebSocketCloseStatus.NormalClosure, "Disposing").ConfigureAwait(false);
-
             ReconnectCts?.Cancel();
             MainCts?.Cancel();
 
-            var tasks = new List<Task>();
-            if (SendLoopTask != null) tasks.Add(SendLoopTask);
-            if (ReceiveLoopTask != null) tasks.Add(ReceiveLoopTask);
+            await StopAsync(WebSocketCloseStatus.NormalClosure, "Disposing").ConfigureAwait(false);
 
-            if (tasks.Count > 0)
+            var tasks = new[]
             {
-                try
-                {
-                    await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-                }
-                catch (TimeoutException)
-                {
-                    // noop
-                }
-                catch (Exception ex)
-                {
-                    ErrorOccurredSource.OnNext(new ErrorOccurred(ErrorSource.Dispose, ex));
-                }
+                SendLoopTask ?? Task.CompletedTask,
+                ReceiveLoopTask ?? Task.CompletedTask
+            };
+
+            try
+            {
+                await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+            catch (TimeoutException)
+            {
+                // noop
+            }
+            catch (Exception ex)
+            {
+                ErrorOccurredSource.OnNext(new ErrorOccurred(ErrorSource.Dispose, ex));
             }
 
             SendChannel.Writer.Complete();

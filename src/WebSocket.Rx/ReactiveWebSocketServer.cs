@@ -54,7 +54,17 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
     public int ClientCount => _clients.Count;
 
     public IReadOnlyDictionary<Guid, Metadata> ConnectedClients
-        => _clients.ToDictionary(x => x.Key, x => x.Value.Socket.Metadata);
+    {
+        get
+        {
+            var dict = new Dictionary<Guid, Metadata>(_clients.Count);
+            foreach (var (key, client) in _clients)
+            {
+                dict[key] = client.Socket.Metadata;
+            }
+            return dict;
+        }
+    }
 
     public Observable<ClientConnected> ClientConnected => _clientConnectedSource.AsObservable();
     public Observable<ClientDisconnected> ClientDisconnected => _clientDisconnectedSource.AsObservable();
@@ -304,10 +314,22 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
     #region Broadcast Methods
 
+    private ServerWebSocketAdapter[] GetSockets()
+    {
+        var values = _clients.Values;
+        var sockets = new ServerWebSocketAdapter[values.Count];
+        var i = 0;
+        foreach (var client in values)
+        {
+            sockets[i++] = client.Socket;
+        }
+        return sockets.AsSpan(0, i).ToArray();
+    }
+
     public async Task<bool> BroadcastInstantAsync(ReadOnlyMemory<char> message, WebSocketMessageType type,
         CancellationToken cancellationToken = default)
     {
-        var sockets = _clients.Values.Select(x => x.Socket).ToArray();
+        var sockets = GetSockets();
         return await sockets.Async((client, ct) => client.SendInstantAsync(message, type, ct), x => x,
             cancellationToken).ConfigureAwait(false);
     }
@@ -315,7 +337,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
     public async Task<bool> BroadcastInstantAsync(ReadOnlyMemory<byte> message, WebSocketMessageType type,
         CancellationToken cancellationToken = default)
     {
-        var sockets = _clients.Values.Select(x => x.Socket).ToArray();
+        var sockets = GetSockets();
         return await sockets.Async((client, ct) => client.SendInstantAsync(message, type, ct), x => x,
             cancellationToken).ConfigureAwait(false);
     }
@@ -323,27 +345,37 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
     public async Task<bool> BroadcastAsync(ReadOnlyMemory<char> message, WebSocketMessageType type,
         CancellationToken cancellationToken = default)
     {
-        var sockets = _clients.Values.Select(x => x.Socket).ToArray();
+        var sockets = GetSockets();
         return await sockets.Async((client, ct) => client.SendAsync(message, type, ct), x => x, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<bool> BroadcastAsync(ReadOnlyMemory<byte> message, WebSocketMessageType type,
         CancellationToken cancellationToken = default)
     {
-        var sockets = _clients.Values.Select(x => x.Socket).ToArray();
+        var sockets = GetSockets();
         return await sockets.Async((client, ct) => client.SendAsync(message, type, ct), x => x, cancellationToken).ConfigureAwait(false);
     }
 
     public bool TryBroadcast(ReadOnlyMemory<char> message, WebSocketMessageType type)
     {
-        var sockets = _clients.Values.Select(x => x.Socket).ToArray();
-        return sockets.Select(x => x.TrySend(message, type)).All(x => x);
+        var sockets = GetSockets();
+        var allSuccess = true;
+        foreach (var socket in sockets)
+        {
+            if (!socket.TrySend(message, type)) allSuccess = false;
+        }
+        return allSuccess;
     }
 
     public bool TryBroadcast(ReadOnlyMemory<byte> message, WebSocketMessageType type)
     {
-        var sockets = _clients.Values.Select(x => x.Socket).ToArray();
-        return sockets.Select(x => x.TrySend(message, type)).All(x => x);
+        var sockets = GetSockets();
+        var allSuccess = true;
+        foreach (var socket in sockets)
+        {
+            if (!socket.TrySend(message, type)) allSuccess = false;
+        }
+        return allSuccess;
     }
 
     #endregion
@@ -368,28 +400,33 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
     public async ValueTask DisposeAsync()
     {
-        await DisposeAsyncCore().ConfigureAwait(false);
-        Dispose(false);
-        GC.SuppressFinalize(this);
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
         if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         {
             return;
         }
 
-        if (disposing)
-        {
-            // Fire and forget async cleanup
-            _ = DisposeAsyncCore();
-        }
+        await DisposeAsyncCore(skipFlag: true).ConfigureAwait(false);
+        GC.SuppressFinalize(this);
     }
 
-    protected virtual async ValueTask DisposeAsyncCore()
+    protected virtual void Dispose(bool disposing)
     {
+        if (!disposing)
+        {
+            return;
+        }
+
         if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+        {
+            return;
+        }
+
+        _ = DisposeAsyncCore(skipFlag: true);
+    }
+
+    protected virtual async ValueTask DisposeAsyncCore(bool skipFlag = false)
+    {
+        if (!skipFlag && Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
         {
             return;
         }
@@ -446,6 +483,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
             _clientConnectedSource.OnCompleted();
             _clientDisconnectedSource.OnCompleted();
             _messageReceivedSource.OnCompleted();
+            _errorOccurredSource.OnCompleted();
         }
         catch (Exception)
         {
@@ -455,6 +493,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
         _clientConnectedSource.Dispose();
         _clientDisconnectedSource.Dispose();
         _messageReceivedSource.Dispose();
+        _errorOccurredSource.Dispose();
     }
 
     ~ReactiveWebSocketServer()
@@ -468,6 +507,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
     public sealed class ServerWebSocketAdapter : ReactiveWebSocketClient
     {
+        private readonly SemaphoreSlim _serverSendLock = new(1, 1);
         private readonly CancellationTokenSource _adapterCts = new();
         private readonly SemaphoreSlim _adapterDisposeLock = new(1, 1);
 
@@ -502,11 +542,19 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
             bool endOfMessage,
             CancellationToken cancellationToken = default)
         {
-            if (NativeServerSocket.State is not WebSocketState.Open) return false;
-            await NativeServerSocket
-                .SendAsync(data, type, endOfMessage: true, cancellationToken)
-                .ConfigureAwait(false);
-            return true;
+            await _serverSendLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (NativeServerSocket.State is not WebSocketState.Open) return false;
+                await NativeServerSocket
+                    .SendAsync(data, type, endOfMessage: true, cancellationToken)
+                    .ConfigureAwait(false);
+                return true;
+            }
+            finally
+            {
+                _serverSendLock.Release();
+            }
         }
 
         private async Task ReceiveLoopAdapterAsync(CancellationToken cancellationToken)
@@ -531,9 +579,10 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
                     if (result.MessageType == WebSocketMessageType.Close)
                     {
+                        using var closeCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                         await NativeServerSocket
                             .CloseAsync(result.CloseStatus ?? WebSocketCloseStatus.NormalClosure,
-                                result.CloseStatusDescription ?? "", CancellationToken.None)
+                                result.CloseStatusDescription ?? "", closeCts.Token)
                             .ConfigureAwait(false);
 
                         DisconnectionHappenedSource.OnNext(new Disconnected(DisconnectReason.ClientInitiated,
@@ -618,21 +667,22 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
 
         protected override void Dispose(bool disposing)
         {
+            if (!disposing)
+            {
+                return;
+            }
+
             if (Interlocked.CompareExchange(ref DisposedValue, 1, 0) != 0)
             {
                 return;
             }
 
-            if (disposing)
-            {
-                // Fire and forget async cleanup
-                _ = DisposeAdapterAsyncCore();
-            }
+            _ = DisposeAdapterAsyncCore();
         }
 
-        protected override async ValueTask DisposeAsyncCore()
+        protected override async ValueTask DisposeAsyncCore(bool skipFlag = false)
         {
-            if (Interlocked.CompareExchange(ref DisposedValue, 1, 0) != 0)
+            if (!skipFlag && Interlocked.CompareExchange(ref DisposedValue, 1, 0) != 0)
             {
                 return;
             }
@@ -652,20 +702,19 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
                 MainCts?.Try(x => x.Cancel());
 
                 // Wait for tasks
-                var tasks = new List<Task>();
-                if (SendLoopTask != null) tasks.Add(SendLoopTask);
-                if (ReceiveLoopTask != null) tasks.Add(ReceiveLoopTask);
-
-                if (tasks.Count > 0)
+                var tasks = new[]
                 {
-                    try
-                    {
-                        await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-                    }
-                    catch (TimeoutException)
-                    {
-                        // noop
-                    }
+                    SendLoopTask ?? Task.CompletedTask,
+                    ReceiveLoopTask ?? Task.CompletedTask
+                };
+
+                try
+                {
+                    await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+                catch (TimeoutException)
+                {
+                    // noop
                 }
 
                 // Dispose resources
@@ -676,10 +725,12 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
                 MessageReceivedSource.OnCompleted();
                 ConnectionHappenedSource.OnCompleted();
                 DisconnectionHappenedSource.OnCompleted();
+                ErrorOccurredSource.OnCompleted();
 
                 MessageReceivedSource.Dispose();
                 ConnectionHappenedSource.Dispose();
                 DisconnectionHappenedSource.Dispose();
+                ErrorOccurredSource.Dispose();
             }
             finally
             {

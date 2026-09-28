@@ -6,8 +6,8 @@ public record Message
 {
     private Message(ReadOnlyMemory<byte>? binary, ReadOnlyMemory<char>? text, WebSocketMessageType type)
     {
-        Binary = binary ?? new ReadOnlyMemory<byte>([]);
-        Text = text ?? new ReadOnlyMemory<char>([]);
+        Binary = binary ?? default;
+        Text = text ?? default;
         Type = type;
     }
 

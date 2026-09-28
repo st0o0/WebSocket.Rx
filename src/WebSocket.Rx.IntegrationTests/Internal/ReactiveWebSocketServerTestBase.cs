@@ -37,7 +37,6 @@ public abstract class ReactiveWebSocketServerTestBase(ITestOutputHelper output) 
     public async ValueTask DisposeAsync()
     {
         await Server.DisposeAsync();
-        await Task.Delay(TimeSpan.FromMilliseconds(100));
     }
 
     protected static int GetAvailablePort()

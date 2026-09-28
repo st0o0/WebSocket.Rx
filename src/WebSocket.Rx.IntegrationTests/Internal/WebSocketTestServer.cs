@@ -8,6 +8,7 @@ namespace WebSocket.Rx.IntegrationTests.Internal;
 
 public class WebSocketTestServer(int? port = null) : IAsyncDisposable
 {
+    private readonly int? _requestedPort = port;
     private readonly HttpListener _httpListener = new();
     private readonly ConcurrentBag<System.Net.WebSockets.WebSocket> _clients = [];
     private readonly CancellationTokenSource _cts = new();
@@ -27,7 +28,7 @@ public class WebSocketTestServer(int? port = null) : IAsyncDisposable
         {
             try
             {
-                if (Port == 0 || i > 0)
+                if (Port == 0 || (i > 0 && _requestedPort is null))
                 {
                     Port = GetAvailablePort();
                 }
@@ -36,7 +37,6 @@ public class WebSocketTestServer(int? port = null) : IAsyncDisposable
                 _httpListener.Prefixes.Add(Url);
                 _httpListener.Start();
                 _serverTask = Task.Run(() => AcceptConnectionsAsync(_cts.Token));
-                await Task.Delay(100);
                 return;
             }
             catch (HttpListenerException) when (i < maxRetries - 1)
@@ -52,7 +52,6 @@ public class WebSocketTestServer(int? port = null) : IAsyncDisposable
             _httpListener.Prefixes.Add(Url);
             _httpListener.Start();
             _serverTask = Task.Run(() => AcceptConnectionsAsync(_cts.Token));
-            await Task.Delay(100);
         }
     }
 
@@ -120,10 +119,11 @@ public class WebSocketTestServer(int? port = null) : IAsyncDisposable
 
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
+                    using var closeCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                     await webSocket.CloseAsync(
                         WebSocketCloseStatus.NormalClosure,
                         "Closing",
-                        CancellationToken.None
+                        closeCts.Token
                     );
                     break;
                 }
@@ -196,10 +196,10 @@ public class WebSocketTestServer(int? port = null) : IAsyncDisposable
         }
     }
 
-    public async Task DisconnectAllAsync()
+    public Task DisconnectAllAsync()
     {
         var clientsCopy = _clients.ToList();
-        Parallel.ForEach(clientsCopy, client =>
+        foreach (var client in clientsCopy)
         {
             try
             {
@@ -212,9 +212,7 @@ public class WebSocketTestServer(int? port = null) : IAsyncDisposable
             {
                 // noop
             }
-        });
-
-        await Task.Delay(50);
+        }
 
         foreach (var client in clientsCopy)
         {
@@ -229,6 +227,7 @@ public class WebSocketTestServer(int? port = null) : IAsyncDisposable
         }
 
         _clients.Clear();
+        return Task.CompletedTask;
     }
 
     private static int GetAvailablePort()

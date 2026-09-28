@@ -8,17 +8,17 @@ WebSocket.Rx is a .NET 10 NuGet library providing reactive WebSocket client and 
 
 ## Build & Test Commands
 
-All commands run from the repo root. The solution file is at `src/WebSocket.Rx.sln`.
+All commands run from the repo root. The solution file is at `src/WebSocket.Rx.slnx`.
 
 ```shell
 # Restore (locked mode, matching CI)
-dotnet restore --locked-mode src/WebSocket.Rx.sln
+dotnet restore --locked-mode src/WebSocket.Rx.slnx
 
 # Build
-dotnet build --configuration Release src/WebSocket.Rx.sln
+dotnet build --configuration Release src/WebSocket.Rx.slnx
 
 # Run all tests
-dotnet test --configuration Release src/WebSocket.Rx.sln
+dotnet test --configuration Release src/WebSocket.Rx.slnx
 
 # Run a single test by name
 dotnet test --configuration Release src/WebSocket.Rx.UnitTests -- --filter "FullyQualifiedName~AsyncLockTests"

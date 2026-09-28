@@ -19,6 +19,5 @@ public abstract class ReactiveWebSocketClientTestBase(ITestOutputHelper output) 
         }
 
         await Server.DisposeAsync();
-        await Task.Delay(TimeSpan.FromMilliseconds(100));
     }
 }

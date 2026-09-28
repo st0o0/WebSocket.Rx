@@ -137,21 +137,27 @@ public class AsyncLockTests
     public async Task MultipleConcurrentLocks_NoOverlaps()
     {
         var asyncLock = new AsyncLock();
-        var startTimes = new List<DateTime>();
-        var endTimes = new List<DateTime>();
+        var timings = new List<(DateTime Start, DateTime End)>();
+        var timingsLock = new object();
 
         var tasks = Enumerable.Range(0, 5).Select(_ => Task.Run(async () =>
         {
             using var t = await asyncLock.LockAsync();
-            startTimes.Add(DateTime.UtcNow);
-            endTimes.Add(DateTime.UtcNow);
+            var start = DateTime.UtcNow;
+            await Task.Delay(1);
+            var end = DateTime.UtcNow;
+            lock (timingsLock)
+            {
+                timings.Add((start, end));
+            }
         })).ToArray();
 
         await Task.WhenAll(tasks);
 
-        for (var i = 0; i < startTimes.Count - 1; i++)
+        var sorted = timings.OrderBy(t => t.Start).ToList();
+        for (var i = 0; i < sorted.Count - 1; i++)
         {
-            Assert.True(endTimes[i] < startTimes[i + 1]);
+            Assert.True(sorted[i].End < sorted[i + 1].Start);
         }
     }
 

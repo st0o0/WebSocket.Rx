@@ -23,7 +23,7 @@ internal sealed class AsyncLock
                 TaskScheduler.Default);
     }
 
-    private class Releaser(SemaphoreSlim semaphore) : IDisposable
+    private struct Releaser(SemaphoreSlim semaphore) : IDisposable
     {
         private bool _released;
 
