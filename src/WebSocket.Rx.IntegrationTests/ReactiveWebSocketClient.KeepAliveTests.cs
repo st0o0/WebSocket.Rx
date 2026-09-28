@@ -186,8 +186,8 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         {
             Assert.True(Client.IsRunning);
             Assert.Equal(WebSocketState.Open, Client.NativeClient.State);
-            Assert.Single(receivedMessages);
-            Assert.Equal("test", receivedMessages[0].Text.ToString());
+            var item = Assert.Single(receivedMessages);
+            Assert.Equal("test", item.Text.ToString());
         });
     }
 
