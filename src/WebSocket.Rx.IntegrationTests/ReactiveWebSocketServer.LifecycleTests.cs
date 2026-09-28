@@ -81,7 +81,7 @@ public class ReactiveWebSocketServerLifecycleTests(ITestOutputHelper output) : R
         await client2.StartOrFailAsync(TestContext.Current.CancellationToken);
         await connectionTask2;
 
-        // Act — stop clients first to avoid close-handshake deadlock
+        // Act - stop clients first to avoid close-handshake deadlock
         await client1.StopOrFailAsync(WebSocketCloseStatus.NormalClosure, "test",
             TestContext.Current.CancellationToken);
         await client2.StopOrFailAsync(WebSocketCloseStatus.NormalClosure, "test",
@@ -228,7 +228,7 @@ public class ReactiveWebSocketServerLifecycleTests(ITestOutputHelper output) : R
 
         Assert.Equal(2, server.ClientCount);
 
-        // Act — stop clients first, then dispose server to avoid close-handshake deadlock
+        // Act - stop clients first, then dispose server to avoid close-handshake deadlock
         await client1.StopOrFailAsync(WebSocketCloseStatus.NormalClosure, "test",
             TestContext.Current.CancellationToken);
         await client2.StopOrFailAsync(WebSocketCloseStatus.NormalClosure, "test",

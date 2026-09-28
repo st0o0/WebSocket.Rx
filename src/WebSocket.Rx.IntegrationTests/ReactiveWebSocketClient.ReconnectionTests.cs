@@ -77,7 +77,7 @@ public class ReactiveWebSocketClientReconnectionTests(ITestOutputHelper output)
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
         Assert.True(Client.IsRunning);
 
-        // Act — dispose the server to force TCP connection closed, then restart for reconnection
+        // Act - dispose the server to force TCP connection closed, then restart for reconnection
         var port = Server.Port;
         await Server.DisposeAsync();
 
@@ -88,7 +88,7 @@ public class ReactiveWebSocketClientReconnectionTests(ITestOutputHelper output)
 
         try
         {
-            // Assert — client should auto-reconnect to the new server
+            // Assert - client should auto-reconnect to the new server
             await WaitForConditionAsync(() => Client.IsRunning,
                 errorMessage: "Client should reconnect to new server");
             Assert.True(Client.IsRunning);
@@ -113,12 +113,12 @@ public class ReactiveWebSocketClientReconnectionTests(ITestOutputHelper output)
 
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
 
-        // Act — stop the client (simulates disconnection) and wait for it to settle
+        // Act - stop the client (simulates disconnection) and wait for it to settle
         await Client.StopAsync(WebSocketCloseStatus.NormalClosure, "Test disconnect",
             TestContext.Current.CancellationToken);
         await Task.Delay(200, TestContext.Current.CancellationToken);
 
-        // Assert — no reconnection should have occurred
+        // Assert - no reconnection should have occurred
         Assert.Equal(0, reconnectCount);
     }
 }

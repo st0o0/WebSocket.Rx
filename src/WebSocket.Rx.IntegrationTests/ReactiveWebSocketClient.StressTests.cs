@@ -61,7 +61,7 @@ public class ReactiveWebSocketClientStressTests(ITestOutputHelper output) : Reac
 
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
 
-        // Act — dispose the server to force TCP connection closed
+        // Act - dispose the server to force TCP connection closed
         await server2.DisposeAsync();
 
         // Restart a server on the same URL so the client can reconnect
@@ -97,7 +97,7 @@ public class ReactiveWebSocketClientStressTests(ITestOutputHelper output) : Reac
 
         await Task.WhenAll(tasks);
 
-        // Assert — parallel reconnects must not deadlock or corrupt state
+        // Assert - parallel reconnects must not deadlock or corrupt state
         Assert.True(Client.IsStarted);
 
         // Individual reconnects may fail under load; verify the client is still functional
