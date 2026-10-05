@@ -109,6 +109,21 @@ Critical sections use `AsyncLock` (internal, SemaphoreSlim-based with fast-path)
 - **`Assert.Multiple`** when asserting multiple properties of the same result.
 - **`Assert.Equal` over `Assert.True`** — prefer `Assert.Equal(expected, actual)`
   over `Assert.True(actual == expected)` for better failure messages.
+- **Assert the exact computed value, not just existence.** When behavior
+  produces a concrete value, assert on that value directly instead of
+  settling for "it's not null."
+- **Exceptions: capture and inspect, not just the type.**
+  `var ex = Assert.Throws<T>(...)` / `await Assert.ThrowsAsync<T>(...)`, then
+  assert on `ex`'s actual fields — not just the exception type.
+- **`Assert.IsType<T>(obj, exactMatch: false)`** to prove interface/base-type
+  conformance instead of an unchecked cast.
+- **No `Thread.Sleep`/arbitrary delay for async or reactive state.** Use
+  `WaitForEventAsync`/`WaitUntilAsync`/`WaitForConditionAsync` from
+  `TestBase` — they resolve on the real event/condition with a bounded,
+  descriptive timeout instead of sleeping and hoping.
+- Prefer `Theory`/`InlineData`/`MemberData` for small input/output sweeps;
+  prefer separate named `[Fact]`s when each case needs a large distinct
+  fixture — a readable failure name beats DRY in that case.
 
 ## Commits & CI
 
