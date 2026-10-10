@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.11](https://github.com/st0o0/WebSocket.Rx/compare/v0.1.10...v0.1.11) (2026-10-10)
+
+
+### Bug Fixes
+
+* grant pull-requests/issues write permission to labeler and label-sync callers ([b4060f7](https://github.com/st0o0/WebSocket.Rx/commit/b4060f7e826326bcc9c0ac0fc41203bc9cbd8828))
+
+
+### Documentation
+
+* extend assertion patterns with xUnit best practices ([f38ee55](https://github.com/st0o0/WebSocket.Rx/commit/f38ee55cb92e3d92895dcbd08fa58107cbb740a4))
+
 ## [0.1.10](https://github.com/st0o0/WebSocket.Rx/compare/v0.1.9...v0.1.10) (2026-09-28)
 
 
