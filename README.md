@@ -4,7 +4,7 @@
 
 <img alt="WebSocket.Rx logo" height="128" src="https://raw.githubusercontent.com/st0o0/WebSocket.Rx/refs/heads/main/docs/logo/logo.png" width="128"/>
 
-**A powerful .NET library for reactive WebSocket communication using R3 (Reactive Extensions)**
+**A .NET library for reactive WebSocket communication using R3 (Reactive Extensions)**
 
 [![NuGet](https://img.shields.io/nuget/v/WebSocket.Rx.svg?style=flat-square)](https://www.nuget.org/packages/WebSocket.Rx/)
 [![Downloads](https://img.shields.io/nuget/dt/WebSocket.Rx.svg?style=flat-square)](https://www.nuget.org/packages/WebSocket.Rx/)
@@ -42,7 +42,7 @@
 - 📊 **Client Tracking** - Built-in client metadata and connection management
 - 🔔 **Event Streams** - Observables for client connect/disconnect events
 - 🎯 **Selective Messaging** - Send to specific clients or broadcast to all
-- 🛡️ **Robust Cleanup** - Automatic client cleanup on disconnect
+- 🛡️ **Cleanup** - Automatic client cleanup on disconnect
 
 ## 📦 Installation
 
@@ -281,7 +281,7 @@ This library is inspired by and builds upon the excellent work of:
 WebSocket.Rx takes inspiration from Websocket.Client's elegant reactive approach to WebSocket communication. Key influences include:
 
 - **Reactive-First Design** - Using observables for all events and messages
-- **Automatic Reconnection** - Built-in reconnection logic for robust connections
+- **Automatic Reconnection** - Built-in reconnection logic
 - **Clean API** - Intuitive and easy-to-use interface
 
 #### What's Different?
