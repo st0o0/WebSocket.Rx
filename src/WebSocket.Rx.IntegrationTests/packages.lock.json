@@ -42,8 +42,8 @@
       },
       "Microsoft.DotNet.ILCompiler": {
         "type": "Transitive",
-        "resolved": "10.0.13",
-        "contentHash": "MnT222WlxhelguLZTQx9soBHKW7TeY6A9YUwVaprjUd+ARlhLAkfsXGFNX9w6kRq89/yxUcAQ/lzvmgndSFfOw=="
+        "resolved": "10.0.14",
+        "contentHash": "CDQ/+XRT1JT/0u87j9exR1AociehKUzxae4KCOWxCQ1PIKbYS0F8ovxaCrqRlkylGmbhywKxV/zbbrEhWa5NXg=="
       },
       "Microsoft.Extensions.DependencyModel": {
         "type": "Transitive",
@@ -57,8 +57,8 @@
       },
       "Microsoft.NET.ILLink.Tasks": {
         "type": "Transitive",
-        "resolved": "10.0.13",
-        "contentHash": "40yrBMsLEcjixBR4G+FiUaBPvxXIPSKJ2OgSrbOZcmSDBda4Sb0k7BWrfDpIvn3IvvDzwOL/tEPa6gDQfh6aRw=="
+        "resolved": "10.0.14",
+        "contentHash": "YlTamXppEQls6DYWt7RdUuwWDb0lyw/vXCaGeQpLCpsLmfwGuCkOz/vIGgMTV7ECsJcavkCOkxZXv9s8rdAHkQ=="
       },
       "Microsoft.Testing.Extensions.Telemetry": {
         "type": "Transitive",
@@ -171,9 +171,9 @@
       "websocket.rx": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.DotNet.ILCompiler": "[10.0.13, )",
+          "Microsoft.DotNet.ILCompiler": "[10.0.14, )",
           "Microsoft.IO.RecyclableMemoryStream": "[3.0.1, 4.0.1]",
-          "Microsoft.NET.ILLink.Tasks": "[10.0.13, )",
+          "Microsoft.NET.ILLink.Tasks": "[10.0.14, )",
           "R3": "[1.3.1, 2.0.0)"
         }
       }
