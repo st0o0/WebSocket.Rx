@@ -85,7 +85,7 @@ public class AsyncLockTests
         _ = Task.Run(async () =>
         {
             using var _ = asyncLock.Lock();
-            await tcs.Task;
+            await tcs.Task.ConfigureAwait(false);
         }, TestContext.Current.CancellationToken);
         await Task.Delay(50, TestContext.Current.CancellationToken);
 
@@ -93,7 +93,7 @@ public class AsyncLockTests
         Assert.False(lockTask.IsCompleted);
 
         tcs.SetResult(true);
-        using var releaser = await lockTask;
+        using var releaser = await lockTask.ConfigureAwait(true);
         Assert.True(asyncLock.IsLocked);
     }
 
@@ -109,7 +109,7 @@ public class AsyncLockTests
         }
 
         var lockTask = asyncLock.LockAsync(TestContext.Current.CancellationToken);
-        using var releaser = await lockTask;
+        using var releaser = await lockTask.ConfigureAwait(true);
 
         Assert.True(asyncLock.IsLocked);
     }
@@ -124,8 +124,11 @@ public class AsyncLockTests
         var tasks = Enumerable.Range(0, taskCount)
             .Select(i => Task.Run(async () =>
             {
-                using var _ = await asyncLock.LockAsync(TestContext.Current.CancellationToken);
-                lock (order) order.Add(i);
+                using var _ = await asyncLock.LockAsync(TestContext.Current.CancellationToken).ConfigureAwait(false);
+                lock (order)
+                {
+                    order.Add(i);
+                }
             })).ToArray();
 
         await Task.WhenAll(tasks);
@@ -146,9 +149,9 @@ public class AsyncLockTests
 
         var tasks = Enumerable.Range(0, 5).Select(_ => Task.Run(async () =>
         {
-            using var t = await asyncLock.LockAsync(TestContext.Current.CancellationToken);
+            using var t = await asyncLock.LockAsync(TestContext.Current.CancellationToken).ConfigureAwait(false);
             var start = DateTime.UtcNow;
-            await Task.Delay(1, TestContext.Current.CancellationToken);
+            await Task.Delay(1, TestContext.Current.CancellationToken).ConfigureAwait(false);
             var end = DateTime.UtcNow;
             lock (timingsLock)
             {
@@ -210,7 +213,7 @@ public class AsyncLockTests
         // Act
         async Task TestMethod()
         {
-            using var releaser = await asyncLock.LockAsync();
+            using var releaser = await asyncLock.LockAsync().ConfigureAwait(false);
             throw new InvalidOperationException("Test exception");
         }
     }
@@ -233,7 +236,7 @@ public class AsyncLockTests
         var asyncLock = new AsyncLock();
         var tasks = Enumerable.Range(0, 100).Select(_ => Task.Run(async () =>
         {
-            using var t = await asyncLock.LockAsync(TestContext.Current.CancellationToken);
+            using var t = await asyncLock.LockAsync(TestContext.Current.CancellationToken).ConfigureAwait(false);
         })).ToArray();
 
         // Act
@@ -251,7 +254,7 @@ public class AsyncLockTests
         await cts.CancelAsync();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            async () => await asyncLock.LockAsync(cts.Token));
+            async () => await asyncLock.LockAsync(cts.Token).ConfigureAwait(false));
     }
 
     [Theory(Timeout = 10000)]

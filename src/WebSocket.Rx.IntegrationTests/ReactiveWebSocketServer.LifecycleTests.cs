@@ -13,7 +13,8 @@ public class ReactiveWebSocketServerLifecycleTests(ITestOutputHelper output) : R
         // Arrange
         var port = GetAvailablePort();
         var url = $"http://127.0.0.1:{port}/";
-        await using var server = new ReactiveWebSocketServer(url);
+        var server = new ReactiveWebSocketServer(url);
+        await using var serverDisposer = server.ConfigureAwait(false);
 
         // Act
         await server.StartAsync(TestContext.Current.CancellationToken);
@@ -73,13 +74,13 @@ public class ReactiveWebSocketServerLifecycleTests(ITestOutputHelper output) : R
         using var client1 = new ReactiveWebSocketClient(new Uri(WebSocketUrl))
         { IsReconnectionEnabled = false };
         await client1.StartOrFailAsync(TestContext.Current.CancellationToken);
-        await connectionTask1;
+        await connectionTask1.ConfigureAwait(true);
 
         var connectionTask2 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 2);
         using var client2 = new ReactiveWebSocketClient(new Uri(WebSocketUrl))
         { IsReconnectionEnabled = false };
         await client2.StartOrFailAsync(TestContext.Current.CancellationToken);
-        await connectionTask2;
+        await connectionTask2.ConfigureAwait(true);
 
         // Act - stop clients first to avoid close-handshake deadlock
         await client1.StopOrFailAsync(WebSocketCloseStatus.NormalClosure, "test",
@@ -140,7 +141,7 @@ public class ReactiveWebSocketServerLifecycleTests(ITestOutputHelper output) : R
 
         // Assert
         await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
-            await server.StartAsync(TestContext.Current.CancellationToken));
+            await server.StartAsync(TestContext.Current.CancellationToken).ConfigureAwait(false));
     }
 
     [Fact(Timeout = 15000)]
@@ -220,11 +221,11 @@ public class ReactiveWebSocketServerLifecycleTests(ITestOutputHelper output) : R
 
         var connectionTask1 = WaitUntilAsync(server.ClientConnected, () => server.ClientCount == 1);
         await client1.StartOrFailAsync(TestContext.Current.CancellationToken);
-        await connectionTask1;
+        await connectionTask1.ConfigureAwait(true);
 
         var connectionTask2 = WaitUntilAsync(server.ClientConnected, () => server.ClientCount == 2);
         await client2.StartOrFailAsync(TestContext.Current.CancellationToken);
-        await connectionTask2;
+        await connectionTask2.ConfigureAwait(true);
 
         Assert.Equal(2, server.ClientCount);
 

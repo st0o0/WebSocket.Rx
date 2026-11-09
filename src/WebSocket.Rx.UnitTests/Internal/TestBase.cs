@@ -20,7 +20,7 @@ public abstract class TestBase(ITestOutputHelper output)
             var msg = $"Event {typeof(T).Name} not received within {timeout}ms";
             try { Output.WriteLine($"[TIMEOUT] {msg}"); } catch { }
             tcs.TrySetException(new TimeoutException(msg));
-        });
+        }).ConfigureAwait(false);
 
         using var subscription = observable.Subscribe(value =>
         {
@@ -30,7 +30,7 @@ public abstract class TestBase(ITestOutputHelper output)
             }
         });
 
-        return await tcs.Task;
+        return await tcs.Task.ConfigureAwait(false);
     }
 
     protected async Task WaitUntilAsync<T>(
@@ -46,14 +46,17 @@ public abstract class TestBase(ITestOutputHelper output)
             var msg = $"Condition not met within {timeout}ms";
             try { Output.WriteLine($"[TIMEOUT] {msg}"); } catch { }
             tcs.TrySetException(new TimeoutException(msg));
-        });
+        }).ConfigureAwait(false);
 
-        if (condition()) return;
+        if (condition())
+        {
+            return;
+        }
 
         // Fallback polling for robustness
         using var intervalSubscription = Observable.Interval(TimeSpan.FromMilliseconds(50)).Subscribe(_ =>
         {
-            try { if (condition()) tcs.TrySetResult(true); } catch (Exception ex) { tcs.TrySetException(ex); }
+            try { if (condition()) { tcs.TrySetResult(true); } } catch (Exception ex) { tcs.TrySetException(ex); }
         });
 
         IDisposable? eventSubscription = null;
@@ -61,7 +64,7 @@ public abstract class TestBase(ITestOutputHelper output)
         {
             eventSubscription = observable.Subscribe(_ =>
             {
-                try { if (condition()) tcs.TrySetResult(true); } catch (Exception ex) { tcs.TrySetException(ex); }
+                try { if (condition()) { tcs.TrySetResult(true); } } catch (Exception ex) { tcs.TrySetException(ex); }
             });
         }
         catch (ObjectDisposedException) { /* Ignored */ }
@@ -74,7 +77,7 @@ public abstract class TestBase(ITestOutputHelper output)
                 return;
             }
 
-            await tcs.Task;
+            await tcs.Task.ConfigureAwait(false);
         }
     }
 
@@ -89,7 +92,7 @@ public abstract class TestBase(ITestOutputHelper output)
 
         while (!condition() && DateTime.UtcNow < endTime)
         {
-            await Task.Delay(10);
+            await Task.Delay(10).ConfigureAwait(false);
             count++;
             if (count % 100 == 0) // Log every 1 second
             {

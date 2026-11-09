@@ -8,16 +8,16 @@ public abstract class ReactiveWebSocketClientTestBase(ITestOutputHelper output) 
     public async ValueTask InitializeAsync()
     {
         Server = new WebSocketTestServer();
-        await Server.StartAsync();
+        await Server.StartAsync().ConfigureAwait(false);
     }
 
     public async ValueTask DisposeAsync()
     {
         if (Client is not null)
         {
-            await Client.DisposeAsync();
+            await Client.DisposeAsync().ConfigureAwait(false);
         }
 
-        await Server.DisposeAsync();
+        await Server.DisposeAsync().ConfigureAwait(false);
     }
 }

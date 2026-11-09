@@ -21,7 +21,7 @@ public class ReactiveWebSocketClientStressTests(ITestOutputHelper output) : Reac
 
         // Act
         await Server.SendToAllAsync(largeMessage);
-        var received = await messageReceivedTask;
+        var received = await messageReceivedTask.ConfigureAwait(true);
 
         // Assert
         Assert.Equal(largeMessage, received.Text.ToString());
@@ -71,7 +71,7 @@ public class ReactiveWebSocketClientStressTests(ITestOutputHelper output) : Reac
         try
         {
             // Assert
-            var result = await reconnectionTask;
+            var result = await reconnectionTask.ConfigureAwait(true);
             Assert.Equal(ConnectReason.Reconnected, result.Reason);
         }
         finally
@@ -91,7 +91,7 @@ public class ReactiveWebSocketClientStressTests(ITestOutputHelper output) : Reac
         var tasks = new Task[10];
         for (var i = 0; i < 10; i++)
         {
-            tasks[i] = Task.Run(async () => await Client.ReconnectAsync(TestContext.Current.CancellationToken),
+            tasks[i] = Task.Run(async () => await Client.ReconnectAsync(TestContext.Current.CancellationToken).ConfigureAwait(false),
                 TestContext.Current.CancellationToken);
         }
 

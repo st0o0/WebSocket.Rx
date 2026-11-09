@@ -11,7 +11,7 @@ public class ReactiveWebSocketServerConnectionTests(ITestOutputHelper output) : 
         // Arrange & Act
         var connectionTask = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 1);
         using var client = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask;
+        await connectionTask.ConfigureAwait(true);
 
         // Assert
         Assert.Equal(1, Server.ClientCount);
@@ -23,11 +23,11 @@ public class ReactiveWebSocketServerConnectionTests(ITestOutputHelper output) : 
         // Arrange & Act
         var connectionTask1 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount >= 1);
         using var client1 = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask1;
+        await connectionTask1.ConfigureAwait(true);
 
         var connectionTask2 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount >= 2);
         using var client2 = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask2;
+        await connectionTask2.ConfigureAwait(true);
 
         // Assert
         Assert.Equal(2, Server.ClientCount);
@@ -40,7 +40,7 @@ public class ReactiveWebSocketServerConnectionTests(ITestOutputHelper output) : 
         var connectionTask = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 1);
         using (var client = await ConnectClientAsync(TestContext.Current.CancellationToken))
         {
-            await connectionTask;
+            await connectionTask.ConfigureAwait(true);
         }
 
         // Act
@@ -71,7 +71,7 @@ public class ReactiveWebSocketServerConnectionTests(ITestOutputHelper output) : 
         // Arrange
         var connectionTask = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 1);
         var client = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask;
+        await connectionTask.ConfigureAwait(true);
 
         // Act
         client.Abort();
@@ -87,11 +87,11 @@ public class ReactiveWebSocketServerConnectionTests(ITestOutputHelper output) : 
         // Arrange & Act
         var connectionTask1 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount >= 1);
         using var client1 = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask1;
+        await connectionTask1.ConfigureAwait(true);
 
         var connectionTask2 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount >= 2);
         using var client2 = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask2;
+        await connectionTask2.ConfigureAwait(true);
 
         // Assert
         var connectedClients = Server.ConnectedClients;
@@ -108,11 +108,11 @@ public class ReactiveWebSocketServerConnectionTests(ITestOutputHelper output) : 
         // Act
         var connectionTask1 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 1);
         using var client1 = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask1;
+        await connectionTask1.ConfigureAwait(true);
 
         var connectionTask2 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 2);
         using var client2 = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask2;
+        await connectionTask2.ConfigureAwait(true);
 
         client1.Dispose();
         await WaitUntilAsync(Server.ClientDisconnected, () => Server.ClientCount == 1);
@@ -132,7 +132,7 @@ public class ReactiveWebSocketServerConnectionTests(ITestOutputHelper output) : 
         {
             var connectionTask = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 1);
             using var client = await ConnectClientAsync(TestContext.Current.CancellationToken);
-            await connectionTask;
+            await connectionTask.ConfigureAwait(true);
         }
 
         // Assert
@@ -152,7 +152,7 @@ public class ReactiveWebSocketServerConnectionTests(ITestOutputHelper output) : 
             {
                 var connectionTask = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount >= i + 1);
                 clients.Add(await ConnectClientAsync(TestContext.Current.CancellationToken));
-                await connectionTask;
+                await connectionTask.ConfigureAwait(true);
             }
 
             // Assert

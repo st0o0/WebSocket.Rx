@@ -213,7 +213,7 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
             throw new InvalidOperationException("Client not started");
         }
 
-        using (await ConnectionLock.LockAsync().ConfigureAwait(false))
+        using (await ConnectionLock.LockAsync(cancellationToken).ConfigureAwait(false))
         {
             await ReconnectInternalAsync(true, cancellationToken).ConfigureAwait(false);
         }
@@ -251,7 +251,10 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
         catch (Exception ex)
         {
             ErrorOccurredSource.OnNext(new ErrorOccurred(ErrorSource.Reconnection, ex));
-            if (throwOnError) throw;
+            if (throwOnError)
+            {
+                throw;
+            }
         }
         finally
         {
@@ -413,7 +416,8 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
             while (!IsDisposed && NativeClient.State is WebSocketState.Open &&
                    !cancellationToken.IsCancellationRequested)
             {
-                await using var ms = MemoryStreamManager.GetStream();
+                var ms = MemoryStreamManager.GetStream();
+                await using var msDisposer = ms.ConfigureAwait(false);
                 WebSocketReceiveResult result;
 
                 do
@@ -437,7 +441,10 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
                     var @event = new Disconnected(DisconnectReason.ServerInitiated, NativeClient.CloseStatus,
                         NativeClient.CloseStatusDescription, NativeClient.SubProtocol);
                     DisconnectionHappenedSource.OnNext(@event);
-                    if (!@event.IsClosingCanceled && !IsReconnectionEnabled) return;
+                    if (!@event.IsClosingCanceled && !IsReconnectionEnabled)
+                    {
+                        return;
+                    }
                     _ = ScheduleReconnectAsync().ConfigureAwait(false);
                     return;
                 }
@@ -479,7 +486,10 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
             var @event = new Disconnected(reason, Exception: ex);
             DisconnectionHappenedSource.OnNext(@event);
-            if (@event.IsReconnectionCanceled) return;
+            if (@event.IsReconnectionCanceled)
+            {
+                return;
+            }
             _ = ScheduleReconnectAsync().ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -490,7 +500,10 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
             {
                 var @event = new Disconnected(DisconnectReason.Closed);
                 DisconnectionHappenedSource.OnNext(@event);
-                if (@event.IsReconnectionCanceled) return;
+                if (@event.IsReconnectionCanceled)
+                {
+                    return;
+                }
                 _ = ScheduleReconnectAsync().ConfigureAwait(false);
             }
         }
@@ -569,7 +582,10 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
 
     private async Task<bool> WriteAsync(Payload payload, CancellationToken cancellationToken = default)
     {
-        if (!IsRunning) return false;
+        if (!IsRunning)
+        {
+            return false;
+        }
         await SendWriter.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
         return true;
     }

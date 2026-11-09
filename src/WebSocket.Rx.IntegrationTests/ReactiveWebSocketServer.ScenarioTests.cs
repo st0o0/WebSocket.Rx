@@ -12,7 +12,7 @@ public class ReactiveWebSocketServerScenarioTests(ITestOutputHelper output) : Re
         // Arrange
         using var subscription = Server.Messages.SubscribeAwait(async (msg, ct) =>
         {
-            await Server.SendInstantAsync(msg.Metadata.Id, msg.Message.Text, msg.Message.Type, ct);
+            await Server.SendInstantAsync(msg.Metadata.Id, msg.Message.Text, msg.Message.Type, ct).ConfigureAwait(false);
         });
 
         using var client = await ConnectClientAsync(TestContext.Current.CancellationToken);
@@ -36,17 +36,17 @@ public class ReactiveWebSocketServerScenarioTests(ITestOutputHelper output) : Re
             {
                 await Server.SendInstantAsync(clientId, $"{msg.Metadata.Id}: {msg.Message.Text}".AsMemory(),
                     WebSocketMessageType.Binary,
-                    ct);
+                    ct).ConfigureAwait(false);
             }
         });
 
         var connectionTask1 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount >= 1);
         using var client1 = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask1;
+        await connectionTask1.ConfigureAwait(true);
 
         var connectionTask2 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount >= 2);
         using var client2 = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask2;
+        await connectionTask2.ConfigureAwait(true);
 
         // Act
         await SendTextAsync(client1, "Hello everyone", TestContext.Current.CancellationToken);
@@ -67,7 +67,7 @@ public class ReactiveWebSocketServerScenarioTests(ITestOutputHelper output) : Re
         {
             var connectionTask = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount >= i + 1);
             clients.Add(await ConnectClientAsync(TestContext.Current.CancellationToken));
-            await connectionTask;
+            await connectionTask.ConfigureAwait(true);
         }
 
         var totalReceived = 0;
@@ -81,11 +81,14 @@ public class ReactiveWebSocketServerScenarioTests(ITestOutputHelper output) : Re
         );
         await Task.WhenAll(sendTasks);
 
-        await receiveTask;
+        await receiveTask.ConfigureAwait(true);
 
         // Assert
         Assert.Equal(clientCount * messagesPerClient, totalReceived);
 
-        foreach (var c in clients) c.Dispose();
+        foreach (var c in clients)
+        {
+            c.Dispose();
+        }
     }
 }

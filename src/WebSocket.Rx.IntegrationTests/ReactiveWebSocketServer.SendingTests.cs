@@ -11,7 +11,7 @@ public class ReactiveWebSocketServerSendingTests(ITestOutputHelper output) : Rea
         // Arrange
         var connectionTask = WaitForEventAsync(Server.ClientConnected);
         using var client = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask;
+        await connectionTask.ConfigureAwait(true);
         var clientId = Server.ConnectedClients.Keys.First();
 
         // Act
@@ -29,7 +29,7 @@ public class ReactiveWebSocketServerSendingTests(ITestOutputHelper output) : Rea
         // Arrange
         var connectionTask = WaitForEventAsync(Server.ClientConnected);
         using var client = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask;
+        await connectionTask.ConfigureAwait(true);
         var clientId = Server.ConnectedClients.Keys.First();
         var binaryData = new byte[] { 5, 4, 3, 2, 1 };
 
@@ -60,7 +60,7 @@ public class ReactiveWebSocketServerSendingTests(ITestOutputHelper output) : Rea
         // Arrange
         var connectionTask = WaitForEventAsync(Server.ClientConnected);
         using var client = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask;
+        await connectionTask.ConfigureAwait(true);
         var clientId = Server.ConnectedClients.Keys.First();
 
         // Act
@@ -80,7 +80,7 @@ public class ReactiveWebSocketServerSendingTests(ITestOutputHelper output) : Rea
         // Arrange
         var connectionTask = WaitForEventAsync(Server.ClientConnected);
         using var client = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask;
+        await connectionTask.ConfigureAwait(true);
         var clientId = Server.ConnectedClients.Keys.First();
 
         // Act
@@ -107,7 +107,7 @@ public class ReactiveWebSocketServerSendingTests(ITestOutputHelper output) : Rea
         // Arrange
         var connectionTask = WaitForEventAsync(Server.ClientConnected);
         using var client = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask;
+        await connectionTask.ConfigureAwait(true);
         var clientId = Server.ConnectedClients.Keys.First();
 
         // Act
@@ -124,7 +124,7 @@ public class ReactiveWebSocketServerSendingTests(ITestOutputHelper output) : Rea
         // Arrange
         var connectionTask = WaitForEventAsync(Server.ClientConnected);
         using var client = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask;
+        await connectionTask.ConfigureAwait(true);
         var clientId = Server.ConnectedClients.Keys.First();
 
         // Act
@@ -142,7 +142,7 @@ public class ReactiveWebSocketServerSendingTests(ITestOutputHelper output) : Rea
         // Arrange
         var connectionTask = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 1);
         var client = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask;
+        await connectionTask.ConfigureAwait(true);
         var clientId = Server.ConnectedClients.Keys.First();
         client.Dispose();
         await WaitUntilAsync(Server.ClientDisconnected, () => Server.ClientCount == 0);

@@ -28,7 +28,7 @@ public class ReactiveWebSocketClientEncodingTests(ITestOutputHelper output) : Re
             return receivedMessage == "ASCII Text";
         });
         Client.TrySend("ASCII Text".AsMemory(), WebSocketMessageType.Binary);
-        await receiveTask;
+        await receiveTask.ConfigureAwait(true);
 
         // Assert
         Assert.Equal("ASCII Text", receivedMessage);
@@ -46,12 +46,12 @@ public class ReactiveWebSocketClientEncodingTests(ITestOutputHelper output) : Re
 
         var connectTask = WaitForEventAsync(Client.ConnectionHappened);
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
-        await connectTask;
+        await connectTask.ConfigureAwait(true);
 
         // Act
         var messageTask = WaitForEventAsync(Client.MessageReceived, msg => msg.Text.ToString() == "Converted Text");
         await Server.SendToAllAsync("Converted Text");
-        var received = await messageTask;
+        var received = await messageTask.ConfigureAwait(true);
 
         // Assert
         Assert.Equal("Converted Text", received.Text.ToString());
@@ -73,12 +73,12 @@ public class ReactiveWebSocketClientEncodingTests(ITestOutputHelper output) : Re
         });
         var connectTask = WaitForEventAsync(Client.ConnectionHappened);
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
-        await connectTask;
+        await connectTask.ConfigureAwait(true);
 
         // Act
         var receiveTask = WaitUntilAsync(Client.MessageReceived, () => receivedBinary != null);
         await Server.SendBinaryToAllAsync("No Conversion"u8.ToArray());
-        await receiveTask;
+        await receiveTask.ConfigureAwait(true);
 
         // Assert
         Assert.NotNull(receivedText);

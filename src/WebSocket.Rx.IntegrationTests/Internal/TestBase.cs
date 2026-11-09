@@ -28,7 +28,7 @@ public abstract class TestBase(ITestOutputHelper output)
             }
 
             tcs.TrySetException(new TimeoutException(msg));
-        });
+        }).ConfigureAwait(false);
 
         using var subscription = observable.Subscribe(value =>
         {
@@ -38,7 +38,7 @@ public abstract class TestBase(ITestOutputHelper output)
             }
         });
 
-        return await tcs.Task;
+        return await tcs.Task.ConfigureAwait(false);
     }
 
     protected async Task WaitUntilAsync<T>(
@@ -62,16 +62,22 @@ public abstract class TestBase(ITestOutputHelper output)
             }
 
             tcs.TrySetException(new TimeoutException(msg));
-        });
+        }).ConfigureAwait(false);
 
-        if (condition()) return;
+        if (condition())
+        {
+            return;
+        }
 
         // Fallback polling for robustness
         using var intervalSubscription = Observable.Interval(TimeSpan.FromMilliseconds(50)).Subscribe(_ =>
         {
             try
             {
-                if (condition()) tcs.TrySetResult(true);
+                if (condition())
+                {
+                    tcs.TrySetResult(true);
+                }
             }
             catch (Exception ex)
             {
@@ -86,7 +92,10 @@ public abstract class TestBase(ITestOutputHelper output)
             {
                 try
                 {
-                    if (condition()) tcs.TrySetResult(true);
+                    if (condition())
+                    {
+                        tcs.TrySetResult(true);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -107,7 +116,7 @@ public abstract class TestBase(ITestOutputHelper output)
                 return;
             }
 
-            await tcs.Task;
+            await tcs.Task.ConfigureAwait(false);
         }
     }
 
@@ -122,7 +131,7 @@ public abstract class TestBase(ITestOutputHelper output)
 
         while (!condition() && DateTime.UtcNow < endTime)
         {
-            await Task.Delay(10);
+            await Task.Delay(10).ConfigureAwait(false);
             count++;
             if (count % 100 == 0) // Log every 1 second
             {

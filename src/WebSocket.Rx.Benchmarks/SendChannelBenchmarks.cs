@@ -132,7 +132,7 @@ public class SendChannelBenchmarks
         var payload = _textPayload.AsMemory();
         for (var i = 0; i < MessageCount; i++)
         {
-            result = await _client.SendAsync(payload, WebSocketMessageType.Binary);
+            result = await _client.SendAsync(payload, WebSocketMessageType.Binary).ConfigureAwait(false);
         }
 
         return result;
@@ -148,7 +148,7 @@ public class SendChannelBenchmarks
         var payload = _textPayload.AsMemory();
         for (var i = 0; i < MessageCount; i++)
         {
-            result = await _client.SendAsync(payload, WebSocketMessageType.Text);
+            result = await _client.SendAsync(payload, WebSocketMessageType.Text).ConfigureAwait(false);
         }
 
         return result;

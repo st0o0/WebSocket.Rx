@@ -13,14 +13,14 @@ public abstract class ServerWebSocketAdapterTestBase(ITestOutputHelper output) :
     public async ValueTask InitializeAsync()
     {
         MockWebSocket.State.Returns(WebSocketState.Open);
-        await Task.CompletedTask;
+        await Task.CompletedTask.ConfigureAwait(false);
     }
 
     public async ValueTask DisposeAsync()
     {
         if (Adapter is not null)
         {
-            await Adapter.DisposeAsync();
+            await Adapter.DisposeAsync().ConfigureAwait(false);
         }
     }
 }

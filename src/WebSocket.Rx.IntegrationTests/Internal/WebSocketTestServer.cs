@@ -41,7 +41,7 @@ public class WebSocketTestServer(int? port = null) : IAsyncDisposable
             }
             catch (HttpListenerException) when (i < maxRetries - 1)
             {
-                await Task.Delay(100);
+                await Task.Delay(100).ConfigureAwait(false);
             }
         }
 
@@ -61,7 +61,7 @@ public class WebSocketTestServer(int? port = null) : IAsyncDisposable
         {
             try
             {
-                var context = await _httpListener.GetContextAsync();
+                var context = await _httpListener.GetContextAsync().ConfigureAwait(false);
 
                 if (context.Request.IsWebSocketRequest)
                 {
@@ -90,11 +90,11 @@ public class WebSocketTestServer(int? port = null) : IAsyncDisposable
 
         try
         {
-            wsContext = await context.AcceptWebSocketAsync(null);
+            wsContext = await context.AcceptWebSocketAsync(null).ConfigureAwait(false);
             var webSocket = wsContext.WebSocket;
             _clients.Add(webSocket);
 
-            await ReceiveLoopAsync(webSocket, cancellationToken);
+            await ReceiveLoopAsync(webSocket, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception)
         {
@@ -115,7 +115,7 @@ public class WebSocketTestServer(int? port = null) : IAsyncDisposable
         {
             while (webSocket.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
             {
-                var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
+                var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken).ConfigureAwait(false);
 
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
@@ -124,7 +124,7 @@ public class WebSocketTestServer(int? port = null) : IAsyncDisposable
                         WebSocketCloseStatus.NormalClosure,
                         "Closing",
                         closeCts.Token
-                    );
+                    ).ConfigureAwait(false);
                     break;
                 }
 
@@ -158,7 +158,10 @@ public class WebSocketTestServer(int? port = null) : IAsyncDisposable
 
         foreach (var client in _clients)
         {
-            if (client.State is not WebSocketState.Open) continue;
+            if (client.State is not WebSocketState.Open)
+            {
+                continue;
+            }
             try
             {
                 await client.SendAsync(
@@ -166,7 +169,7 @@ public class WebSocketTestServer(int? port = null) : IAsyncDisposable
                     WebSocketMessageType.Text,
                     true,
                     CancellationToken.None
-                );
+                ).ConfigureAwait(false);
             }
             catch (Exception)
             {
@@ -179,7 +182,10 @@ public class WebSocketTestServer(int? port = null) : IAsyncDisposable
     {
         foreach (var client in _clients)
         {
-            if (client.State is not WebSocketState.Open) continue;
+            if (client.State is not WebSocketState.Open)
+            {
+                continue;
+            }
             try
             {
                 await client.SendAsync(
@@ -187,7 +193,7 @@ public class WebSocketTestServer(int? port = null) : IAsyncDisposable
                     WebSocketMessageType.Binary,
                     true,
                     CancellationToken.None
-                );
+                ).ConfigureAwait(false);
             }
             catch (Exception)
             {
@@ -248,11 +254,11 @@ public class WebSocketTestServer(int? port = null) : IAsyncDisposable
             return;
         }
 
-        await _cts.CancelAsync();
+        await _cts.CancelAsync().ConfigureAwait(false);
 
         try
         {
-            await DisconnectAllAsync();
+            await DisconnectAllAsync().ConfigureAwait(false);
         }
         catch
         {
@@ -275,7 +281,7 @@ public class WebSocketTestServer(int? port = null) : IAsyncDisposable
         {
             try
             {
-                await _serverTask.WaitAsync(TimeSpan.FromSeconds(5));
+                await _serverTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             }
             catch
             {

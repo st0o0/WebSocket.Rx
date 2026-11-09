@@ -269,7 +269,7 @@ public class ExtensionsTests
             }
         });
 
-        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken).ConfigureAwait(false);
         return results;
     }
 
@@ -385,7 +385,7 @@ public class ExtensionsTests
         private readonly Subject<ClientDisconnected> _clientDisconnectedSource = new();
         private readonly Subject<ServerMessage> _messageSource = new();
         private readonly Subject<ServerErrorOccurred> _errorSource = new();
-        private readonly Dictionary<Guid, Metadata> _connectedClients = new();
+        private readonly Dictionary<Guid, Metadata> _connectedClients = [];
 
         public List<(Guid ClientId, ReadOnlyMemory<char> Message, WebSocketMessageType Type)> TextSendInstantCalls { get; } = [];
         public List<(Guid ClientId, ReadOnlyMemory<byte> Message, WebSocketMessageType Type)> BinarySendInstantCalls { get; } = [];

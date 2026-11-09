@@ -12,7 +12,7 @@ public class IntegrationDisposeTests(ITestOutputHelper output) : ReactiveWebSock
         var client = new ReactiveWebSocketClient(new Uri(WebSocketUrl));
         var connectionTask = WaitForEventAsync(Server.ClientConnected);
         await client.StartAsync(TestContext.Current.CancellationToken);
-        await connectionTask;
+        await connectionTask.ConfigureAwait(true);
 
         // Act
         await client.DisposeAsync();
@@ -36,7 +36,7 @@ public class IntegrationDisposeTests(ITestOutputHelper output) : ReactiveWebSock
             var client = new ReactiveWebSocketClient(new Uri(WebSocketUrl));
             var connectionTask = WaitForEventAsync(Server.ClientConnected);
             await client.StartAsync(TestContext.Current.CancellationToken);
-            await connectionTask;
+            await connectionTask.ConfigureAwait(true);
             clients.Add(client);
         }
 
@@ -70,7 +70,7 @@ public class IntegrationDisposeTests(ITestOutputHelper output) : ReactiveWebSock
         var client = new ReactiveWebSocketClient(new Uri(WebSocketUrl));
         var connectionTask = WaitForEventAsync(Server.ClientConnected);
         await client.StartAsync(TestContext.Current.CancellationToken);
-        await connectionTask;
+        await connectionTask.ConfigureAwait(true);
 
         var sendTask = Task.Run(async () =>
         {
@@ -78,8 +78,8 @@ public class IntegrationDisposeTests(ITestOutputHelper output) : ReactiveWebSock
             {
                 try
                 {
-                    await client.SendAsync($"Message {i}".AsMemory(), WebSocketMessageType.Text);
-                    await Task.Delay(10, TestContext.Current.CancellationToken);
+                    await client.SendAsync($"Message {i}".AsMemory(), WebSocketMessageType.Text).ConfigureAwait(false);
+                    await Task.Delay(10, TestContext.Current.CancellationToken).ConfigureAwait(false);
                 }
                 catch (ObjectDisposedException)
                 {
@@ -105,7 +105,7 @@ public class IntegrationDisposeTests(ITestOutputHelper output) : ReactiveWebSock
             Assert.True(Server.IsDisposed);
         });
 
-        await sendTask;
+        await sendTask.ConfigureAwait(true);
     }
 
     [Fact(Timeout = 15000)]
@@ -114,7 +114,7 @@ public class IntegrationDisposeTests(ITestOutputHelper output) : ReactiveWebSock
         // Act
         var ct = TestContext.Current.CancellationToken;
         var disposeTasks = Enumerable.Range(0, 10)
-            .Select(_ => Task.Run(async () => await Server.DisposeAsync(), ct))
+            .Select(_ => Task.Run(async () => await Server.DisposeAsync().ConfigureAwait(false), ct))
             .ToArray();
 
         await Task.WhenAll(disposeTasks);

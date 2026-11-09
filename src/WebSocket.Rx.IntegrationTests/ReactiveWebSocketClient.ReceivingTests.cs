@@ -19,7 +19,7 @@ public class ReactiveWebSocketClientReceivingTests(ITestOutputHelper output) : R
 
         // Act
         await Server.SendToAllAsync("Server Message");
-        var received = await messageTask;
+        var received = await messageTask.ConfigureAwait(true);
 
         // Assert
         Assert.Equal("Server Message", received.Text.ToString());
@@ -41,7 +41,7 @@ public class ReactiveWebSocketClientReceivingTests(ITestOutputHelper output) : R
 
         // Act
         await Server.SendBinaryToAllAsync(testData);
-        var received = await messageTask;
+        var received = await messageTask.ConfigureAwait(true);
 
         // Assert
         Assert.Equal(testData, received.Binary.ToArray());
@@ -59,7 +59,7 @@ public class ReactiveWebSocketClientReceivingTests(ITestOutputHelper output) : R
 
         // Act
         Client.StreamFakeMessage(fakeMessage);
-        var received = await messageTask;
+        var received = await messageTask.ConfigureAwait(true);
 
         // Assert
         Assert.Equal("Fake", received.Text.ToString());

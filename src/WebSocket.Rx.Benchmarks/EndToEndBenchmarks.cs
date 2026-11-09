@@ -37,30 +37,30 @@ public abstract class EndToEndBase
         {
             if (msg.Message.IsText)
             {
-                await Server.SendAsync(msg.Metadata.Id, msg.Message.Text, WebSocketMessageType.Text, ct);
+                await Server.SendAsync(msg.Metadata.Id, msg.Message.Text, WebSocketMessageType.Text, ct).ConfigureAwait(false);
             }
             else if (msg.Message.IsBinary)
             {
-                await Server.SendAsync(msg.Metadata.Id, msg.Message.Binary, WebSocketMessageType.Binary, ct);
+                await Server.SendAsync(msg.Metadata.Id, msg.Message.Binary, WebSocketMessageType.Binary, ct).ConfigureAwait(false);
             }
         });
 
-        await Server.StartAsync();
+        await Server.StartAsync().ConfigureAwait(false);
 
         Client = new ReactiveWebSocketClient(ServerUri) { IsReconnectionEnabled = false };
 
         var connected = Client.ConnectionHappened.FirstAsync();
-        await Client.StartAsync();
-        await connected;
+        await Client.StartAsync().ConfigureAwait(false);
+        await connected.ConfigureAwait(false);
     }
 
     [GlobalCleanup]
     public virtual async Task CleanupAsync()
     {
-        await Client.StopAsync(WebSocketCloseStatus.NormalClosure, "Benchmark done");
-        await Server.StopAsync(WebSocketCloseStatus.NormalClosure, "Benchmark done");
-        await Client.DisposeAsync();
-        await Server.DisposeAsync();
+        await Client.StopAsync(WebSocketCloseStatus.NormalClosure, "Benchmark done").ConfigureAwait(false);
+        await Server.StopAsync(WebSocketCloseStatus.NormalClosure, "Benchmark done").ConfigureAwait(false);
+        await Client.DisposeAsync().ConfigureAwait(false);
+        await Server.DisposeAsync().ConfigureAwait(false);
     }
 
     [IterationCleanup]
@@ -107,8 +107,8 @@ public class LatencyBenchmarks : EndToEndBase
             .Where(m => m.Text.Span.SequenceEqual("ping".AsSpan()))
             .FirstAsync();
 
-        await Client.SendAsync("ping".AsMemory(), WebSocketMessageType.Text);
-        return (await echoTask).Text.ToString();
+        await Client.SendAsync("ping".AsMemory(), WebSocketMessageType.Text).ConfigureAwait(false);
+        return (await echoTask.ConfigureAwait(false)).Text.ToString();
     }
 
     // -----------------------------------------------------------------------
@@ -118,8 +118,8 @@ public class LatencyBenchmarks : EndToEndBase
     public async Task ConnectAndStop()
     {
         var client = new ReactiveWebSocketClient(ServerUri) { IsReconnectionEnabled = false };
-        await client.StartAsync();
-        await client.StopAsync(WebSocketCloseStatus.NormalClosure, "done");
+        await client.StartAsync().ConfigureAwait(false);
+        await client.StopAsync(WebSocketCloseStatus.NormalClosure, "done").ConfigureAwait(false);
         client.Dispose();
     }
 }
@@ -169,7 +169,7 @@ public class ThroughputBenchmarks : EndToEndBase
 
         for (var i = 0; i < RoundTrips; i++)
         {
-            await Client.SendAsync($"msg-{i}".AsMemory(), WebSocketMessageType.Text, cts.Token);
+            await Client.SendAsync($"msg-{i}".AsMemory(), WebSocketMessageType.Text, cts.Token).ConfigureAwait(false);
         }
 
         await tcs.Task.WaitAsync(cts.Token).ConfigureAwait(false);
@@ -324,7 +324,7 @@ public class LargeMessageBenchmarks : EndToEndBase
 
         for (var i = 0; i < MessageCount; i++)
         {
-            await Client.SendAsync(_payload.AsMemory(0, PayloadBytes), WebSocketMessageType.Binary, cts.Token);
+            await Client.SendAsync(_payload.AsMemory(0, PayloadBytes), WebSocketMessageType.Binary, cts.Token).ConfigureAwait(false);
         }
 
         await tcs.Task.WaitAsync(cts.Token).ConfigureAwait(false);

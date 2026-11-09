@@ -178,7 +178,10 @@ public class ReactiveWebSocketClientSendingTests(ITestOutputHelper output) : Rea
         Server.OnBytesReceived += bytes =>
         {
             receivedMessages.Enqueue(Encoding.UTF8.GetString(bytes));
-            if (receivedMessages.Count >= 2) tcs.TrySetResult(true);
+            if (receivedMessages.Count >= 2)
+            {
+                tcs.TrySetResult(true);
+            }
         };
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
 

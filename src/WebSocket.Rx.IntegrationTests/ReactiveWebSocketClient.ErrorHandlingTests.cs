@@ -47,9 +47,9 @@ public class ReactiveWebSocketClientErrorHandlingTests(ITestOutputHelper output)
         var exception = await Record.ExceptionAsync(async () =>
         {
             await Client.SendInstantAsync("test".AsMemory(), WebSocketMessageType.Binary,
-                TestContext.Current.CancellationToken);
+                TestContext.Current.CancellationToken).ConfigureAwait(false);
             await Client.SendInstantAsync(new byte[] { 1, 2, 3 }, WebSocketMessageType.Binary,
-                TestContext.Current.CancellationToken);
+                TestContext.Current.CancellationToken).ConfigureAwait(false);
         });
         Assert.Null(exception);
     }
@@ -65,7 +65,7 @@ public class ReactiveWebSocketClientErrorHandlingTests(ITestOutputHelper output)
 
         // Act
         await Client.StartAsync(TestContext.Current.CancellationToken);
-        var error = await errorTask;
+        var error = await errorTask.ConfigureAwait(true);
 
         // Assert
         Assert.Equal(ErrorSource.Connection, error.Source);
@@ -82,7 +82,7 @@ public class ReactiveWebSocketClientErrorHandlingTests(ITestOutputHelper output)
 
         // Act
         await Client.StartAsync(TestContext.Current.CancellationToken);
-        var error = await errorTask;
+        var error = await errorTask.ConfigureAwait(true);
 
         // Assert
         Assert.NotNull(error.Exception);

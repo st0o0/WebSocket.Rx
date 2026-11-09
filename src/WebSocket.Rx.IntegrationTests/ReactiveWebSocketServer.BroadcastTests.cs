@@ -11,11 +11,11 @@ public class ReactiveWebSocketServerBroadcastTests(ITestOutputHelper output) : R
         // Arrange
         var connectionTask1 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 1);
         using var client1 = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask1;
+        await connectionTask1.ConfigureAwait(true);
 
         var connectionTask2 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 2);
         using var client2 = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask2;
+        await connectionTask2.ConfigureAwait(true);
 
         var receiveTask1 = ReceiveTextAsync(client1, TestContext.Current.CancellationToken);
         var receiveTask2 = ReceiveTextAsync(client2, TestContext.Current.CancellationToken);
@@ -25,8 +25,8 @@ public class ReactiveWebSocketServerBroadcastTests(ITestOutputHelper output) : R
             TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.Equal("Broadcast Message", await receiveTask1);
-        Assert.Equal("Broadcast Message", await receiveTask2);
+        Assert.Equal("Broadcast Message", await receiveTask1.ConfigureAwait(true));
+        Assert.Equal("Broadcast Message", await receiveTask2.ConfigureAwait(true));
     }
 
     [Fact(Timeout = 15000)]
@@ -46,7 +46,7 @@ public class ReactiveWebSocketServerBroadcastTests(ITestOutputHelper output) : R
         // Arrange
         var connectionTask = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 1);
         using var client = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask;
+        await connectionTask.ConfigureAwait(true);
 
         // Act
         await Server.BroadcastInstantAsync("Single Broadcast".AsMemory(), WebSocketMessageType.Binary,
@@ -63,11 +63,11 @@ public class ReactiveWebSocketServerBroadcastTests(ITestOutputHelper output) : R
         // Arrange
         var connectionTask1 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 1);
         using var client1 = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask1;
+        await connectionTask1.ConfigureAwait(true);
 
         var connectionTask2 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 2);
         using var client2 = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask2;
+        await connectionTask2.ConfigureAwait(true);
         var binaryData = new byte[] { 10, 20, 30 };
 
         // Act
@@ -90,11 +90,11 @@ public class ReactiveWebSocketServerBroadcastTests(ITestOutputHelper output) : R
         // Arrange
         var connectionTask1 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 1);
         using var client1 = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask1;
+        await connectionTask1.ConfigureAwait(true);
 
         var connectionTask2 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 2);
         using var client2 = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask2;
+        await connectionTask2.ConfigureAwait(true);
 
         // Act
         await Server.BroadcastAsync("Binary Broadcast".AsMemory(), WebSocketMessageType.Binary,
@@ -111,11 +111,11 @@ public class ReactiveWebSocketServerBroadcastTests(ITestOutputHelper output) : R
         // Arrange
         var connectionTask1 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 1);
         using var client1 = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask1;
+        await connectionTask1.ConfigureAwait(true);
 
         var connectionTask2 = WaitUntilAsync(Server.ClientConnected, () => Server.ClientCount == 2);
         using var client2 = await ConnectClientAsync(TestContext.Current.CancellationToken);
-        await connectionTask2;
+        await connectionTask2.ConfigureAwait(true);
 
         // Act
         await Server.BroadcastAsync("Text Broadcast".AsMemory(), WebSocketMessageType.Text,

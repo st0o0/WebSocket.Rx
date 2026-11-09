@@ -18,7 +18,7 @@ public class ReactiveWebSocketServerReceivingTests(ITestOutputHelper output) : R
         await SendTextAsync(client, "Hello Server", TestContext.Current.CancellationToken);
 
         // Assert
-        var receivedMessage = await messageTask;
+        var receivedMessage = await messageTask.ConfigureAwait(true);
         Assert.Multiple(() =>
         {
             Assert.NotNull(receivedMessage);
@@ -43,7 +43,7 @@ public class ReactiveWebSocketServerReceivingTests(ITestOutputHelper output) : R
             TestContext.Current.CancellationToken);
 
         // Assert
-        var receivedMessage = await messageTask;
+        var receivedMessage = await messageTask.ConfigureAwait(true);
         Assert.Multiple(() =>
         {
             Assert.NotNull(receivedMessage);
@@ -64,7 +64,7 @@ public class ReactiveWebSocketServerReceivingTests(ITestOutputHelper output) : R
         await SendTextAsync(client, "Message 1", TestContext.Current.CancellationToken);
         await SendTextAsync(client, "Message 2", TestContext.Current.CancellationToken);
 
-        await receiveTask;
+        await receiveTask.ConfigureAwait(true);
 
         // Assert
         var received = messages.ToArray();
@@ -93,7 +93,7 @@ public class ReactiveWebSocketServerReceivingTests(ITestOutputHelper output) : R
             TestContext.Current.CancellationToken);
 
         // Assert
-        var receivedMessage = await messageTask;
+        var receivedMessage = await messageTask.ConfigureAwait(true);
         Assert.Equal(largeData, receivedMessage.Message.Binary);
     }
 
@@ -112,7 +112,7 @@ public class ReactiveWebSocketServerReceivingTests(ITestOutputHelper output) : R
             TestContext.Current.CancellationToken);
 
         // Assert
-        var receivedMessage = await messageTask;
+        var receivedMessage = await messageTask.ConfigureAwait(true);
         Assert.Empty(receivedMessage.Message.Binary.ToArray());
     }
 
@@ -137,7 +137,7 @@ public class ReactiveWebSocketServerReceivingTests(ITestOutputHelper output) : R
             await SendTextAsync(client, $"Message {i}", TestContext.Current.CancellationToken);
         }
 
-        await receiveTask;
+        await receiveTask.ConfigureAwait(true);
 
         // Assert
         var received = receivedTexts.ToArray();
@@ -160,7 +160,7 @@ public class ReactiveWebSocketServerReceivingTests(ITestOutputHelper output) : R
         var tasks = Enumerable.Range(0, 500).Select(i => SendTextAsync(client, $"msg{i}", TestContext.Current.CancellationToken));
         await Task.WhenAll(tasks);
 
-        await receiveTask;
+        await receiveTask.ConfigureAwait(true);
 
         // Assert
         Assert.Equal(500, messageCount);

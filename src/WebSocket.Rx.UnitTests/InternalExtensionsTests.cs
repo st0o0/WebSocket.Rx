@@ -59,8 +59,11 @@ public class InternalExtensionsTests
 
         var result = await values.Async(async (value, _) =>
         {
-            await Task.Delay(10, TestContext.Current.CancellationToken);
-            lock (sync) seen.Add(value);
+            await Task.Delay(10, TestContext.Current.CancellationToken).ConfigureAwait(false);
+            lock (sync)
+            {
+                seen.Add(value);
+            }
             return value * 2;
         }, output => output > 0, TestContext.Current.CancellationToken);
 
@@ -129,14 +132,14 @@ public class InternalExtensionsTests
         configureRequest?.Invoke(request);
 
         var responseTask = client.SendAsync(request, TestContext.Current.CancellationToken);
-        var context = await contextTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        var context = await contextTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken).ConfigureAwait(false);
 
         var metadata = context.GetMetadata();
         var remote = context.Request.RemoteEndPoint ?? new IPEndPoint(IPAddress.None, 0);
 
         context.Response.StatusCode = 200;
         context.Response.Close();
-        await responseTask;
+        await responseTask.ConfigureAwait(false);
 
         return (metadata, remote);
     }

@@ -179,7 +179,7 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
         var messageTask = WaitForEventAsync(Client.MessageReceived, m => m.Text.ToString() == "test");
         await Server.SendToAllAsync("test");
-        await messageTask;
+        await messageTask.ConfigureAwait(true);
 
         // Assert
         Assert.Multiple(() =>
@@ -287,7 +287,10 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         var tcs = new TaskCompletionSource<bool>();
         Server.OnBytesReceived += _ =>
         {
-            if (Interlocked.Increment(ref receivedCount) >= 5) tcs.TrySetResult(true);
+            if (Interlocked.Increment(ref receivedCount) >= 5)
+            {
+                tcs.TrySetResult(true);
+            }
         };
 
         Client = new ReactiveWebSocketClient(new Uri(Server.WebSocketUrl))
@@ -525,7 +528,7 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         await WaitUntilAsync(Client.ConnectionHappened, () => Client.IsRunning);
         var receiveTask = WaitForEventAsync(Client.MessageReceived);
         await Server.SendToAllAsync("test");
-        await receiveTask;
+        await receiveTask.ConfigureAwait(true);
 
         // Assert
         Assert.Multiple(() =>
@@ -589,7 +592,7 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         await WaitUntilAsync(Client.ConnectionHappened, () => Client.IsRunning);
         var receiveTask = WaitForEventAsync(Client.MessageReceived);
         await Server.SendToAllAsync("test");
-        await receiveTask;
+        await receiveTask.ConfigureAwait(true);
 
         // Assert
         Assert.Multiple(() =>

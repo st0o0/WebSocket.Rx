@@ -29,7 +29,10 @@ internal sealed class AsyncLock
 
         public void Dispose()
         {
-            if (_released) return;
+            if (_released)
+            {
+                return;
+            }
             _released = true;
             semaphore.Release();
         }

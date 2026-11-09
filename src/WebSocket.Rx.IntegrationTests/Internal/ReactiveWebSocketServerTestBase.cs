@@ -22,21 +22,21 @@ public abstract class ReactiveWebSocketServerTestBase(ITestOutputHelper output) 
                 ServerUrl = $"http://127.0.0.1:{port}/";
                 WebSocketUrl = ServerUrl.Replace("http://", "ws://");
                 Server = new ReactiveWebSocketServer(ServerUrl);
-                await Server.StartAsync();
+                await Server.StartAsync().ConfigureAwait(false);
                 Output.WriteLine($"Server started on {ServerUrl}");
                 return;
             }
             catch (Exception ex) when (ex is HttpListenerException or SocketException && i < maxRetries - 1)
             {
                 Output.WriteLine($"Failed to start server on attempt {i + 1}: {ex.Message}. Retrying...");
-                await Task.Delay(200);
+                await Task.Delay(200).ConfigureAwait(false);
             }
         }
     }
 
     public async ValueTask DisposeAsync()
     {
-        await Server.DisposeAsync();
+        await Server.DisposeAsync().ConfigureAwait(false);
     }
 
     protected static int GetAvailablePort()
@@ -49,7 +49,7 @@ public abstract class ReactiveWebSocketServerTestBase(ITestOutputHelper output) 
     protected async Task<ClientWebSocket> ConnectClientAsync(CancellationToken ct = default)
     {
         var client = new ClientWebSocket();
-        await client.ConnectAsync(new Uri(WebSocketUrl), ct);
+        await client.ConnectAsync(new Uri(WebSocketUrl), ct).ConfigureAwait(false);
         return client;
     }
 
@@ -60,7 +60,7 @@ public abstract class ReactiveWebSocketServerTestBase(ITestOutputHelper output) 
         WebSocketReceiveResult result;
         do
         {
-            result = await client.ReceiveAsync(buffer, ct);
+            result = await client.ReceiveAsync(buffer, ct).ConfigureAwait(false);
             ms.Write(buffer, 0, result.Count);
         } while (!result.EndOfMessage);
 
@@ -70,6 +70,6 @@ public abstract class ReactiveWebSocketServerTestBase(ITestOutputHelper output) 
     protected static async Task SendTextAsync(ClientWebSocket client, string message, CancellationToken ct = default)
     {
         var bytes = Encoding.UTF8.GetBytes(message);
-        await client.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, ct);
+        await client.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, ct).ConfigureAwait(false);
     }
 }

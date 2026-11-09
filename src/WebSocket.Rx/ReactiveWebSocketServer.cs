@@ -268,7 +268,10 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
     public async Task<bool> SendInstantAsync(Guid clientId, ReadOnlyMemory<char> message, WebSocketMessageType type,
         CancellationToken cancellationToken = default)
     {
-        if (!_clients.TryGetValue(clientId, out var client)) return false;
+        if (!_clients.TryGetValue(clientId, out var client))
+        {
+            return false;
+        }
         await client.Socket.SendInstantAsync(message, type, cancellationToken).ConfigureAwait(false);
         return true;
     }
@@ -276,7 +279,10 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
     public async Task<bool> SendInstantAsync(Guid clientId, ReadOnlyMemory<byte> message, WebSocketMessageType type,
         CancellationToken cancellationToken = default)
     {
-        if (!_clients.TryGetValue(clientId, out var client)) return false;
+        if (!_clients.TryGetValue(clientId, out var client))
+        {
+            return false;
+        }
         await client.Socket.SendInstantAsync(message, type, cancellationToken).ConfigureAwait(false);
         return true;
     }
@@ -284,7 +290,10 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
     public async Task<bool> SendAsync(Guid clientId, ReadOnlyMemory<char> message, WebSocketMessageType type,
         CancellationToken cancellationToken = default)
     {
-        if (!_clients.TryGetValue(clientId, out var client)) return false;
+        if (!_clients.TryGetValue(clientId, out var client))
+        {
+            return false;
+        }
         await client.Socket.SendAsync(message, type, cancellationToken).ConfigureAwait(false);
         return true;
     }
@@ -292,21 +301,30 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
     public async Task<bool> SendAsync(Guid clientId, ReadOnlyMemory<byte> message, WebSocketMessageType type,
         CancellationToken cancellationToken = default)
     {
-        if (!_clients.TryGetValue(clientId, out var client)) return false;
+        if (!_clients.TryGetValue(clientId, out var client))
+        {
+            return false;
+        }
         await client.Socket.SendAsync(message, type, cancellationToken).ConfigureAwait(false);
         return true;
     }
 
     public bool TrySend(Guid clientId, ReadOnlyMemory<char> message, WebSocketMessageType type)
     {
-        if (!_clients.TryGetValue(clientId, out var client)) return false;
+        if (!_clients.TryGetValue(clientId, out var client))
+        {
+            return false;
+        }
         client.Socket.TrySend(message, type);
         return true;
     }
 
     public bool TrySend(Guid clientId, ReadOnlyMemory<byte> data, WebSocketMessageType type)
     {
-        if (!_clients.TryGetValue(clientId, out var client)) return false;
+        if (!_clients.TryGetValue(clientId, out var client))
+        {
+            return false;
+        }
         client.Socket.TrySend(data, type);
         return true;
     }
@@ -363,7 +381,10 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
         var allSuccess = true;
         foreach (var socket in sockets)
         {
-            if (!socket.TrySend(message, type)) allSuccess = false;
+            if (!socket.TrySend(message, type))
+            {
+                allSuccess = false;
+            }
         }
         return allSuccess;
     }
@@ -374,7 +395,10 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
         var allSuccess = true;
         foreach (var socket in sockets)
         {
-            if (!socket.TrySend(message, type)) allSuccess = false;
+            if (!socket.TrySend(message, type))
+            {
+                allSuccess = false;
+            }
         }
         return allSuccess;
     }
@@ -547,7 +571,10 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
             await _serverSendLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                if (NativeServerSocket.State is not WebSocketState.Open) return false;
+                if (NativeServerSocket.State is not WebSocketState.Open)
+                {
+                    return false;
+                }
                 await NativeServerSocket
                     .SendAsync(data, type, endOfMessage: true, cancellationToken)
                     .ConfigureAwait(false);
@@ -567,7 +594,8 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
             {
                 while (NativeServerSocket.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
                 {
-                    await using var ms = MemoryStreamManager.GetStream();
+                    var ms = MemoryStreamManager.GetStream();
+                    await using var msDisposer = ms.ConfigureAwait(false);
                     WebSocketReceiveResult result;
 
                     do

@@ -18,7 +18,7 @@ public class ReactiveWebSocketClientReconnectionTests(ITestOutputHelper output)
 
         // Act
         await Client.ReconnectAsync(TestContext.Current.CancellationToken);
-        await reconnectionTask;
+        await reconnectionTask.ConfigureAwait(true);
 
         // Assert
         Assert.True(Client.IsRunning);
@@ -62,7 +62,7 @@ public class ReactiveWebSocketClientReconnectionTests(ITestOutputHelper output)
 
         // Act
         await Client.ReconnectOrFailAsync(TestContext.Current.CancellationToken);
-        await reconnectionTask;
+        await reconnectionTask.ConfigureAwait(true);
         Assert.True(Client.IsRunning);
     }
 
