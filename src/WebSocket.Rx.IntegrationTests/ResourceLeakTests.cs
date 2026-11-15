@@ -1,4 +1,4 @@
-﻿using WebSocket.Rx.IntegrationTests.Internal;
+using WebSocket.Rx.IntegrationTests.Internal;
 
 namespace WebSocket.Rx.IntegrationTests;
 

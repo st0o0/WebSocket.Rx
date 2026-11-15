@@ -1,4 +1,4 @@
-﻿namespace WebSocket.Rx;
+namespace WebSocket.Rx;
 
 public static class Headers
 {

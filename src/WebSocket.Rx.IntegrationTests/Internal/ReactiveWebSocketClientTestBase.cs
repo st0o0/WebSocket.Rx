@@ -1,4 +1,4 @@
-﻿namespace WebSocket.Rx.IntegrationTests.Internal;
+namespace WebSocket.Rx.IntegrationTests.Internal;
 
 public abstract class ReactiveWebSocketClientTestBase(ITestOutputHelper output) : TestBase(output), IAsyncLifetime
 {

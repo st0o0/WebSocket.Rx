@@ -1,4 +1,4 @@
-﻿namespace WebSocket.Rx.Internal;
+namespace WebSocket.Rx.Internal;
 
 internal sealed class AsyncLock
 {

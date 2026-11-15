@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using R3;
 using WebSocket.Rx.IntegrationTests.Internal;
