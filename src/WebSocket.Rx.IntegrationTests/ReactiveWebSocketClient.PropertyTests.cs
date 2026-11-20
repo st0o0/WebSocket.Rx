@@ -47,7 +47,7 @@ public class ReactiveWebSocketClientPropertyTests(ITestOutputHelper output) : Re
 
         // Act
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
-        await Task.Delay(50, TestContext.Current.CancellationToken);
+        await Task.Yield();
 
         // Assert
         Assert.True(Client.SenderRunning);

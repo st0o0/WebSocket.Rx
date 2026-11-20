@@ -80,19 +80,21 @@ public class AsyncLockTests
     public async Task LockAsync_SlowPath_WaitsAndAcquires()
     {
         var asyncLock = new AsyncLock();
-        var tcs = new TaskCompletionSource<bool>();
+        var lockAcquired = new SemaphoreSlim(0, 1);
+        var holdLock = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         _ = Task.Run(async () =>
         {
             using var _ = asyncLock.Lock();
-            await tcs.Task.ConfigureAwait(false);
+            lockAcquired.Release();
+            await holdLock.Task.ConfigureAwait(false);
         }, TestContext.Current.CancellationToken);
-        await Task.Delay(50, TestContext.Current.CancellationToken);
+        await lockAcquired.WaitAsync(TestContext.Current.CancellationToken);
 
         var lockTask = asyncLock.LockAsync(TestContext.Current.CancellationToken);
         Assert.False(lockTask.IsCompleted);
 
-        tcs.SetResult(true);
+        holdLock.SetResult();
         using var releaser = await lockTask.ConfigureAwait(true);
         Assert.True(asyncLock.IsLocked);
     }
@@ -151,7 +153,7 @@ public class AsyncLockTests
         {
             using var t = await asyncLock.LockAsync(TestContext.Current.CancellationToken).ConfigureAwait(false);
             var start = DateTime.UtcNow;
-            await Task.Delay(1, TestContext.Current.CancellationToken).ConfigureAwait(false);
+            await Task.Yield();
             var end = DateTime.UtcNow;
             lock (timingsLock)
             {

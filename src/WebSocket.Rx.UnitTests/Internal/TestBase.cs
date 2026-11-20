@@ -18,7 +18,7 @@ public abstract class TestBase(ITestOutputHelper output)
         await using var registration = cts.Token.Register(() =>
         {
             var msg = $"Event {typeof(T).Name} not received within {timeout}ms";
-            try { Output.WriteLine($"[TIMEOUT] {msg}"); } catch { }
+            try { Output.WriteLine($"[TIMEOUT] {msg}"); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"Test cleanup: {ex.Message}"); }
             tcs.TrySetException(new TimeoutException(msg));
         }).ConfigureAwait(false);
 
@@ -44,7 +44,7 @@ public abstract class TestBase(ITestOutputHelper output)
         await using var registration = cts.Token.Register(() =>
         {
             var msg = $"Condition not met within {timeout}ms";
-            try { Output.WriteLine($"[TIMEOUT] {msg}"); } catch { }
+            try { Output.WriteLine($"[TIMEOUT] {msg}"); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"Test cleanup: {ex.Message}"); }
             tcs.TrySetException(new TimeoutException(msg));
         }).ConfigureAwait(false);
 
@@ -67,7 +67,7 @@ public abstract class TestBase(ITestOutputHelper output)
                 try { if (condition()) { tcs.TrySetResult(true); } } catch (Exception ex) { tcs.TrySetException(ex); }
             });
         }
-        catch (ObjectDisposedException) { /* Ignored */ }
+        catch (ObjectDisposedException ex) { System.Diagnostics.Trace.WriteLine($"Test cleanup: {ex.Message}"); }
 
         using (eventSubscription)
         {
@@ -92,7 +92,7 @@ public abstract class TestBase(ITestOutputHelper output)
 
         while (!condition() && DateTime.UtcNow < endTime)
         {
-            await Task.Delay(10).ConfigureAwait(false);
+            await Task.Yield();
             count++;
             if (count % 100 == 0) // Log every 1 second
             {

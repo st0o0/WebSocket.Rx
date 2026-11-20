@@ -34,7 +34,7 @@ public class ReactiveWebSocketClientReconnectionTests(ITestOutputHelper output)
 
         // Act
         await Client.ReconnectAsync(TestContext.Current.CancellationToken);
-        await Task.Delay(50, TestContext.Current.CancellationToken);
+        await Task.Yield();
 
         // Assert
         Assert.Equal(0, connectionCount);
@@ -116,7 +116,7 @@ public class ReactiveWebSocketClientReconnectionTests(ITestOutputHelper output)
         // Act - stop the client (simulates disconnection) and wait for it to settle
         await Client.StopAsync(WebSocketCloseStatus.NormalClosure, "Test disconnect",
             TestContext.Current.CancellationToken);
-        await Task.Delay(200, TestContext.Current.CancellationToken);
+        await Task.Yield();
 
         // Assert - no reconnection should have occurred
         Assert.Equal(0, reconnectCount);

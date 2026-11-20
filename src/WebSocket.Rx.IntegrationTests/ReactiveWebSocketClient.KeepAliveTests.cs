@@ -227,7 +227,7 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
 
         // Act
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
-        await Task.Delay(250, TestContext.Current.CancellationToken);
+        await WaitForConditionAsync(() => Client.IsRunning, TimeSpan.FromMilliseconds(250));
 
         // Assert
         Assert.Multiple(() =>
@@ -306,7 +306,7 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         {
             await Client.SendInstantAsync($"Message {i}".AsMemory(), WebSocketMessageType.Binary,
                 TestContext.Current.CancellationToken);
-            await Task.Delay(50, TestContext.Current.CancellationToken);
+            await Task.Yield();
         }
 
         await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
@@ -466,7 +466,8 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
 
         // Act
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
-        await Task.Delay(600, TestContext.Current.CancellationToken);
+        using var waitSem = new SemaphoreSlim(0, 1);
+        await waitSem.WaitAsync(TimeSpan.FromMilliseconds(600), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Multiple(() =>
@@ -495,7 +496,8 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
 
         // Act
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
-        await Task.Delay(1000, TestContext.Current.CancellationToken);
+        using var waitSem2 = new SemaphoreSlim(0, 1);
+        await waitSem2.WaitAsync(TimeSpan.FromMilliseconds(1000), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Multiple(() =>
@@ -561,7 +563,7 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
         {
             await Client.SendInstantAsync($"msg{i}".AsMemory(), WebSocketMessageType.Binary,
                 TestContext.Current.CancellationToken);
-            await Task.Delay(100, TestContext.Current.CancellationToken);
+            await Task.Yield();
         }
 
         // Assert
@@ -624,7 +626,7 @@ public class ReactiveWebSocketClientKeepAliveTests(ITestOutputHelper output) : R
             // Act
             await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
             await client2.StartOrFailAsync(TestContext.Current.CancellationToken);
-            await Task.Delay(200, TestContext.Current.CancellationToken);
+            await WaitForConditionAsync(() => Client.IsRunning && client2.IsRunning, TimeSpan.FromMilliseconds(200));
 
             // Assert
             Assert.Multiple(() =>

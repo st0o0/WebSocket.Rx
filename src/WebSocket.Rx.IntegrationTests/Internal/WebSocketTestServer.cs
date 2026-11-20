@@ -146,9 +146,9 @@ public class WebSocketTestServer(int? port = null) : IAsyncDisposable
                 }
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // noop
+            System.Diagnostics.Trace.WriteLine($"Test cleanup: {ex.Message}");
         }
     }
 
@@ -171,9 +171,9 @@ public class WebSocketTestServer(int? port = null) : IAsyncDisposable
                     CancellationToken.None
                 ).ConfigureAwait(false);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // noop
+                System.Diagnostics.Trace.WriteLine($"Test cleanup: {ex.Message}");
             }
         }
     }
@@ -195,9 +195,9 @@ public class WebSocketTestServer(int? port = null) : IAsyncDisposable
                     CancellationToken.None
                 ).ConfigureAwait(false);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // noop
+                System.Diagnostics.Trace.WriteLine($"Test cleanup: {ex.Message}");
             }
         }
     }
@@ -214,9 +214,9 @@ public class WebSocketTestServer(int? port = null) : IAsyncDisposable
                     client.Abort();
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // noop
+                System.Diagnostics.Trace.WriteLine($"Test cleanup: {ex.Message}");
             }
         }
 
@@ -226,9 +226,9 @@ public class WebSocketTestServer(int? port = null) : IAsyncDisposable
             {
                 client.Dispose();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // noop
+                System.Diagnostics.Trace.WriteLine($"Test cleanup: {ex.Message}");
             }
         }
 
@@ -260,9 +260,9 @@ public class WebSocketTestServer(int? port = null) : IAsyncDisposable
         {
             await DisconnectAllAsync().ConfigureAwait(false);
         }
-        catch
+        catch (Exception ex)
         {
-            // noop
+            System.Diagnostics.Trace.WriteLine($"Test cleanup: {ex.Message}");
         }
 
         try
@@ -270,9 +270,9 @@ public class WebSocketTestServer(int? port = null) : IAsyncDisposable
             _httpListener.Stop();
             _httpListener.Close();
         }
-        catch
+        catch (Exception ex)
         {
-            // noop
+            System.Diagnostics.Trace.WriteLine($"Test cleanup: {ex.Message}");
         }
 
         _cts.Dispose();
@@ -283,9 +283,9 @@ public class WebSocketTestServer(int? port = null) : IAsyncDisposable
             {
                 await _serverTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             }
-            catch
+            catch (Exception ex)
             {
-                // noop
+                System.Diagnostics.Trace.WriteLine($"Test cleanup: {ex.Message}");
             }
         }
 

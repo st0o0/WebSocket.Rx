@@ -79,7 +79,7 @@ public class IntegrationDisposeTests(ITestOutputHelper output) : ReactiveWebSock
                 try
                 {
                     await client.SendAsync($"Message {i}".AsMemory(), WebSocketMessageType.Text).ConfigureAwait(false);
-                    await Task.Delay(10, TestContext.Current.CancellationToken).ConfigureAwait(false);
+                    await Task.Yield();
                 }
                 catch (ObjectDisposedException)
                 {
@@ -92,7 +92,7 @@ public class IntegrationDisposeTests(ITestOutputHelper output) : ReactiveWebSock
             }
         }, TestContext.Current.CancellationToken);
 
-        await Task.Delay(50, TestContext.Current.CancellationToken);
+        await Task.Yield();
 
         // Act
         await client.DisposeAsync();

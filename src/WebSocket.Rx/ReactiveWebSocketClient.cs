@@ -167,13 +167,13 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
         {
             await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
         }
-        catch (TimeoutException)
+        catch (TimeoutException ex)
         {
-            // noop
+            System.Diagnostics.Trace.WriteLine($"Cleanup timed out waiting for loops: {ex.Message}");
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // noop
+            System.Diagnostics.Trace.WriteLine($"Cleanup error waiting for loops: {ex.Message}");
         }
 
         if (!IsDisposed)
@@ -334,9 +334,9 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
                 await Task.Delay(ConnectTimeout, cts.Token).ConfigureAwait(false);
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            // noop
+            System.Diagnostics.Trace.WriteLine($"Reconnect scheduling cancelled: {ex.Message}");
         }
         catch (Exception ex)
         {
@@ -365,13 +365,13 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
                 }
             }
         }
-        catch (ChannelClosedException)
+        catch (ChannelClosedException ex)
         {
-            // noop
+            System.Diagnostics.Trace.WriteLine($"Send channel closed during shutdown: {ex.Message}");
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            // noop
+            System.Diagnostics.Trace.WriteLine($"Send loop cancelled: {ex.Message}");
         }
         catch (Exception ex)
         {
@@ -464,9 +464,9 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
                 MessageReceivedSource.OnNext(message);
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            // noop
+            System.Diagnostics.Trace.WriteLine($"Receive loop cancelled: {ex.Message}");
         }
         catch (WebSocketException ex)
         {
@@ -666,9 +666,9 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
             {
                 await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             }
-            catch (TimeoutException)
+            catch (TimeoutException ex)
             {
-                // noop
+                System.Diagnostics.Trace.WriteLine($"Dispose timed out waiting for loops: {ex.Message}");
             }
             catch (Exception ex)
             {
@@ -706,9 +706,9 @@ public class ReactiveWebSocketClient : IReactiveWebSocketClient
             DisconnectionHappenedSource.OnCompleted();
             ErrorOccurredSource.OnCompleted();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // noop
+            System.Diagnostics.Trace.WriteLine($"Error completing subjects during disposal: {ex.Message}");
         }
 
         MessageReceivedSource.Dispose();

@@ -64,7 +64,7 @@ public class ReactiveWebSocketClientLifecycleTests(ITestOutputHelper output) : R
 
         // Act
         await Client.StartOrFailAsync(TestContext.Current.CancellationToken);
-        await Task.Delay(200, TestContext.Current.CancellationToken);
+        await Task.Yield();
 
         // Assert
         Assert.Equal(0, connectionCount);

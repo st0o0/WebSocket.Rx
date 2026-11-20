@@ -126,13 +126,13 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
             {
                 _listener.Stop();
             }
-            catch (ObjectDisposedException)
+            catch (ObjectDisposedException ex)
             {
-                // noop
+                System.Diagnostics.Trace.WriteLine($"Listener already disposed during shutdown: {ex.Message}");
             }
-            catch (HttpListenerException)
+            catch (HttpListenerException ex)
             {
-                // noop
+                System.Diagnostics.Trace.WriteLine($"Listener error during shutdown: {ex.Message}");
             }
 
             clientsToStop = _clients.ToDictionary();
@@ -479,9 +479,9 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
                 {
                     await client.DisposeAsync().ConfigureAwait(false);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    // noop
+                    System.Diagnostics.Trace.WriteLine($"Error disposing client during shutdown: {ex.Message}");
                 }
             }
 
@@ -510,9 +510,9 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
             _messageReceivedSource.OnCompleted();
             _errorOccurredSource.OnCompleted();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // noop
+            System.Diagnostics.Trace.WriteLine($"Error completing subjects during disposal: {ex.Message}");
         }
 
         _clientConnectedSource.Dispose();
@@ -652,7 +652,7 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
             }
             catch (WebSocketException ex) when (ex.InnerException is HttpListenerException)
             {
-                // noop
+                System.Diagnostics.Trace.WriteLine($"Listener error during receive loop shutdown: {ex.Message}");
             }
             catch (Exception ex)
             {
@@ -742,9 +742,9 @@ public class ReactiveWebSocketServer : IReactiveWebSocketServer
                 {
                     await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 }
-                catch (TimeoutException)
+                catch (TimeoutException ex)
                 {
-                    // noop
+                    System.Diagnostics.Trace.WriteLine($"Adapter dispose timed out waiting for loops: {ex.Message}");
                 }
 
                 // Dispose resources

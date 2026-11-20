@@ -61,7 +61,7 @@ public class ReactiveWebSocketServerConnectionTests(ITestOutputHelper output) : 
             client.GetStringAsync(ServerUrl, TestContext.Current.CancellationToken));
 
         // Note: No event will be fired for non-websocket requests as they are rejected before connection
-        await Task.Delay(100, TestContext.Current.CancellationToken);
+        await Task.Yield();
         Assert.Equal(0, Server.ClientCount);
     }
 

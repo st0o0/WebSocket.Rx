@@ -59,7 +59,7 @@ public class InternalExtensionsTests
 
         var result = await values.Async(async (value, _) =>
         {
-            await Task.Delay(10, TestContext.Current.CancellationToken).ConfigureAwait(false);
+            await Task.Yield();
             lock (sync)
             {
                 seen.Add(value);

@@ -22,9 +22,9 @@ public abstract class TestBase(ITestOutputHelper output)
             {
                 Output.WriteLine($"[TIMEOUT] {msg}");
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignored if test is already finished
+                System.Diagnostics.Trace.WriteLine($"Test cleanup: {ex.Message}");
             }
 
             tcs.TrySetException(new TimeoutException(msg));
@@ -56,9 +56,9 @@ public abstract class TestBase(ITestOutputHelper output)
             {
                 Output.WriteLine($"[TIMEOUT] {msg}");
             }
-            catch
+            catch (Exception ex)
             {
-                // noop
+                System.Diagnostics.Trace.WriteLine($"Test cleanup: {ex.Message}");
             }
 
             tcs.TrySetException(new TimeoutException(msg));
@@ -103,9 +103,9 @@ public abstract class TestBase(ITestOutputHelper output)
                 }
             });
         }
-        catch (ObjectDisposedException)
+        catch (ObjectDisposedException ex)
         {
-            // noop
+            System.Diagnostics.Trace.WriteLine($"Test cleanup: {ex.Message}");
         }
 
         using (eventSubscription)
@@ -131,7 +131,7 @@ public abstract class TestBase(ITestOutputHelper output)
 
         while (!condition() && DateTime.UtcNow < endTime)
         {
-            await Task.Delay(10).ConfigureAwait(false);
+            await Task.Yield();
             count++;
             if (count % 100 == 0) // Log every 1 second
             {

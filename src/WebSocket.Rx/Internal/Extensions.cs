@@ -12,9 +12,9 @@ internal static class Extensions
             {
                 await func.Invoke(value).ConfigureAwait(false);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // noop
+                System.Diagnostics.Trace.WriteLine($"Best-effort async cleanup failed: {ex.Message}");
             }
         }
 
@@ -24,9 +24,9 @@ internal static class Extensions
             {
                 action.Invoke(value);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // noop
+                System.Diagnostics.Trace.WriteLine($"Best-effort cleanup failed: {ex.Message}");
             }
         }
     }
