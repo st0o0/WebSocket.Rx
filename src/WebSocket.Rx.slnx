@@ -13,4 +13,5 @@
   <Project Path="WebSocket.Rx.IntegrationTests/WebSocket.Rx.IntegrationTests.csproj" />
   <Project Path="WebSocket.Rx.UnitTests/WebSocket.Rx.UnitTests.csproj" />
   <Project Path="WebSocket.Rx/WebSocket.Rx.csproj" />
+  <Project Path="WebSocket.Rx.Example/WebSocket.Rx.Example.csproj" />
 </Solution>
