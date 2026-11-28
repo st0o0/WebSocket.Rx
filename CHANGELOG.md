@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.1.11](https://github.com/st0o0/WebSocket.Rx/compare/v0.1.10...v0.1.11) (2026-11-28)
+
+
+### Features
+
+* add slopwatch claude code hook for real-time analysis ([247aaeb](https://github.com/st0o0/WebSocket.Rx/commit/247aaeb2c9920113545604c90b45a89469ae086b))
+* **ci:** add AOT proof project and ci-setup/ci-post-build hooks ([ecca64e](https://github.com/st0o0/WebSocket.Rx/commit/ecca64ef848c0caf62a579802a0c03a088d3a757))
+* integrate slopwatch analysis with proper error handling ([1a5b05f](https://github.com/st0o0/WebSocket.Rx/commit/1a5b05fa455c6c67b69571f39c0b8367eb837607))
+* **security:** add push trigger for source scan on main ([549ba47](https://github.com/st0o0/WebSocket.Rx/commit/549ba47cb8192572e6226a58b4632d29ba3ed3ef))
+
+
+### Bug Fixes
+
+* add missing final newlines to pass lint ([2722e4d](https://github.com/st0o0/WebSocket.Rx/commit/2722e4dbee685c802f3941249cc61468e848f466))
+* **example:** lock packages for win-x64 and linux-x64 so locked restore works in CI ([aa91033](https://github.com/st0o0/WebSocket.Rx/commit/aa910334fdafdfe2e02f14c674f37adbcdca7a14))
+* **example:** use the actual client API so the AOT proof project compiles ([9943a2f](https://github.com/st0o0/WebSocket.Rx/commit/9943a2f39efab16b2a4412d343621ff71530fdfa))
+* grant pull-requests/issues write permission to labeler and label-sync callers ([b4060f7](https://github.com/st0o0/WebSocket.Rx/commit/b4060f7e826326bcc9c0ac0fc41203bc9cbd8828))
+* require RecyclableMemoryStream 4.x, 3.x produces trim warnings under Native AOT ([bc9a873](https://github.com/st0o0/WebSocket.Rx/commit/bc9a873bc1aaa8d75475f5d38a1f3648d270ecdf))
+* **security:** add packages:read permission for reusable workflow compatibility ([7c6df75](https://github.com/st0o0/WebSocket.Rx/commit/7c6df75597f4a7059c450333cf9a2646937042ae))
+* **security:** wire trivy-config in security workflow ([c638cee](https://github.com/st0o0/WebSocket.Rx/commit/c638cee053886fabeae241e35509a86f84155d33))
+* strip BOM, normalize line endings to LF, add .gitattributes ([926d118](https://github.com/st0o0/WebSocket.Rx/commit/926d118894ff19350db050c2f4d4ca30056fde27))
+* use CLAUDE_PROJECT_DIR in slopwatch hook for correct working directory ([1b257f6](https://github.com/st0o0/WebSocket.Rx/commit/1b257f6bd26ab44cb60fca2170ff9a1820ac919a))
+
+
+### Documentation
+
+* extend assertion patterns with xUnit best practices ([f38ee55](https://github.com/st0o0/WebSocket.Rx/commit/f38ee55cb92e3d92895dcbd08fa58107cbb740a4))
+* remove em dashes and simplify wording ([ce1408a](https://github.com/st0o0/WebSocket.Rx/commit/ce1408a563bdf704e94f144fce67a5bbd55af332))
+
+
+### Refactoring
+
+* **security:** remove unused trivy.yaml placeholder ([2d0ac6d](https://github.com/st0o0/WebSocket.Rx/commit/2d0ac6d9dc5a300a1f17e4474d9b0ab76b3b0be7))
+* **security:** simplify permissions, add push trigger ([2941913](https://github.com/st0o0/WebSocket.Rx/commit/2941913ebf6c923498145d290c9a897dea0b675b))
+
 ## [0.1.10](https://github.com/st0o0/WebSocket.Rx/compare/v0.1.9...v0.1.10) (2026-09-28)
 
 
