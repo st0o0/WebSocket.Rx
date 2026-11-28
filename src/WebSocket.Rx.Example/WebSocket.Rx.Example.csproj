@@ -5,6 +5,8 @@
         <IsPackable>false</IsPackable>
         <PublishAot>true</PublishAot>
         <IsAotCompatible>true</IsAotCompatible>
+        <!-- PublishAot restores for the host platform. Listing both keeps one lock file valid on Windows and on the Linux CI runner. -->
+        <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
     </PropertyGroup>
 
     <ItemGroup>
